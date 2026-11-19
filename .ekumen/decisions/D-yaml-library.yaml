@@ -19,5 +19,8 @@ context:
   evidence: [.ekumen/briefs/T-cli/brief.md]
 blocks: [T-cli]
 contract_impact: []
-status: pending
-answer: null
+status: decided
+answer: go-yaml-in
+answer_note: As recommended.
+decided_by: lead
+decided_on: 2026-11-20

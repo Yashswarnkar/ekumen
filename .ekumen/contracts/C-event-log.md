@@ -4,7 +4,7 @@ aliases: [C1]
 title: Event log
 status: frozen         # draft | frozen
 frozen_on: 2026-11-20
-version: 1
+version: 2
 consumers: [T-core, T-file-store, T-cli, T-server, T-import, T-reconcile]
 producers: [T-core]
 ---
@@ -19,7 +19,7 @@ Every task, decision, contract and external dependency has a readable **slug id*
 
 ```
 <kind letter>-<slug>      kind letter: T task · D decision · C contract · X external dependency
-slug: lowercase a–z, 0–9, words joined by "-", 1–5 words, ≤ 40 characters in total
+slug: lowercase a–z, 0–9, words joined by "-", 1–5 words, the slug itself ≤ 40 characters (so an id is ≤ 42; D-slug-length-scope)
 ```
 
 Examples: `T-core`, `D-control-loop`, `C-event-log`, `X-sandbox-creds`. The regex is `^[TDCX]-[a-z0-9]+(-[a-z0-9]+){0,4}$`.

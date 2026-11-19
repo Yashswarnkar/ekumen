@@ -26,5 +26,8 @@ context:
   evidence:
   - ".ekumen/contracts/C-event-log.md#1-ids"
   - internal/store/files/validate.go
-status: pending
-answer: 
+status: decided
+answer: slug-only
+answer_note: As recommended.
+decided_by: lead
+decided_on: 2026-11-20
