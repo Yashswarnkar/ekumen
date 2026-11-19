@@ -57,7 +57,7 @@ Most waiting is for **permission, not judgment**. Removing permission waits is a
 
 ## 5. Invariants
 
-1. **One owner per document; everyone else writes to their own lane.** Every document and record has exactly one owner role. Others never edit it. They append timestamped entries to their own lane (a handoff, a raised decision, a question), and the control loop routes entries that need action to the owner's inbox. The owner folds them into its documents. One live session holds a role at a time. This is the concurrency model: write conflicts become routing (C1 §2–§4).
+1. **One owner per document; everyone else writes to their own lane.** Every document and record has exactly one owner role. Others never edit it. They append timestamped entries to their own lane (a handoff, a raised decision, a question), and the control loop routes entries that need action to the owner's inbox. The owner folds them into its documents. One live session holds a role at a time. This is the concurrency model: write conflicts become routing (C-event-log §3–§5).
 2. **Freeze on approval.** No task starts until its brief is approved; after that §A never changes and §B amends it.
 3. **Append-only.** §B, §C, decisions and events are never rewritten.
 4. **Escalate, don't work around.** A session that thinks a contract is wrong raises a decision; it never redefines the contract locally.
@@ -80,10 +80,10 @@ Most waiting is for **permission, not judgment**. Removing permission waits is a
 - **Adapters (plugin points):** agent tools (operations: start, resume, send, fork, status; fallbacks when a tool lacks one), stores, notifiers, trackers.
 - **Repo layout:** one repo; Go in `cmd/` and `internal/`, UI in `web/`.
 
-**Agent layer (D-013 to D-018, from R1 and R2).** Three layers, and nothing tool-specific leaks upward:
+**Agent layer (D-013 to D-018, from the ACP research R1 and the landscape research R2).** Three layers, and nothing tool-specific leaks upward:
 
-1. **Core and contracts C1, C2, C3, C5** know only generic concepts: session, status (`running`, `idle`, `needs_input`, `done`, `unknown`), deliver a message, fork, and *capabilities*. No tool or vendor name appears in them.
-2. **C4, the adapter interface**, defines operations (`list, status, start, resume, send, fork, events`), a capability set per adapter, and a fallback for each missing capability, chosen in code: e.g. no `send` to a running session → a queued side question. Sessions are either *managed* (Ekumen started them) or *observed* (the lead started them); observed sessions get whatever the adapter can see (D-016).
+1. **Core and the contracts C-event-log, C-decision-record, C-cli-json and C-http-api** know only generic concepts: session, status (`running`, `idle`, `needs_input`, `done`, `unknown`), deliver a message, fork, and *capabilities*. No tool or vendor name appears in them.
+2. **C-adapter, the adapter interface**, defines operations (`list, status, start, resume, send, fork, events`), a capability set per adapter, and a fallback for each missing capability, chosen in code: e.g. no `send` to a running session → a queued side question. Sessions are either *managed* (Ekumen started them) or *observed* (the lead started them); observed sessions get whatever the adapter can see (D-016).
 3. **Adapters** hold every tool-specific choice. A generic ACP adapter covers any agent that speaks ACP v1 (D-015, D-018). Native adapters add what ACP can't do, starting with **Claude Code** for v0.1: status from hooks plus `claude agents --json` (D-013); answers delivered on the session's input stream for managed sessions (D-014); it runs the lead's own installed `claude` under the lead's login and never handles credentials (D-017). Codex, Gemini CLI and OpenCode adapters follow the same interface.
 
 A decision about one tool is recorded against its adapter, never written into the core.
@@ -109,11 +109,9 @@ Ekumen is built using Ekumen, starting before the tool exists:
 - **Roles:** the lead approves and decides; the orchestrator session owns the spine, contracts, briefs and `registry.yaml`; task sessions work only from their brief, each in its own worktree.
 - **Manual first, then switch.** Until the CLI exists, the orchestrator maintains these files by hand in the documented format. As each piece ships, the manual step it replaces stops immediately, even if the piece is rough.
 - **Friction is data.** Every §C handoff includes a `FRICTION` section listing what was painful by hand and what was ambiguous in the format. It feeds the backlog.
-- **Order for v0.1:** research (R1, R2) → contracts C1–C5, frozen → build tasks → switch to the tool.
+- **Order for v0.1:** research (R1, R2) → contracts (C-event-log, C-decision-record, C-cli-json, C-adapter, C-http-api), frozen → build tasks → switch to the tool.
 
 ## 9. Open questions
 
-- Agent adapter shape and whether ACP is the base (R1).
-- What session status and "needs input" signals are reliable for each tool (R1, R2).
 - How a tier-1 choice proves it stayed inside its contract.
 - How to measure value: time to decide, time blocked, hours spent reconciling.

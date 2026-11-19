@@ -42,80 +42,92 @@ tasks:
     session: t0-scaffold
     status: done
     tier_grants: [push_own_branch, open_draft_pr, restack, add_listed_dependencies]
-  T1:
-    title: Core domain and event log
+  T-core:
+    title: "Core domain: events, lanes, reducer, conflicts"
     kind: build
-    brief: null             # not written yet
+    brief: briefs/T-core/brief.md
     approved: null
-    blocked_by: [C1, C2]
+    blocked_by: [C-event-log, C-decision-record]
+    repo: ekumen
+    base_branch: main
+    branch: build/t-core
+    worktree: .worktrees/t-core
+    session: null
+    tier_grants: [push_own_branch, open_draft_pr, restack]
     status: draft
-  T2:
-    title: File store for events
+  T-file-store:
+    title: File store for events and entries
     kind: build
-    brief: null             # not written yet
+    brief: briefs/T-file-store/brief.md
     approved: null
-    blocked_by: [C1, T1]
+    blocked_by: [C-event-log]
+    repo: ekumen
+    base_branch: main
+    branch: build/t-file-store
+    worktree: .worktrees/t-file-store
+    session: null
+    tier_grants: [push_own_branch, open_draft_pr, restack]
     status: draft
-  T3:
+  T-cli:
     title: ekumen CLI with --json
     kind: build
-    brief: null             # not written yet
+    brief: null   # not written yet
     approved: null
-    blocked_by: [C1, C2, C3, T1, T2]
+    blocked_by: [C-cli-json, T-core, T-file-store]
     status: draft
-  T4:
+  T-skills:
     title: /blocked and /decide skills
     kind: build
-    brief: null             # not written yet
+    brief: null   # not written yet
     approved: null
-    blocked_by: [T3]
+    blocked_by: [T-cli]
     status: draft
-  T5:
+  T-server:
     title: HTTP server and live updates
     kind: build
-    brief: null             # not written yet
+    brief: null   # not written yet
     approved: null
-    blocked_by: [C5, T1, T2, T0]
+    blocked_by: [C-http-api, T-core, T-file-store]
     status: draft
-  T6:
+  T-graph-view:
     title: Task graph view
     kind: build
-    brief: null             # not written yet
+    brief: null   # not written yet
     approved: null
-    blocked_by: [T5]
+    blocked_by: [T-server]
     status: draft
-  T7:
+  T-decision-views:
     title: Decision inbox and decision screen
     kind: build
-    brief: null             # not written yet
+    brief: null   # not written yet
     approved: null
-    blocked_by: [T5]
+    blocked_by: [T-server]
     status: draft
-  T8:
+  T-claude-adapter:
     title: Claude Code adapter
     kind: build
-    brief: null             # not written yet
+    brief: null   # not written yet
     approved: null
-    blocked_by: [C4, T1]
+    blocked_by: [C-adapter, T-core]
     status: draft
-  T9:
+  T-import:
     title: Import hand-written records into events
     kind: build
-    brief: null             # not written yet
+    brief: null   # not written yet
     approved: null
-    blocked_by: [T1, T2]
+    blocked_by: [T-core, T-file-store]
     status: draft
-  T10:
+  T-reconcile:
     title: Control loop, one pass (ekumen reconcile)
     kind: build
-    brief: null             # not written yet
+    brief: null   # not written yet
     approved: null
-    blocked_by: [T1, T2, T8]
+    blocked_by: [T-core, T-file-store, T-claude-adapter]
     status: draft
-contracts:                # until contracts carry their own blockers (FRICTION)
-  C1: {title: Event log, path: contracts/C1-event-log.md, status: draft, blocked_by: [D-014, D-019]}
-  C2: {title: Decision record, path: contracts/C2-decision-record.md, status: draft, blocked_by: [D-019]}
-  C3: {title: CLI JSON output, path: null, status: planned, blocked_by: [C1, C2]}
-  C4: {title: Agent adapter interface, path: null, status: planned, blocked_by: [D-013, D-014, D-015, D-016, D-017]}
-  C5: {title: HTTP API for the UI, path: null, status: planned, blocked_by: [C1, C2]}
 external: {}
+contracts:                # until contracts carry their own blockers (FRICTION)
+  C-event-log: {title: Event log, aliases: [C1], path: contracts/C-event-log.md, status: frozen, blocked_by: []}
+  C-decision-record: {title: Decision record, aliases: [C2], path: contracts/C-decision-record.md, status: frozen, blocked_by: []}
+  C-cli-json: {title: CLI JSON output, aliases: [C3], path: null, status: planned, blocked_by: [C-event-log, C-decision-record]}
+  C-adapter: {title: Agent adapter interface, aliases: [C4], path: null, status: planned, blocked_by: [D-013, D-014, D-015, D-016, D-017]}
+  C-http-api: {title: HTTP API for the UI, aliases: [C5], path: null, status: planned, blocked_by: [C-event-log, C-decision-record]}
