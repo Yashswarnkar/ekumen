@@ -1,0 +1,32 @@
+id: D-task-status-approved
+title: Define when a task is "approved" rather than "ready"
+tier: 2
+raised_by:
+  task: T-core
+  session: t-core
+  true: 2026-11-20
+question: Spine §3 lists both approved and ready as derived statuses but never says
+  what separates them. What should "approved" mean?
+options:
+- id: not-startable
+  tradeoff: Approved, nothing blocking, but branch or worktree is not set, so the
+    dispatcher can't start it. Useful and reachable. Implemented.
+- id: drop-approved
+  tradeoff: Approved and unblocked is always ready. Simpler, but changes the spine's
+    status list.
+- id: pre-first-pass
+  tradeoff: Approved until the loop has computed blockers once. That needs stored
+    loop state, which the event model avoids.
+recommendation: not-startable
+default_if_no_answer: 
+deadline: 
+blocks: []
+contract_impact: []
+context:
+  summary: Every derived status needs a rule. This is the only one with no source.
+    internal/core/status.go DeriveTaskStatus, rule 7.
+  evidence:
+  - ".ekumen/spine.md#3-domain"
+  - internal/core/status.go
+status: pending
+answer: 

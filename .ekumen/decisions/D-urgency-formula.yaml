@@ -1,0 +1,33 @@
+id: D-urgency-formula
+title: Use stepped urgency weights for decision priority
+tier: 1
+raised_by:
+  task: T-core
+  session: t-core
+  true: 2026-11-20
+question: 'What urgency weight multiplies the number of blocked tasks? Proposed: no
+  deadline 1, 8 or more days 1, 4–7 days 2, 2–3 days 3, tomorrow 4, today 5, overdue
+  6, using UTC dates.
+
+'
+options:
+- id: steps
+  tradeoff: Whole numbers that change once a day and are easy to read. Implemented.
+- id: inverse-days
+  tradeoff: A smooth 1 + 7/max(days, 1). Finer ranking, but the numbers are harder
+    to explain.
+recommendation: steps
+default_if_no_answer: steps
+deadline: 2026-11-27
+blocks: []
+contract_impact: []
+context:
+  summary: 'The brief asks for the formula to be documented in code and tests. See
+    Urgency in internal/core/priority.go. A decision that blocks nothing has priority
+    0, and ties break by earliest deadline and then by id.
+
+'
+  evidence:
+  - internal/core/priority.go
+status: pending
+answer: 

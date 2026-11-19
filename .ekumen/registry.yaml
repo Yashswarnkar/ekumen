@@ -54,7 +54,7 @@ tasks:
     worktree: .worktrees/t-core
     session: t-core
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: running
+    status: in_review
   T-file-store:
     title: File store for events and entries
     kind: build
