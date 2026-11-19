@@ -46,28 +46,28 @@ tasks:
     title: "Core domain: events, lanes, reducer, conflicts"
     kind: build
     brief: briefs/T-core/brief.md
-    approved: null
+    approved: 2026-11-20
     blocked_by: [C-event-log, C-decision-record]
     repo: ekumen
     base_branch: main
     branch: build/t-core
     worktree: .worktrees/t-core
-    session: null
+    session: t-core
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: draft
+    status: running
   T-file-store:
     title: File store for events and entries
     kind: build
     brief: briefs/T-file-store/brief.md
-    approved: null
+    approved: 2026-11-20
     blocked_by: [C-event-log]
     repo: ekumen
     base_branch: main
     branch: build/t-file-store
     worktree: .worktrees/t-file-store
-    session: null
+    session: t-file-store
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: draft
+    status: running
   T-cli:
     title: ekumen CLI with --json
     kind: build
