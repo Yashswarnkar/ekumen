@@ -72,6 +72,7 @@ Most waiting is for **permission, not judgment**. Removing permission waits is a
 ## 6. Architecture
 
 - **Core (Go, D-003):** domain, state machines and derivations as pure functions over the event log.
+- **Engine: one control loop (D-012).** Each pass compares *desired* state (spine, frozen contracts, approved briefs, decided decisions) with *observed* state (remote default branch, PR state, session status). It takes only pre-authorized actions: apply decisions, apply tier-1 defaults past their deadline, start ready tasks, message sessions. Anything else becomes a new decision. Every action is idempotent, so passes are safe to repeat or restart. Observations are re-read each pass and are not stored as events; only the loop's own actions are. **Audit** is a pass in dry-run mode; the **dispatcher** is the loop on a timer.
 - **Event log:** the source of truth. Files in git, SQLite and Postgres are interchangeable stores; sync means exchanging events. Every record has a stable id and a version.
 - **CLI:** `ekumen`, with every read command available as `--json`. Skills are thin `SKILL.md` wrappers around it.
 - **Server and UI:** `ekumen serve` provides HTTP/JSON plus SSE and the React + TypeScript + Vite UI (D-004), built to static files embedded in the binary. Graph layout is computed by a layout library (ELK or dagre), not an agent.
@@ -86,12 +87,13 @@ The agent adapter design is open until R1 (Agent Client Protocol research) repor
 - Event log and file store
 - Decisions: raise, ask, answer, apply
 - Task list with derived status and blocks
+- The control loop, run one pass on demand (`ekumen reconcile`, plus `--dry-run`)
 - `ekumen` CLI with `--json`
 - `/blocked` and `/decide` skills
 - `ekumen serve` with three views: **task graph** (decisions as gates), **decision inbox** (ranked), **decision screen** (context, evidence, Q&A, answer) (D-006)
 - Claude Code adapter
 
-**Out:** dispatcher, hooks, auditor, database stores, sync, other adapters, multiple approvers, hosted page.
+**Out:** running the loop on a timer (dispatcher), hooks, auditor, database stores, sync, other adapters, multiple approvers, hosted page.
 
 ## 8. How this repo is built (dogfooding)
 
@@ -105,7 +107,6 @@ Ekumen is built using Ekumen, starting before the tool exists:
 ## 9. Open questions
 
 - Agent adapter shape and whether ACP is the base (R1).
-- Whether the engine is one reconcile control loop (D-012, pending).
 - What session status and "needs input" signals are reliable for each tool (R1, R2).
 - How a tier-1 choice proves it stayed inside its contract.
 - How to measure value: time to decide, time blocked, hours spent reconciling.

@@ -23,5 +23,8 @@ context:
   evidence: [.ekumen/spine.md]
 blocks: []
 contract_impact: []
-status: pending
-answer: null
+status: decided
+answer: control-loop
+answer_note: Adopted. Spine §6 and §7 amended.
+decided_by: lead
+decided_on: 2026-11-20

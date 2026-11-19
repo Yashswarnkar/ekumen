@@ -5,6 +5,7 @@ lead: Yashswarnkar
 tasks:
   R1:
     title: Agent Client Protocol (ACP) as the agent adapter base
+    kind: research
     brief: briefs/R1-acp.md
     approved: 2026-11-20
     blocked_by: []
@@ -17,6 +18,7 @@ tasks:
     tier_grants: [read_web, clone_public_repos_to_scratch, write_own_output, push_own_branch, open_draft_pr]
   R2:
     title: Landscape of agent-supervisor tools
+    kind: research
     brief: briefs/R2-landscape.md
     approved: 2026-11-20
     blocked_by: []
@@ -27,4 +29,17 @@ tasks:
     session: r2-landscape
     status: running
     tier_grants: [read_web, clone_public_repos_to_scratch, write_own_output, push_own_branch, open_draft_pr]
+  T0:
+    title: Repo scaffold
+    kind: build
+    brief: briefs/T0-scaffold.md
+    approved: 2026-11-20
+    blocked_by: []
+    repo: ekumen
+    base_branch: main
+    branch: build/t0-scaffold
+    worktree: .worktrees/t0-scaffold
+    session: t0-scaffold
+    status: running
+    tier_grants: [push_own_branch, open_draft_pr, restack, add_listed_dependencies]
 external: {}
