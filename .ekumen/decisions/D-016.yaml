@@ -14,6 +14,6 @@ context:
     (`claude agents` lists sessions but has no send). Codex (`codex queue`) and OpenCode (HTTP API) can, per source.
   evidence: [.ekumen/research/R1-acp.md]
 blocks: []
-contract_impact: []
+contract_impact: [C4]
 status: pending
 answer: null

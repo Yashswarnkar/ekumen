@@ -42,4 +42,80 @@ tasks:
     session: t0-scaffold
     status: in_review
     tier_grants: [push_own_branch, open_draft_pr, restack, add_listed_dependencies]
+  T1:
+    title: Core domain and event log
+    kind: build
+    brief: null             # not written yet
+    approved: null
+    blocked_by: [C1, C2]
+    status: draft
+  T2:
+    title: File store for events
+    kind: build
+    brief: null             # not written yet
+    approved: null
+    blocked_by: [C1, T1]
+    status: draft
+  T3:
+    title: ekumen CLI with --json
+    kind: build
+    brief: null             # not written yet
+    approved: null
+    blocked_by: [C1, C2, C3, T1, T2]
+    status: draft
+  T4:
+    title: /blocked and /decide skills
+    kind: build
+    brief: null             # not written yet
+    approved: null
+    blocked_by: [T3]
+    status: draft
+  T5:
+    title: HTTP server and live updates
+    kind: build
+    brief: null             # not written yet
+    approved: null
+    blocked_by: [C5, T1, T2, T0]
+    status: draft
+  T6:
+    title: Task graph view
+    kind: build
+    brief: null             # not written yet
+    approved: null
+    blocked_by: [T5]
+    status: draft
+  T7:
+    title: Decision inbox and decision screen
+    kind: build
+    brief: null             # not written yet
+    approved: null
+    blocked_by: [T5]
+    status: draft
+  T8:
+    title: Claude Code adapter
+    kind: build
+    brief: null             # not written yet
+    approved: null
+    blocked_by: [C4, T1]
+    status: draft
+  T9:
+    title: Import hand-written records into events
+    kind: build
+    brief: null             # not written yet
+    approved: null
+    blocked_by: [T1, T2]
+    status: draft
+  T10:
+    title: Control loop, one pass (ekumen reconcile)
+    kind: build
+    brief: null             # not written yet
+    approved: null
+    blocked_by: [T1, T2, T8]
+    status: draft
+contracts:                # until contracts carry their own blockers (FRICTION)
+  C1: {title: Event log, path: contracts/C1-event-log.md, status: draft, blocked_by: [D-014]}
+  C2: {title: Decision record, path: contracts/C2-decision-record.md, status: draft, blocked_by: []}
+  C3: {title: CLI JSON output, path: null, status: planned, blocked_by: [C1, C2]}
+  C4: {title: Agent adapter interface, path: null, status: planned, blocked_by: [D-013, D-014, D-015, D-016, D-017]}
+  C5: {title: HTTP API for the UI, path: null, status: planned, blocked_by: [C1, C2]}
 external: {}

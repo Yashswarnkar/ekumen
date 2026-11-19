@@ -22,7 +22,7 @@ context:
     files (~/.claude/sessions, ~/.claude/jobs) stay behind a fail-soft adapter with version fixtures.
   evidence: [.ekumen/research/R2-landscape.md#3-how-they-detect-needs-input-and-status-per-agent-tool]
 blocks: []
-contract_impact: []   # C4 agent adapter, not yet drafted
+contract_impact: [C4]
 status: pending
 answer: null
 orchestrator_note: >

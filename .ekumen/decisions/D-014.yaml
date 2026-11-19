@@ -25,7 +25,7 @@ context:
     (chekrd/quanticstudios first-wins with typed refusals).
   evidence: [.ekumen/research/R2-landscape.md#4-adopt--avoid]
 blocks: []
-contract_impact: [C1]   # also C4 agent adapter, not yet drafted
+contract_impact: [C1, C4]
 status: pending
 answer: null
 orchestrator_note: >

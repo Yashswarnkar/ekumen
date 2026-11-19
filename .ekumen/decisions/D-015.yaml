@@ -16,6 +16,6 @@ context:
     dispatcher, with a small native status reader per tool.
   evidence: [.ekumen/research/R1-acp.md]
 blocks: []
-contract_impact: []   # shapes C4 agent adapter, not yet drafted
+contract_impact: [C4]
 status: pending
 answer: null

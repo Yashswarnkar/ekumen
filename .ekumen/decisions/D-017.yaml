@@ -16,6 +16,6 @@ context:
     Revisit the terms before the first public release, because distribution is what the rule is about.
   evidence: [.ekumen/research/R1-acp.md, https://code.claude.com/docs/en/agent-sdk/overview]
 blocks: []
-contract_impact: []
+contract_impact: [C4]
 status: pending
 answer: null
