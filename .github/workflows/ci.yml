@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: Go (no Node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: false # stdlib only: no go.sum to key a cache on
+      - name: Build
+        run: go build ./...
+      - name: Vet
+        run: go vet ./...
+      - name: gofmt
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then echo "gofmt needed:"; echo "$out"; exit 1; fi
+      - name: Test
+        run: go test ./...
+
+  ui-and-binary:
+    name: UI + embedded binary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install
+        working-directory: web
+        run: npm ci
+      - name: Typecheck
+        working-directory: web
+        run: npm run typecheck
+      - name: Build binary with UI embedded
+        run: make build
+      - name: Test with UI embedded
+        run: go test -tags embedui ./...
+      - name: Smoke test
+        run: |
+          ./bin/ekumen version
+          ./bin/ekumen serve --addr 127.0.0.1:7477 &
+          pid=$!
+          for i in $(seq 1 20); do curl -fsS http://127.0.0.1:7477/api/health && break; sleep 0.5; done
+          echo
+          curl -fsS http://127.0.0.1:7477/ | grep -q 'id="root"'
+          kill $pid

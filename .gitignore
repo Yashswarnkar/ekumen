@@ -1,1 +1,6 @@
 .worktrees/
+bin/
+web/node_modules/
+# Vite build output; embedded only with -tags embedui. The no-Node fallback
+# lives in web/placeholder/ and is committed.
+web/dist/
