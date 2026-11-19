@@ -1,0 +1,30 @@
+# Task list. Maintained by hand by the orchestrator until the ekumen CLI exists (spine §8).
+# `status` is derived; once the CLI exists it will be computed, never hand-edited.
+project: ekumen
+lead: Yashswarnkar
+tasks:
+  R1:
+    title: Agent Client Protocol (ACP) as the agent adapter base
+    brief: briefs/R1-acp.md
+    approved: null
+    blocked_by: []
+    repo: ekumen
+    base_branch: main
+    branch: research/r1-acp
+    worktree: .worktrees/r1-acp
+    session: null
+    status: draft
+    tier_grants: [read_web, clone_public_repos_to_scratch, write_own_output, push_own_branch, open_draft_pr]
+  R2:
+    title: Landscape of agent-supervisor tools
+    brief: briefs/R2-landscape.md
+    approved: null
+    blocked_by: []
+    repo: ekumen
+    base_branch: main
+    branch: research/r2-landscape
+    worktree: .worktrees/r2-landscape
+    session: null
+    status: draft
+    tier_grants: [read_web, clone_public_repos_to_scratch, write_own_output, push_own_branch, open_draft_pr]
+external: {}
