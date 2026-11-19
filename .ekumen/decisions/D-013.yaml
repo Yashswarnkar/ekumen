@@ -23,6 +23,8 @@ context:
   evidence: [.ekumen/research/R2-landscape.md#3-how-they-detect-needs-input-and-status-per-agent-tool]
 blocks: []
 contract_impact: []   # C4 agent adapter, not yet drafted
-note: Hold until R1 reports; decide together with R1 findings.
 status: pending
 answer: null
+orchestrator_note: >
+  2026-11-20: R1 confirms `claude agents --json` exists on 2.1.328 (re-checked by the orchestrator) and reports idle or busy
+  for every live session. Hooks are still needed for "needs input". Recommendation stands.

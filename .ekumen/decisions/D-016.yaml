@@ -1,0 +1,19 @@
+id: D-016
+title: Managed vs observed sessions
+tier: 2
+raised_by: {task: R1, session: r1-acp, on: 2026-11-20}
+question: >
+  Does Ekumen act only on sessions it starts (managed), or also on sessions the lead starts in a terminal (observed)?
+options:
+  - {id: both-with-degradation, tradeoff: Full visibility; observed sessions get status, resume and fork, and "send" becomes a queued side question (invariant 10)}
+  - {id: managed-only, tradeoff: Every operation works uniformly; the lead must start every session through Ekumen, which conflicts with the visibility goal}
+recommendation: both-with-degradation
+context:
+  summary: >
+    Verified on Claude Code 2.1.328: there is no CLI way to send a message into a session started elsewhere
+    (`claude agents` lists sessions but has no send). Codex (`codex queue`) and OpenCode (HTTP API) can, per source.
+  evidence: [.ekumen/research/R1-acp.md]
+blocks: []
+contract_impact: []
+status: pending
+answer: null

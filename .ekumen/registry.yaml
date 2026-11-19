@@ -14,7 +14,7 @@ tasks:
     branch: research/r1-acp
     worktree: .worktrees/r1-acp
     session: r1-acp
-    status: running
+    status: in_review
     tier_grants: [read_web, clone_public_repos_to_scratch, write_own_output, push_own_branch, open_draft_pr]
   R2:
     title: Landscape of agent-supervisor tools

@@ -26,6 +26,11 @@ context:
   evidence: [.ekumen/research/R2-landscape.md#4-adopt--avoid]
 blocks: []
 contract_impact: [C1]   # also C4 agent adapter, not yet drafted
-note: Hold until R1 reports; decide together with R1 findings.
 status: pending
 answer: null
+orchestrator_note: >
+  2026-11-20: R1 conflicts with part of this. Claude Code's in-product session messaging (messaging socket) is
+  undocumented and has no CLI surface (re-checked by the orchestrator on 2.1.328). Suggested revision: raise through the
+  `ekumen` CLI (MCP tool optional); deliver to sessions Ekumen started through stream-json stdin; deliver to sessions the
+  lead started as a queued side question (D-016); keep side questions in a fork (`--resume --fork-session`, verified by R1).
+  The messaging socket can be an experimental path later, behind a capability check.
