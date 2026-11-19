@@ -14,7 +14,7 @@ tasks:
     branch: research/r1-acp
     worktree: .worktrees/r1-acp
     session: r1-acp
-    status: in_review
+    status: done
     tier_grants: [read_web, clone_public_repos_to_scratch, write_own_output, push_own_branch, open_draft_pr]
   R2:
     title: Landscape of agent-supervisor tools
@@ -27,7 +27,7 @@ tasks:
     branch: research/r2-landscape
     worktree: .worktrees/r2-landscape
     session: r2-landscape
-    status: in_review
+    status: done
     tier_grants: [read_web, clone_public_repos_to_scratch, write_own_output, push_own_branch, open_draft_pr]
   T0:
     title: Repo scaffold
@@ -40,7 +40,7 @@ tasks:
     branch: build/t0-scaffold
     worktree: .worktrees/t0-scaffold
     session: t0-scaffold
-    status: in_review
+    status: done
     tier_grants: [push_own_branch, open_draft_pr, restack, add_listed_dependencies]
   T1:
     title: Core domain and event log

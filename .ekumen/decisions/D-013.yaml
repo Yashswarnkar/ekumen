@@ -31,3 +31,5 @@ decided_on: 2026-11-20
 orchestrator_note: >
   2026-11-20: R1 confirms `claude agents --json` exists on 2.1.328 (re-checked by the orchestrator) and reports idle or busy
   for every live session. Hooks are still needed for "needs input". Recommendation stands.
+applied_on: 2026-11-20
+applied: {amended: [spine §6], unblocked: [C1, C2, C4], notified_sessions: []}

@@ -33,3 +33,5 @@ answer: slug
 answer_note: "As recommended."
 decided_by: lead
 decided_on: 2026-11-20
+applied_on: 2026-11-20
+applied: {amended: [C1, C2 pending id migration], unblocked: [C1, C2], notified_sessions: []}

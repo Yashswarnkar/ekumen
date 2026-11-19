@@ -68,6 +68,7 @@ Most waiting is for **permission, not judgment**. Removing permission waits is a
 9. **Code over tokens (D-007).** Anything deterministic (status, priority, unblocking, graph layout, queries, routing, validation) is software. Agents do judgment only: drafting context, recommending, answering follow-up questions, proposing spine edits. Agents read state through `ekumen … --json`, not by reasoning over raw files.
 10. **Asking does not derail.** Questions about a decision go to a fork of the session that raised it. If the tool can't fork, they are queued to the original session as a side question.
 11. **CLI first.** Everything can be done from the CLI and files; the UI is one view and never has a capability the CLI lacks.
+12. **Vendor specifics live in adapters.** The core depends on capabilities, never on a particular agent tool, model provider or vendor feature. Prefer plain, portable mechanisms (files, git, CLI, stdio, HTTP) over tool-specific ones; use a vendor feature only inside its adapter and only with a fallback.
 
 ## 6. Architecture
 
@@ -79,7 +80,13 @@ Most waiting is for **permission, not judgment**. Removing permission waits is a
 - **Adapters (plugin points):** agent tools (operations: start, resume, send, fork, status; fallbacks when a tool lacks one), stores, notifiers, trackers.
 - **Repo layout:** one repo; Go in `cmd/` and `internal/`, UI in `web/`.
 
-The agent adapter design is open until R1 (Agent Client Protocol research) reports.
+**Agent layer (D-013 to D-018, from R1 and R2).** Three layers, and nothing tool-specific leaks upward:
+
+1. **Core and contracts C1, C2, C3, C5** know only generic concepts: session, status (`running`, `idle`, `needs_input`, `done`, `unknown`), deliver a message, fork, and *capabilities*. No tool or vendor name appears in them.
+2. **C4, the adapter interface**, defines operations (`list, status, start, resume, send, fork, events`), a capability set per adapter, and a fallback for each missing capability, chosen in code: e.g. no `send` to a running session → a queued side question. Sessions are either *managed* (Ekumen started them) or *observed* (the lead started them); observed sessions get whatever the adapter can see (D-016).
+3. **Adapters** hold every tool-specific choice. A generic ACP adapter covers any agent that speaks ACP v1 (D-015, D-018). Native adapters add what ACP can't do, starting with **Claude Code** for v0.1: status from hooks plus `claude agents --json` (D-013); answers delivered on the session's input stream for managed sessions (D-014); it runs the lead's own installed `claude` under the lead's login and never handles credentials (D-017). Codex, Gemini CLI and OpenCode adapters follow the same interface.
+
+A decision about one tool is recorded against its adapter, never written into the core.
 
 ## 7. v0.1 scope
 

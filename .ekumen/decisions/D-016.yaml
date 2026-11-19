@@ -20,3 +20,5 @@ answer: both-with-degradation
 answer_note: "As recommended."
 decided_by: lead
 decided_on: 2026-11-20
+applied_on: 2026-11-20
+applied: {amended: [spine §6], unblocked: [C1, C2, C4], notified_sessions: []}
