@@ -17,18 +17,24 @@ const (
 	KindLetterExternal = 'X'
 )
 
-// MaxIDLength is the longest a slug id may be, kind letter included
-// (C-event-log §1: "≤ 40 characters in total").
-const MaxIDLength = 40
+// MaxSlugLength is the longest the slug part of an id may be (C-event-log
+// v2 §1, D-slug-length-scope): the slug itself, without the kind letter and
+// hyphen.
+const MaxSlugLength = 40
+
+// MaxIDLength is the longest a whole id may be: kind letter, hyphen and a
+// slug of MaxSlugLength.
+const MaxIDLength = MaxSlugLength + 2
 
 var idPattern = regexp.MustCompile(`^[TDCX]-[a-z0-9]+(-[a-z0-9]+){0,4}$`)
 
 // ValidateID checks a task, decision, contract or external id against
-// C-event-log §1: the regex `^[TDCX]-[a-z0-9]+(-[a-z0-9]+){0,4}$` and at most
-// 40 characters in total.
+// C-event-log v2 §1: the regex `^[TDCX]-[a-z0-9]+(-[a-z0-9]+){0,4}$` and a
+// slug (the part after "<kind letter>-") of at most 40 characters, so the
+// whole id is at most 42.
 func ValidateID(id string) error {
 	if len(id) > MaxIDLength {
-		return fmt.Errorf("id %q: longer than %d characters", id, MaxIDLength)
+		return fmt.Errorf("id %q: slug longer than %d characters", id, MaxSlugLength)
 	}
 	if !idPattern.MatchString(id) {
 		return fmt.Errorf("id %q: does not match %s", id, idPattern)
@@ -72,7 +78,7 @@ var aliasPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*(-[A-Za-z0-9]+)*$`)
 // ValidateAlias checks an alias: an id from before C-event-log v1, such as
 // `R1`, `T0`, `D-012` or `C1` (C-event-log §1, "Aliases"). The contract gives
 // no format for aliases; this accepts letters, digits and single hyphens,
-// starting with a letter, at most 40 characters, and refuses anything that is
+// starting with a letter, at most 42 characters, and refuses anything that is
 // itself a valid slug id (an alias must not shadow an id).
 func ValidateAlias(alias string) error {
 	if len(alias) == 0 || len(alias) > MaxIDLength {

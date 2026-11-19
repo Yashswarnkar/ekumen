@@ -29,8 +29,9 @@ func TestValidateID_EventLog1(t *testing.T) {
 		{"T-", false},                           // empty slug
 		{"T0", false},                           // an alias, not an id
 		{"D-012", true},                         // matches the regex (digits are a slug)
-		{"T-" + strings.Repeat("a", 38), true},  // 40 in total
-		{"T-" + strings.Repeat("a", 39), false}, // 41 in total
+		{"T-" + strings.Repeat("a", 40), true},  // slug 40, id 42 (C-event-log v2, D-slug-length-scope)
+		{"T-" + strings.Repeat("a", 41), false}, // slug 41
+		{"T-" + strings.Repeat("a", 19) + "-" + strings.Repeat("b", 20), true}, // multi-word slug of 40
 	}
 	for _, tt := range tests {
 		err := ValidateID(tt.id)
