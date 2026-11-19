@@ -67,7 +67,7 @@ tasks:
     worktree: .worktrees/t-file-store
     session: t-file-store
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: running
+    status: in_review
   T-cli:
     title: "ekumen CLI with --json, incl. ekumen map"
     kind: build
