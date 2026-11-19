@@ -1,0 +1,28 @@
+id: D-013
+title: Needs-input and status signal sources for the Claude Code adapter
+tier: 2
+raised_by: {task: R2, session: r2-landscape, on: 2026-11-20}
+question: >
+  Which signals does the Claude Code adapter treat as authoritative for session status and "needs input"?
+options:
+  - id: hooks-plus-listing
+    tradeoff: >
+      Hooks (PermissionRequest, Notification, PreToolUse:AskUserQuestion, Stop, SessionStart,
+      UserPromptSubmit) post events; `claude agents --json --all` (documented) reconciles liveness;
+      transcript tail only for the ask's text. Proven by signalbox, quanticstudios, leggetter. Needs a
+      hooks install step (backup, dry-run, reversal) and dedup of twin events.
+  - id: transcript-only
+    tradeoff: No install; read-only (aidarkazybekov). Misses live permission prompts until written; slower; parses undocumented JSONL.
+  - id: screen-scrape
+    tradeoff: Works for any tool in tmux (claude-squad, ccmanager). Brittle across versions and layouts; rejected by most mature tools.
+recommendation: hooks-plus-listing
+context:
+  summary: >
+    Every mature supervisor converged on hooks. Missing data should fail toward "needs you". Undocumented
+    files (~/.claude/sessions, ~/.claude/jobs) stay behind a fail-soft adapter with version fixtures.
+  evidence: [.ekumen/research/R2-landscape.md#3-how-they-detect-needs-input-and-status-per-agent-tool]
+blocks: []
+contract_impact: []   # C4 agent adapter, not yet drafted
+note: Hold until R1 reports; decide together with R1 findings.
+status: pending
+answer: null

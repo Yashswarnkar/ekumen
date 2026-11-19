@@ -27,7 +27,7 @@ tasks:
     branch: research/r2-landscape
     worktree: .worktrees/r2-landscape
     session: r2-landscape
-    status: running
+    status: in_review
     tier_grants: [read_web, clone_public_repos_to_scratch, write_own_output, push_own_branch, open_draft_pr]
   T0:
     title: Repo scaffold
