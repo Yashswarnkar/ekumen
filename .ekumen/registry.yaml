@@ -40,6 +40,6 @@ tasks:
     branch: build/t0-scaffold
     worktree: .worktrees/t0-scaffold
     session: t0-scaffold
-    status: running
+    status: in_review
     tier_grants: [push_own_branch, open_draft_pr, restack, add_listed_dependencies]
 external: {}
