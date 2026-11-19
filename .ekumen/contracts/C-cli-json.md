@@ -2,9 +2,9 @@
 id: C-cli-json
 aliases: [C3]
 title: CLI commands and JSON output
-status: draft          # draft | frozen
-frozen_on: null
-version: 0
+status: frozen         # draft | frozen
+frozen_on: 2026-11-20
+version: 1
 consumers: [T-skills, T-reconcile, T-server, agents]
 producers: [T-cli]
 ---
@@ -92,7 +92,7 @@ Lead commands are run by the lead, or by an orchestrator session acting on the l
 
 Adding commands, flags or fields is a minor change; callers must ignore fields they don't know. Removing or renaming anything, or changing a meaning, needs a tier-2 decision.
 
-## Open before freeze
+## Settled at freeze (2026-11-20)
 
-- Should the CLI commit to git by itself after a write (`--commit`), or leave committing to the caller? Proposal: leave it to the caller in v0.1; agents already commit their work.
-- `ekumen map` duplicates part of the future UI. Proposal: keep it. It's the build map until `ekumen serve` has views, and afterwards a static export of them.
+- The CLI never commits to git; the caller does.
+- `ekumen map` stays: it is the build map until `ekumen serve` has views, and a static export afterwards.

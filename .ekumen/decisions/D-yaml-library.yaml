@@ -1,0 +1,23 @@
+id: D-yaml-library
+title: Which YAML library the CLI uses
+tier: 1
+raised_by: {task: null, session: orchestrator, on: 2026-11-20}
+question: >
+  T-cli must read YAML input (decision and task files) and write YAML projections. The Go standard
+  library has no YAML package. Which library is allowed?
+options:
+  - {id: go-yaml-in, tradeoff: "go.yaml.in/yaml/v3: the YAML organisation's maintained continuation of gopkg.in/yaml.v3; same API; widely used"}
+  - {id: goccy, tradeoff: "github.com/goccy/go-yaml: actively maintained, better error messages; different API"}
+  - {id: json-only, tradeoff: Standard library only; input and projections become JSON, which is harder for people to read and write}
+recommendation: go-yaml-in
+default_if_no_answer: go-yaml-in
+deadline: 2026-11-21
+context:
+  summary: >
+    First dependency outside the standard library. YAML stays because people read and write decision
+    and task files by hand. The library is confined to reading and writing files; the core never sees YAML.
+  evidence: [.ekumen/briefs/T-cli/brief.md]
+blocks: [T-cli]
+contract_impact: []
+status: pending
+answer: null

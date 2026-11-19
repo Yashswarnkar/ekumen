@@ -71,9 +71,9 @@ tasks:
   T-cli:
     title: "ekumen CLI with --json, incl. ekumen map"
     kind: build
-    brief: null   # not written yet
+    brief: briefs/T-cli/brief.md
     approved: null
-    blocked_by: [C-cli-json, T-core, T-file-store]
+    blocked_by: [C-cli-json, T-core, T-file-store, D-yaml-library]
     status: draft
   T-skills:
     title: /blocked and /decide skills
@@ -113,7 +113,7 @@ tasks:
   T-import:
     title: Import hand-written records into events
     kind: build
-    brief: null   # not written yet
+    brief: briefs/T-import/brief.md
     approved: null
     blocked_by: [T-core, T-file-store]
     status: draft
@@ -128,6 +128,6 @@ external: {}
 contracts:                # until contracts carry their own blockers (FRICTION)
   C-event-log: {title: Event log, aliases: [C1], path: contracts/C-event-log.md, status: frozen, blocked_by: []}
   C-decision-record: {title: Decision record, aliases: [C2], path: contracts/C-decision-record.md, status: frozen, blocked_by: []}
-  C-cli-json: {title: CLI commands and JSON output, aliases: [C3], path: contracts/C-cli-json.md, status: draft, blocked_by: [C-event-log, C-decision-record]}
+  C-cli-json: {title: CLI commands and JSON output, aliases: [C3], path: contracts/C-cli-json.md, status: frozen, blocked_by: [C-event-log, C-decision-record]}
   C-adapter: {title: Agent adapter interface, aliases: [C4], path: null, status: planned, blocked_by: [D-013, D-014, D-015, D-016, D-017]}
   C-http-api: {title: HTTP API for the UI, aliases: [C5], path: null, status: planned, blocked_by: [C-event-log, C-decision-record]}
