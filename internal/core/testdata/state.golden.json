@@ -1,0 +1,398 @@
+{
+  "state": {
+    "tasks": {
+      "T-cli": {
+        "id": "T-cli",
+        "title": "T-cli",
+        "kind": "build",
+        "brief": ".ekumen/briefs/T-cli/brief.md",
+        "repo": "ekumen",
+        "base_branch": "main",
+        "branch": "build/t-cli",
+        "worktree": ".worktrees/t-cli",
+        "blocked_by": [
+          "T-core",
+          "T-file-store"
+        ],
+        "tier_grants": [
+          "push_own_branch"
+        ],
+        "drafts": [
+          {
+            "event": "01JD8Z3K6Q4M2V7X9T1B5N0R07",
+            "actor": {
+              "role": "orchestrator",
+              "id": "orch"
+            }
+          }
+        ],
+        "approved": true,
+        "approved_event": "01JD8Z3K6Q4M2V7X9T1B5N0R10",
+        "approved_on": "2026-11-20",
+        "approved_sha256": "cli-a",
+        "amendments": [],
+        "handoffs": [],
+        "deferred": false,
+        "questions": []
+      },
+      "T-core": {
+        "id": "T-core",
+        "title": "T-core",
+        "kind": "build",
+        "brief": ".ekumen/briefs/T-core/brief.md",
+        "repo": "ekumen",
+        "base_branch": "main",
+        "branch": "build/t-core",
+        "worktree": ".worktrees/t-core",
+        "blocked_by": [
+          "C1",
+          "C-decision-record"
+        ],
+        "tier_grants": [
+          "push_own_branch",
+          "open_draft_pr",
+          "restack"
+        ],
+        "drafts": [
+          {
+            "event": "01JD8Z3K6Q4M2V7X9T1B5N0R05",
+            "actor": {
+              "role": "orchestrator",
+              "id": "orch"
+            }
+          }
+        ],
+        "approved": true,
+        "approved_event": "01JD8Z3K6Q4M2V7X9T1B5N0R08",
+        "approved_on": "2026-11-20",
+        "approved_sha256": "core-a",
+        "amendments": [
+          {
+            "event": "01JD8Z3K6Q4M2V7X9T1B5N0R23",
+            "at": "2026-11-20T09:23:00Z",
+            "file": ".ekumen/briefs/T-core/amendments/20261119T200712Z-approved.md",
+            "text_sha256": "am1",
+            "note": "approved"
+          }
+        ],
+        "handoffs": [
+          {
+            "event": "01JD8Z3K6Q4M2V7X9T1B5N0R18",
+            "at": "2026-11-20T09:18:00Z",
+            "by": "t-core",
+            "file": ".ekumen/briefs/T-core/handoffs/20261120T100000Z-t-core.md",
+            "text_sha256": "h1",
+            "status_line": "done",
+            "has_followups": true,
+            "has_decisions": true,
+            "has_deviations": false
+          }
+        ],
+        "session": "t-core",
+        "adapter": "claude-code",
+        "deferred": false,
+        "questions": []
+      },
+      "T-file-store": {
+        "id": "T-file-store",
+        "title": "T-file-store",
+        "kind": "build",
+        "brief": ".ekumen/briefs/T-file-store/brief.md",
+        "repo": "ekumen",
+        "base_branch": "main",
+        "branch": "build/t-file-store",
+        "worktree": ".worktrees/t-file-store",
+        "blocked_by": [
+          "C-event-log"
+        ],
+        "tier_grants": [
+          "push_own_branch",
+          "open_draft_pr",
+          "restack"
+        ],
+        "drafts": [
+          {
+            "event": "01JD8Z3K6Q4M2V7X9T1B5N0R06",
+            "actor": {
+              "role": "orchestrator",
+              "id": "orch"
+            }
+          }
+        ],
+        "approved": true,
+        "approved_event": "01JD8Z3K6Q4M2V7X9T1B5N0R09",
+        "approved_on": "2026-11-20",
+        "approved_sha256": "fs-a",
+        "amendments": [],
+        "handoffs": [],
+        "deferred": false,
+        "questions": []
+      }
+    },
+    "decisions": {
+      "D-alias-field": {
+        "id": "D-alias-field",
+        "title": "Carry aliases on drafted events",
+        "tier": 2,
+        "raised_by": {
+          "task": "T-core",
+          "session": "t-core",
+          "on": "2026-11-20"
+        },
+        "question": "Where do aliases live?",
+        "options": [
+          {
+            "id": "optional-field",
+            "tradeoff": "Minor change."
+          },
+          {
+            "id": "alias-event",
+            "tradeoff": "New event type."
+          }
+        ],
+        "recommendation": "optional-field",
+        "default_if_no_answer": null,
+        "deadline": null,
+        "blocks": [],
+        "contract_impact": [
+          "C-event-log"
+        ],
+        "context": {
+          "summary": "C-event-log section 1 says readers resolve aliases but no event carries them."
+        },
+        "raises": [
+          {
+            "event": "01JD8Z3K6Q4M2V7X9T1B5N0R14",
+            "actor": {
+              "role": "session",
+              "id": "t-core"
+            }
+          }
+        ],
+        "status": "pending",
+        "questions": [
+          {
+            "id": "q1",
+            "event": "01JD8Z3K6Q4M2V7X9T1B5N0R15",
+            "at": "2026-11-20T09:15:00Z",
+            "by": "yash",
+            "to": "",
+            "text": "Does T-import need this?",
+            "answer": "Yes, for R1, T0 and C1.",
+            "answered_by": "t-core",
+            "answered_at": "2026-11-20T09:17:00Z",
+            "answer_event": "01JD8Z3K6Q4M2V7X9T1B5N0R17"
+          }
+        ],
+        "answers": []
+      },
+      "D-urgency-formula": {
+        "id": "D-urgency-formula",
+        "title": "Use a stepped urgency formula",
+        "tier": 1,
+        "raised_by": {
+          "task": "T-core",
+          "session": "t-core",
+          "on": "2026-11-20"
+        },
+        "question": "Which urgency formula?",
+        "options": [
+          {
+            "id": "steps",
+            "tradeoff": "Whole numbers, changes once a day."
+          },
+          {
+            "id": "inverse-days",
+            "tradeoff": "Smooth, harder to read."
+          }
+        ],
+        "recommendation": "steps",
+        "default_if_no_answer": "steps",
+        "deadline": "2026-11-27",
+        "blocks": [
+          "T-cli"
+        ],
+        "contract_impact": [],
+        "context": {
+          "summary": "The brief asks for a documented formula.",
+          "evidence": [
+            ".ekumen/spine.md#3-domain"
+          ]
+        },
+        "raises": [
+          {
+            "event": "01JD8Z3K6Q4M2V7X9T1B5N0R13",
+            "actor": {
+              "role": "session",
+              "id": "t-core"
+            }
+          }
+        ],
+        "status": "decided",
+        "questions": [],
+        "answer": "steps",
+        "answer_note": "Fine.",
+        "decided_by": "yash",
+        "decided_on": "2026-11-20",
+        "applied_on": "2026-11-20",
+        "applied": {
+          "amended_tasks": [
+            "T-cli"
+          ],
+          "unblocked_tasks": [
+            "T-cli"
+          ],
+          "notified_sessions": []
+        },
+        "answers": [
+          {
+            "event": "01JD8Z3K6Q4M2V7X9T1B5N0R20",
+            "by": "yash",
+            "answer": "steps",
+            "note": "Fine."
+          }
+        ]
+      }
+    },
+    "contracts": {
+      "C-decision-record": {
+        "id": "C-decision-record",
+        "aliases": [
+          "C2"
+        ],
+        "title": "Decision record",
+        "path": ".ekumen/contracts/C-decision-record.md",
+        "drafted_event": "01JD8Z3K6Q4M2V7X9T1B5N0R02",
+        "status": "frozen",
+        "version": 1,
+        "text_sha256": "bbb1",
+        "freezes": [
+          {
+            "event": "01JD8Z3K6Q4M2V7X9T1B5N0R04",
+            "version": 1,
+            "text_sha256": "bbb1"
+          }
+        ],
+        "versions": [],
+        "questions": []
+      },
+      "C-event-log": {
+        "id": "C-event-log",
+        "aliases": [
+          "C1"
+        ],
+        "title": "Event log",
+        "path": ".ekumen/contracts/C-event-log.md",
+        "drafted_event": "01JD8Z3K6Q4M2V7X9T1B5N0R01",
+        "status": "frozen",
+        "version": 1,
+        "text_sha256": "aaa1",
+        "freezes": [
+          {
+            "event": "01JD8Z3K6Q4M2V7X9T1B5N0R03",
+            "version": 1,
+            "text_sha256": "aaa1"
+          }
+        ],
+        "versions": [],
+        "questions": []
+      }
+    },
+    "externals": {
+      "X-ci-runner": {
+        "id": "X-ci-runner",
+        "added_event": "01JD8Z3K6Q4M2V7X9T1B5N0R22",
+        "what": "CI runner quota",
+        "owner_team": "infra",
+        "asked_on": "2026-11-20",
+        "needed_by": "2026-11-30",
+        "blocks": [
+          "T-file-store"
+        ],
+        "resolved": false
+      }
+    },
+    "routes": {
+      "route-01JD8Z3K6Q4M2V7X9T1B5N0R15": {
+        "id": "route-01JD8Z3K6Q4M2V7X9T1B5N0R15",
+        "event": "01JD8Z3K6Q4M2V7X9T1B5N0R16",
+        "subject": {
+          "kind": "decision",
+          "id": "D-alias-field"
+        },
+        "to": "t-core",
+        "from_event": "01JD8Z3K6Q4M2V7X9T1B5N0R15",
+        "reason": "question with no addressee: default owner",
+        "open": false,
+        "closed_by": "01JD8Z3K6Q4M2V7X9T1B5N0R17"
+      },
+      "route-01JD8Z3K6Q4M2V7X9T1B5N0R18": {
+        "id": "route-01JD8Z3K6Q4M2V7X9T1B5N0R18",
+        "event": "01JD8Z3K6Q4M2V7X9T1B5N0R19",
+        "subject": {
+          "kind": "task",
+          "id": "T-core"
+        },
+        "to": "orchestrator",
+        "from_event": "01JD8Z3K6Q4M2V7X9T1B5N0R18",
+        "reason": "handoff has follow-ups, decisions raised or deviations",
+        "open": false,
+        "closed_by": "01JD8Z3K6Q4M2V7X9T1B5N0R25",
+        "note": "folded into backlog"
+      }
+    },
+    "claims": [
+      {
+        "role": "orchestrator",
+        "session": "orch",
+        "event": "01JD8Z3K6Q4M2V7X9T1B5N0R12"
+      }
+    ],
+    "conflicts": [],
+    "aliases": {
+      "C1": "C-event-log",
+      "C2": "C-decision-record"
+    },
+    "skipped": [
+      {
+        "event": "01JD8Z3K6Q4M2V7X9T1B5N0R24",
+        "type": "FutureThing",
+        "reason": "event 01JD8Z3K6Q4M2V7X9T1B5N0R24: unknown event type \"FutureThing\""
+      }
+    ]
+  },
+  "statuses": {
+    "T-cli": "blocked",
+    "T-core": "running",
+    "T-file-store": "blocked"
+  },
+  "lead_inbox": [
+    {
+      "kind": "decision",
+      "id": "D-alias-field",
+      "subject": {
+        "kind": "decision",
+        "id": "D-alias-field"
+      },
+      "priority": 3
+    }
+  ],
+  "orchestrator_inbox": [],
+  "routes_to_write": [],
+  "conflicts": [
+    {
+      "rule": "lane",
+      "events": [
+        "01JD8Z3K6Q4M2V7X9T1B5N0R26"
+      ],
+      "detail": "lane: TaskApproved 01JD8Z3K6Q4M2V7X9T1B5N0R26 by orchestrator \"orch\": role \"orchestrator\" may not write it (lane: [lead])"
+    },
+    {
+      "rule": "frozen-text-changed",
+      "events": [
+        "01JD8Z3K6Q4M2V7X9T1B5N0R03"
+      ],
+      "detail": "contract C-event-log: .ekumen/contracts/C-event-log.md changed since version 1 was frozen"
+    }
+  ]
+}
