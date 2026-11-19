@@ -1,0 +1,12 @@
+id: D-007
+title: Code over tokens
+tier: 2
+raised_by: {task: vision, session: lead, on: 2026-11-19}
+question: Should agents do deterministic work such as graph drawing, queries, status and routing?
+options:
+  - {id: code-first, tradeoff: Deterministic, cheap, testable; more code to write}
+status: decided
+answer: code-first
+answer_note: Agents only for judgment; everything deterministic is software exposed via ekumen CLI --json.
+decided_by: lead
+decided_on: 2026-11-19

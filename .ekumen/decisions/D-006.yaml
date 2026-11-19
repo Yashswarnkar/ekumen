@@ -1,0 +1,14 @@
+id: D-006
+title: v0.1 UI scope
+tier: 2
+raised_by: {task: vision, session: orchestrator, on: 2026-11-19}
+question: Which UI views ship in v0.1?
+options:
+  - {id: inbox-only, tradeoff: Smallest}
+  - {id: graph-inbox-screen, tradeoff: Full loop visible; more work}
+recommendation: inbox-only
+status: decided
+answer: graph-inbox-screen
+answer_note: Task graph, decision inbox, and decision screen.
+decided_by: lead
+decided_on: 2026-11-19
