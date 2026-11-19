@@ -109,7 +109,12 @@ Ekumen is built using Ekumen, starting before the tool exists:
 - **Roles:** the lead approves and decides; the orchestrator session owns the spine, contracts, briefs and `registry.yaml`; task sessions work only from their brief, each in its own worktree.
 - **Manual first, then switch.** Until the CLI exists, the orchestrator maintains these files by hand in the documented format. As each piece ships, the manual step it replaces stops immediately, even if the piece is rough.
 - **Friction is data.** Every §C handoff includes a `FRICTION` section listing what was painful by hand and what was ambiguous in the format. It feeds the backlog.
-- **Order for v0.1:** research (R1, R2) → contracts (C-event-log, C-decision-record, C-cli-json, C-adapter, C-http-api), frozen → build tasks → switch to the tool.
+- **Self-hosting first.** Work that lets us *use* Ekumen on itself comes before everything else. Order for v0.1:
+  1. **Foundations:** T-core and T-file-store.
+  2. **Self-hosting slice:** C-cli-json, then T-cli (decisions, questions, tasks, handoffs, status, inbox, graph, and `ekumen map`, a static build map) and T-import (today's hand-written records become events). **Switch point:** from here on, nobody edits `.ekumen/` by hand. Agents and the orchestrator use `ekumen`.
+  3. **Moving work by itself:** T-skills (`/blocked`, `/decide`), then T-reconcile, at first observing only git and pull requests.
+  4. **Sessions and the UI:** C-adapter → T-claude-adapter (session status joins the loop); C-http-api → T-server → T-graph-view and T-decision-views.
+- **Use what exists.** Every brief written after a piece ships tells its session to use that piece instead of the manual way, and to report what was missing as FRICTION.
 
 ## 9. Open questions
 
