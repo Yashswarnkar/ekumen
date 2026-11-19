@@ -66,6 +66,7 @@ Most waiting is for **permission, not judgment**. Removing permission waits is a
 7. **Generated, not maintained.** Anything that summarizes other files is produced by code.
 8. **External dependencies are gates** with an owner and dates.
 9. **Code over tokens (D-007).** Anything deterministic (status, priority, unblocking, graph layout, queries, routing, validation) is software. Agents do judgment only: drafting context, recommending, answering follow-up questions, proposing spine edits. Agents read state through `ekumen … --json`, not by reasoning over raw files.
+10. **Asking does not derail.** Questions about a decision go to a fork of the session that raised it. If the tool can't fork, they are queued to the original session as a side question.
 11. **CLI first.** Everything can be done from the CLI and files; the UI is one view and never has a capability the CLI lacks.
 
 ## 6. Architecture
