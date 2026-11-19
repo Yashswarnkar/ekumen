@@ -61,6 +61,8 @@ Add any others with real traction (stars or activity) that you find.
     Anything above your tier: draft it as a decision record in your report, then stop.
 
 ## §B Amendments (orchestrator; append-only, dated)
+- 2026-11-20: approved by lead.
+- 2026-11-20: output path changed from `docs/research/R2-landscape.md` to `.ekumen/research/R2-landscape.md` (D-011). Read every `docs/research/` in §A as `.ekumen/research/`.
 
 ## §C Handoff (task session; append-only, dated)
 

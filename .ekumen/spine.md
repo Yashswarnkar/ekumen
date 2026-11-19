@@ -39,6 +39,8 @@ Most waiting is for **permission, not judgment**. Removing permission waits is a
 | **Session** | One running or resumable agent conversation, through an adapter | — |
 | **Event** | One append-only fact; all state is derived from events | Ekumen CLI only |
 
+**Task kinds:** `research` (output in `.ekumen/research/<id>-<slug>.md`, cited as evidence by the spine and decisions; research is the phase before a project, D-011) · `contract` · `build`.
+
 **Task status is derived, never written:** `draft, approved, blocked, ready, running, in_review, done, deferred`.
 
 **Decision lifecycle:** `raised → (questioned)* → decided | defaulted | superseded → applied`. **Applied** is the step that makes work move: amend affected briefs in §B, clear the blocks, notify live sessions, and let the dispatcher start tasks that are now ready.
@@ -64,7 +66,7 @@ Most waiting is for **permission, not judgment**. Removing permission waits is a
 7. **Generated, not maintained.** Anything that summarizes other files is produced by code.
 8. **External dependencies are gates** with an owner and dates.
 9. **Code over tokens (D-007).** Anything deterministic (status, priority, unblocking, graph layout, queries, routing, validation) is software. Agents do judgment only: drafting context, recommending, answering follow-up questions, proposing spine edits. Agents read state through `ekumen … --json`, not by reasoning over raw files.
-10. **Asking does not derail.** Questions about a decision go to a fork of the session that raised it. If the tool can't fork, they are queued to the original session as a side question.
+. **CLI first.** Everything can be done from the CLI and files; the UI is one view and never has a capability the CLI lacks.
 
 ## 6. Architecture
 
@@ -102,6 +104,7 @@ Ekumen is built using Ekumen, starting before the tool exists:
 ## 9. Open questions
 
 - Agent adapter shape and whether ACP is the base (R1).
+- Whether the engine is one reconcile control loop (D-012, pending).
 - What session status and "needs input" signals are reliable for each tool (R1, R2).
 - How a tier-1 choice proves it stayed inside its contract.
 - How to measure value: time to decide, time blocked, hours spent reconciling.

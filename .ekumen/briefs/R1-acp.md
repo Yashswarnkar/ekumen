@@ -53,6 +53,8 @@ tier_grants: [read_web, clone_public_repos_to_scratch, write_own_output, push_ow
     Anything above your tier: draft it as a decision record in your report, then stop.
 
 ## §B Amendments (orchestrator; append-only, dated)
+- 2026-11-20: approved by lead.
+- 2026-11-20: output path changed from `docs/research/R1-acp.md` to `.ekumen/research/R1-acp.md` (D-011). Read every `docs/research/` in §A as `.ekumen/research/`.
 
 ## §C Handoff (task session; append-only, dated)
 
