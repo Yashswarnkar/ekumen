@@ -28,5 +28,8 @@ context:
   evidence: [.ekumen/contracts/C1-event-log.md, .ekumen/research/R1-acp.md, .ekumen/research/R2-landscape.md]
 blocks: []
 contract_impact: [C1, C2]
-status: pending
-answer: null
+status: decided
+answer: slug
+answer_note: "As recommended."
+decided_by: lead
+decided_on: 2026-11-20

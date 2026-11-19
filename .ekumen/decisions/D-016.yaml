@@ -15,5 +15,8 @@ context:
   evidence: [.ekumen/research/R1-acp.md]
 blocks: []
 contract_impact: [C4]
-status: pending
-answer: null
+status: decided
+answer: both-with-degradation
+answer_note: "As recommended."
+decided_by: lead
+decided_on: 2026-11-20

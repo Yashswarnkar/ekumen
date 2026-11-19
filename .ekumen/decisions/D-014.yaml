@@ -26,8 +26,11 @@ context:
   evidence: [.ekumen/research/R2-landscape.md#4-adopt--avoid]
 blocks: []
 contract_impact: [C1, C4]
-status: pending
-answer: null
+status: decided
+answer: other   # the revised option in orchestrator_note, not the original R2 option
+answer_note: "As recommended, in the revised form from the orchestrator note: raise through the ekumen CLI; deliver to Ekumen-started sessions through their input stream and to lead-started sessions as a queued side question; side questions in a fork."
+decided_by: lead
+decided_on: 2026-11-20
 orchestrator_note: >
   2026-11-20: R1 conflicts with part of this. Claude Code's in-product session messaging (messaging socket) is
   undocumented and has no CLI surface (re-checked by the orchestrator on 2.1.328). Suggested revision: raise through the

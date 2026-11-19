@@ -17,5 +17,8 @@ context:
   evidence: [.ekumen/research/R1-acp.md, "https://code.claude.com/docs/en/agent-sdk/overview"]
 blocks: []
 contract_impact: [C4]
-status: pending
-answer: null
+status: decided
+answer: drive-installed-cli
+answer_note: "As recommended."
+decided_by: lead
+decided_on: 2026-11-20
