@@ -57,7 +57,7 @@ Most waiting is for **permission, not judgment**. Removing permission waits is a
 
 ## 5. Invariants
 
-1. **Single writer per section.** Ownership replaces locking.
+1. **One owner per document; everyone else writes to their own lane.** Every document and record has exactly one owner role. Others never edit it. They append timestamped entries to their own lane (a handoff, a raised decision, a question), and the control loop routes entries that need action to the owner's inbox. The owner folds them into its documents. One live session holds a role at a time. This is the concurrency model: write conflicts become routing (C1 §2–§4).
 2. **Freeze on approval.** No task starts until its brief is approved; after that §A never changes and §B amends it.
 3. **Append-only.** §B, §C, decisions and events are never rewritten.
 4. **Escalate, don't work around.** A session that thinks a contract is wrong raises a decision; it never redefines the contract locally.

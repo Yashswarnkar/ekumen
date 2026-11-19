@@ -113,8 +113,8 @@ tasks:
     blocked_by: [T1, T2, T8]
     status: draft
 contracts:                # until contracts carry their own blockers (FRICTION)
-  C1: {title: Event log, path: contracts/C1-event-log.md, status: draft, blocked_by: [D-014]}
-  C2: {title: Decision record, path: contracts/C2-decision-record.md, status: draft, blocked_by: []}
+  C1: {title: Event log, path: contracts/C1-event-log.md, status: draft, blocked_by: [D-014, D-019]}
+  C2: {title: Decision record, path: contracts/C2-decision-record.md, status: draft, blocked_by: [D-019]}
   C3: {title: CLI JSON output, path: null, status: planned, blocked_by: [C1, C2]}
   C4: {title: Agent adapter interface, path: null, status: planned, blocked_by: [D-013, D-014, D-015, D-016, D-017]}
   C5: {title: HTTP API for the UI, path: null, status: planned, blocked_by: [C1, C2]}
