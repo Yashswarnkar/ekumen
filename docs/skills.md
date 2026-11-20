@@ -1,6 +1,6 @@
 # Skills
 
-Ekumen ships two agent skills, `/blocked` and `/decide`. They are plain `SKILL.md` files in the [Agent Skills](https://agentskills.io) format, thin wrappers around `ekumen … --json` ([C-cli-json](../.ekumen/contracts/C-cli-json.md)). The agent supplies judgment (the question, the options, a recommendation, a short context summary); every read and write is a CLI call. The sources are in [`skills/`](../skills).
+Ekumen ships two agent skills, `/blocked` and `/decide`. They are plain `SKILL.md` files in the [Agent Skills](https://agentskills.io) format, thin wrappers around `ekumen … --json` ([C-cli-json](../.ekumen/contracts/C-cli-json.md)). The agent supplies judgment (the question, the options, a recommendation, a short context summary); every read and write is a CLI call. The sources are in [`skills/`](../skills), and each `ekumen` binary embeds the skills that match its commands.
 
 | Skill | Who uses it | Actor | What it does |
 |---|---|---|---|
@@ -11,7 +11,12 @@ Neither skill commits. Writes print the files they touched (`paths`); commit the
 
 ## Install
 
-Copy each folder under [`skills/`](../skills) (`blocked/`, `decide/`) into the skills folder your agent tool reads, keeping the folder name.
+```
+ekumen skills list
+ekumen skills install --dir <skills folder>
+```
+
+`install` writes each skill to `<dir>/<name>/`. Files that are already identical are left alone; a file that differs is refused (exit 2, naming it) unless you pass `--force`. It needs no actor and writes nothing under `.ekumen/`. It never guesses a folder: pass the one your agent tool reads.
 
 Skills folders, as each tool documented them when this was written (check your tool's docs if a path doesn't load):
 
@@ -24,7 +29,7 @@ Skills folders, as each tool documented them when this was written (check your t
 | Cursor | `~/.cursor/skills` | `.cursor/skills` |
 | GitHub Copilot | `~/.copilot/skills` | `.github/skills` |
 
-For example, for every session in this repository with Claude Code: `cp -R skills/blocked skills/decide .claude/skills/`.
+For example, for every session in this repository with Claude Code: `ekumen skills install --dir .claude/skills`.
 
 ## Without skills support
 
