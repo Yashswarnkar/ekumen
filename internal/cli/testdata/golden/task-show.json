@@ -1,0 +1,54 @@
+{
+  "task": {
+    "id": "T-cli",
+    "aliases": [],
+    "title": "ekumen CLI",
+    "kind": "build",
+    "status": "running",
+    "blocked_by": [
+      "T-core",
+      "C-cli-json"
+    ],
+    "blocked_by_open": [
+      "C-cli-json"
+    ],
+    "approved_on": "2026-11-20",
+    "branch": "build/t-cli",
+    "session": "t-cli",
+    "tier_grants": [
+      "push_own_branch",
+      "open_draft_pr",
+      "restack"
+    ],
+    "observed": {
+      "pr": {
+        "number": 7,
+        "state": "draft",
+        "checks": "pending",
+        "title": "T-cli"
+      }
+    },
+    "brief": "briefs/T-cli/brief.md"
+  },
+  "brief": {
+    "text": "# T-cli\n\nBuild the CLI.\n",
+    "amendments": [
+      {
+        "path": ".ekumen/briefs/T-cli/amendments/<STAMP>-main.md",
+        "author": "orchestrator:main",
+        "at": "2026-11-20T09:19:00Z",
+        "sha256": "923fdb68c938fdf1c85cb56c9d807d73036a493510dd0b3281af90837d962b40",
+        "text": "Use go.yaml.in/yaml/v3 (D-yaml-library).\n"
+      }
+    ],
+    "handoffs": [
+      {
+        "path": ".ekumen/briefs/T-cli/handoffs/<STAMP>-t-cli.md",
+        "author": "session:t-cli",
+        "at": "2026-11-20T09:20:00Z",
+        "sha256": "483a478201e6b4efb893cbf2923a8a1255e4b27962953dafe0e03a9db2698a80",
+        "text": "---\ntask: T-cli\nauthor: t-cli\n---\n\n# T-cli handoff\n\n## STATUS\n\nDone, in review.\n\n## FOLLOW-UPS\n\n- core lags C-event-log v3\n\n## DECISIONS RAISED\n\nNone.\n\n## DEVIATIONS\n\nNone.\n"
+      }
+    ]
+  }
+}
