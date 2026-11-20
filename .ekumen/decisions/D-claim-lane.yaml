@@ -21,5 +21,8 @@ context:
     internal/project/lanes.go. core.CheckLane still reports it as a lane conflict, so `check` re-checks core's
     lane conflicts against the v3 table before reporting them.
   evidence: [.ekumen/contracts/C-cli-json.md, .ekumen/contracts/C-event-log.md, internal/project/lanes.go]
-status: pending
-answer: null
+status: decided
+answer: claiming-session
+answer_note: As recommended.
+decided_by: lead
+decided_on: 2026-11-20

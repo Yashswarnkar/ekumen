@@ -23,5 +23,8 @@ context:
     Seen in the end-to-end run: after `decision answer`, the task stays "blocked" by the decision. The orchestrator
     can't clear it with `task block --remove` either, because core also blocks through the decision's own `blocks`.
   evidence: [internal/core/status.go, internal/cli/cli_test.go]
-status: pending
-answer: null
+status: decided
+answer: apply-command
+answer_note: As recommended.
+decided_by: lead
+decided_on: 2026-11-20

@@ -20,5 +20,8 @@ context:
     C-event-log §7 rule 2 forbids storing observations as events, and projections are not events. state.json
     leaves out the observed PR details and keeps only the derived status.
   evidence: [internal/project/projections.go]
-status: pending
-answer: null
+status: decided
+answer: include-observed
+answer_note: As recommended.
+decided_by: lead
+decided_on: 2026-11-20

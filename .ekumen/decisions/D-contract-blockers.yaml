@@ -21,5 +21,8 @@ context:
     own blockers (FRICTION)". Today no task status depends on it: every task blocked by a
     draft contract is blocked by the contract itself. Not blocking T-import.
   evidence: [.ekumen/registry.yaml, internal/legacyimport/build.go]
-status: pending
-answer: null
+status: decided
+answer: optional-fields
+answer_note: As recommended.
+decided_by: lead
+decided_on: 2026-11-20

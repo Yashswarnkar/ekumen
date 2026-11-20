@@ -21,5 +21,8 @@ context:
     Found while building the test fixture: contracts and loop events had to be written straight through the store.
     Planned contracts (C-adapter, C-http-api) can't be created through the CLI.
   evidence: [internal/cli/harness_test.go]
-status: pending
-answer: null
+status: decided
+answer: add-commands
+answer_note: As recommended.
+decided_by: lead
+decided_on: 2026-11-20
