@@ -2262,15 +2262,19 @@
         ],
         "prior_decisions": []
       },
-      "status": "pending",
+      "status": "decided",
       "questions": [],
-      "answer": null,
-      "answer_note": null,
-      "decided_by": null,
-      "decided_on": null,
+      "answer": "roles-and-rules",
+      "answer_note": "As recommended (lead, in chat 2026-11-20).",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
       "superseded_by": null,
-      "applied_on": null,
-      "applied": null,
+      "applied_on": "2026-11-20",
+      "applied": {
+        "amended_tasks": [],
+        "unblocked_tasks": [],
+        "notified_sessions": []
+      },
       "priority": 0,
       "holds_up": []
     },
@@ -2755,16 +2759,7 @@
     }
   ],
   "inbox": {
-    "lead": [
-      {
-        "kind": "decision",
-        "id": "D-roles-and-rules",
-        "title": "Make roles and rules Ekumen's extension point",
-        "priority": 0,
-        "reason": "blocks 0 tasks",
-        "created_at": "2026-11-20T08:57:06Z"
-      }
-    ],
+    "lead": [],
     "orchestrator": [
       {
         "kind": "route",
@@ -2800,7 +2795,7 @@
       "ready": 1,
       "running": 1
     },
-    "decisions_open": 1,
+    "decisions_open": 0,
     "routes_open": 3,
     "conflicts": 0
   }

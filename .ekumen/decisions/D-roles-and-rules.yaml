@@ -18,5 +18,11 @@ context:
   summary: |
     Raised from the lead's observation that most PRs go unreviewed and that research and other work need their own kinds of agents. T-audit showed a new role can be added in minutes as a brief; what's missing is reuse and triggers. Until rules run, the orchestrator runs /code-review on each PR by hand before asking to merge.
   evidence: [.ekumen/briefs/T-audit/brief.md, .ekumen/spine.md]
-status: pending
+status: decided
 questions: []
+answer: roles-and-rules
+answer_note: As recommended (lead, in chat 2026-11-20).
+decided_by: Yashswarnkar
+decided_on: 2026-11-20
+applied_on: 2026-11-20
+applied: {amended_tasks: [], unblocked_tasks: [], notified_sessions: []}

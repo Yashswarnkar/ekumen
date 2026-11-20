@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7W36JTZD8WFH2H320NZE777","type":"DecisionApplied","at":"2026-11-20T09:04:33.631373Z","actor":{"role":"loop","id":"main"},"subject":{"kind":"decision","id":"D-roles-and-rules"},"data":{"amended_tasks":[],"unblocked_tasks":[],"notified_sessions":[]}}
