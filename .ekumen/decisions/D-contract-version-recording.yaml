@@ -18,5 +18,9 @@ context:
     No ContractVersioned events exist; C-event-log v1 to v4 was imported as one ContractFrozen v4. D-cli-missing-writes's chosen option listed `contract draft|version`, but C-cli-json v2 and the T-cli-gaps brief left out `version`. The next tier-2 contract change has no recordable path that links it to its decision.
   evidence: [.ekumen/contracts/C-cli-json.md#3-write-commands, .ekumen/decisions/D-cli-missing-writes.yaml, internal/cli/write.go]
   prior_decisions: [D-cli-missing-writes]
-status: pending
+status: decided
 questions: []
+answer: versioned-command
+answer_note: As recommended (lead, in chat 2026-11-20).
+decided_by: Yashswarnkar
+decided_on: 2026-11-20

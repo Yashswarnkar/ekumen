@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7VZFR962CBTF86BM1PQPSFS","type":"DecisionDecided","at":"2026-11-20T07:59:39.814458Z","actor":{"role":"lead","id":"Yashswarnkar"},"subject":{"kind":"decision","id":"D-imported-event-time-order"},"data":{"answer":"causal-within-subject","note":"As recommended (lead, in chat 2026-11-20)."}}

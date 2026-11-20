@@ -11,7 +11,7 @@
       ],
       "title": "Agent Client Protocol (ACP) as the agent adapter base",
       "kind": "research",
-      "status": "ready",
+      "status": "done",
       "blocked_by": [],
       "blocked_by_open": [],
       "approved_on": "2026-11-20",
@@ -32,16 +32,14 @@
       "aliases": [],
       "title": "Recurring read-only audit",
       "kind": "research",
-      "status": "blocked",
+      "status": "ready",
       "blocked_by": [
         "T-core-align"
       ],
-      "blocked_by_open": [
-        "T-core-align"
-      ],
+      "blocked_by_open": [],
       "approved_on": "2026-11-20",
       "branch": "audit/run",
-      "session": null,
+      "session": "t-audit",
       "tier_grants": [
         "push_own_branch",
         "open_draft_pr"
@@ -60,8 +58,7 @@
         "T-core"
       ],
       "blocked_by_open": [
-        "C-adapter",
-        "T-core"
+        "C-adapter"
       ],
       "approved_on": null,
       "branch": null,
@@ -75,17 +72,14 @@
       "aliases": [],
       "title": "ekumen CLI with --json, incl. ekumen map",
       "kind": "build",
-      "status": "blocked",
+      "status": "done",
       "blocked_by": [
         "C-cli-json",
         "T-core",
         "T-file-store",
         "D-yaml-library"
       ],
-      "blocked_by_open": [
-        "T-core",
-        "T-file-store"
-      ],
+      "blocked_by_open": [],
       "approved_on": "2026-11-20",
       "branch": "build/t-cli",
       "session": "t-cli",
@@ -102,17 +96,14 @@
       "aliases": [],
       "title": "CLI commands the orchestrator needs after the switch",
       "kind": "build",
-      "status": "blocked",
+      "status": "done",
       "blocked_by": [
         "T-cli",
         "T-core-align",
         "D-apply-before-loop",
         "D-cli-missing-writes"
       ],
-      "blocked_by_open": [
-        "T-cli",
-        "T-core-align"
-      ],
+      "blocked_by_open": [],
       "approved_on": "2026-11-20",
       "branch": "build/t-cli-gaps",
       "session": "t-cli-gaps",
@@ -129,7 +120,7 @@
       "aliases": [],
       "title": "Core domain: events, lanes, reducer, conflicts",
       "kind": "build",
-      "status": "ready",
+      "status": "done",
       "blocked_by": [
         "C-event-log",
         "C-decision-record"
@@ -151,16 +142,14 @@
       "aliases": [],
       "title": "Align core and file store with C-event-log v3",
       "kind": "build",
-      "status": "blocked",
+      "status": "done",
       "blocked_by": [
         "T-import",
         "D-contract-blockers",
         "D-claim-lane",
         "D-apply-before-loop"
       ],
-      "blocked_by_open": [
-        "T-import"
-      ],
+      "blocked_by_open": [],
       "approved_on": "2026-11-20",
       "branch": "build/t-core-align",
       "session": "t-core-align",
@@ -196,7 +185,7 @@
       "aliases": [],
       "title": "File store for events and entries",
       "kind": "build",
-      "status": "ready",
+      "status": "done",
       "blocked_by": [
         "C-event-log"
       ],
@@ -236,15 +225,12 @@
       "aliases": [],
       "title": "Import hand-written records into events",
       "kind": "build",
-      "status": "blocked",
+      "status": "done",
       "blocked_by": [
         "T-core",
         "T-file-store"
       ],
-      "blocked_by_open": [
-        "T-core",
-        "T-file-store"
-      ],
+      "blocked_by_open": [],
       "approved_on": "2026-11-20",
       "branch": "build/t-import",
       "session": "t-import",
@@ -263,7 +249,7 @@
       ],
       "title": "Landscape of agent-supervisor tools",
       "kind": "research",
-      "status": "ready",
+      "status": "done",
       "blocked_by": [],
       "blocked_by_open": [],
       "approved_on": "2026-11-20",
@@ -290,11 +276,7 @@
         "T-file-store",
         "T-cli"
       ],
-      "blocked_by_open": [
-        "T-cli",
-        "T-core",
-        "T-file-store"
-      ],
+      "blocked_by_open": [],
       "approved_on": null,
       "branch": null,
       "session": null,
@@ -309,7 +291,7 @@
       ],
       "title": "Repo scaffold",
       "kind": "build",
-      "status": "ready",
+      "status": "done",
       "blocked_by": [],
       "blocked_by_open": [],
       "approved_on": "2026-11-20",
@@ -336,9 +318,7 @@
         "T-file-store"
       ],
       "blocked_by_open": [
-        "C-http-api",
-        "T-core",
-        "T-file-store"
+        "C-http-api"
       ],
       "approved_on": null,
       "branch": null,
@@ -356,9 +336,7 @@
       "blocked_by": [
         "T-cli"
       ],
-      "blocked_by_open": [
-        "T-cli"
-      ],
+      "blocked_by_open": [],
       "approved_on": null,
       "branch": null,
       "session": null,
@@ -631,16 +609,16 @@
           "D-claim-lane"
         ]
       },
-      "status": "pending",
+      "status": "decided",
       "questions": [],
-      "answer": null,
-      "answer_note": null,
-      "decided_by": null,
-      "decided_on": null,
+      "answer": "loop-lane",
+      "answer_note": "As recommended (lead, in chat 2026-11-20).",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
       "superseded_by": null,
       "applied_on": null,
       "applied": null,
-      "priority": 13,
+      "priority": 0,
       "holds_up": [
         "C-event-log",
         "T-audit",
@@ -1202,16 +1180,16 @@
           "D-cli-missing-writes"
         ]
       },
-      "status": "pending",
+      "status": "decided",
       "questions": [],
-      "answer": null,
-      "answer_note": null,
-      "decided_by": null,
-      "decided_on": null,
+      "answer": "versioned-command",
+      "answer_note": "As recommended (lead, in chat 2026-11-20).",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
       "superseded_by": null,
       "applied_on": null,
       "applied": null,
-      "priority": 13,
+      "priority": 0,
       "holds_up": [
         "C-cli-json",
         "C-decision-record",
@@ -1584,16 +1562,16 @@
           "D-apply-before-loop"
         ]
       },
-      "status": "pending",
+      "status": "decided",
       "questions": [],
-      "answer": null,
-      "answer_note": null,
-      "decided_by": null,
-      "decided_on": null,
+      "answer": "causal-within-subject",
+      "answer_note": "As recommended (lead, in chat 2026-11-20).",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
       "superseded_by": null,
       "applied_on": null,
       "applied": null,
-      "priority": 13,
+      "priority": 0,
       "holds_up": [
         "C-event-log",
         "T-audit",
@@ -2124,16 +2102,16 @@
         ],
         "prior_decisions": []
       },
-      "status": "pending",
+      "status": "decided",
       "questions": [],
-      "answer": null,
-      "answer_note": null,
-      "decided_by": null,
-      "decided_on": null,
+      "answer": "per-item-only",
+      "answer_note": "As recommended (lead, in chat 2026-11-20).",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
       "superseded_by": null,
       "applied_on": null,
       "applied": null,
-      "priority": 13,
+      "priority": 0,
       "holds_up": [
         "C-event-log",
         "T-audit",
@@ -2654,40 +2632,7 @@
   "externals": [],
   "questions": [],
   "inbox": {
-    "lead": [
-      {
-        "kind": "decision",
-        "id": "D-apply-amend-lane",
-        "title": "Who writes the §B amendments that decision apply adds",
-        "priority": 13,
-        "reason": "blocks 13 tasks",
-        "created_at": "2026-11-20T07:18:11Z"
-      },
-      {
-        "kind": "decision",
-        "id": "D-contract-version-recording",
-        "title": "Define how a frozen contract's new version is recorded",
-        "priority": 13,
-        "reason": "blocks 13 tasks",
-        "created_at": "2026-11-20T07:16:31Z"
-      },
-      {
-        "kind": "decision",
-        "id": "D-imported-event-time-order",
-        "title": "Stop backdated or future-stamped events from being silently reordered",
-        "priority": 13,
-        "reason": "blocks 13 tasks",
-        "created_at": "2026-11-20T07:16:33Z"
-      },
-      {
-        "kind": "decision",
-        "id": "D-projections-in-git",
-        "title": "Which generated files are committed to git",
-        "priority": 13,
-        "reason": "blocks 13 tasks",
-        "created_at": "2026-11-20T07:20:58Z"
-      }
-    ],
+    "lead": [],
     "orchestrator": [
       {
         "kind": "route",
@@ -2706,11 +2651,11 @@
   "conflicts": [],
   "counts": {
     "tasks_by_status": {
-      "blocked": 5,
+      "done": 9,
       "draft": 6,
-      "ready": 5
+      "ready": 1
     },
-    "decisions_open": 4,
+    "decisions_open": 0,
     "routes_open": 1,
     "conflicts": 0
   }

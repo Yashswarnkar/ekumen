@@ -19,5 +19,9 @@ context:
     Found while building `ekumen decision apply` (D-apply-before-loop). The contracts disagree on who may write the amendment that applying adds. The CLI implements orchestrator-same-session, which works today because the orchestrator runs apply as loop:<its session>. T-reconcile will hit this when the loop applies decisions by itself.
   evidence: [.ekumen/contracts/C-event-log.md, .ekumen/contracts/C-decision-record.md, internal/cli/write_more.go]
   prior_decisions: [D-apply-before-loop, D-claim-lane]
-status: pending
+status: decided
 questions: []
+answer: loop-lane
+answer_note: As recommended (lead, in chat 2026-11-20).
+decided_by: Yashswarnkar
+decided_on: 2026-11-20

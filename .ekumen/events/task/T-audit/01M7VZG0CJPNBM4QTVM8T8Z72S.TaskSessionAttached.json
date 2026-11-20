@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7VZG0CJPNBM4QTVM8T8Z72S","type":"TaskSessionAttached","at":"2026-11-20T07:59:48.11499Z","actor":{"role":"orchestrator","id":"main"},"subject":{"kind":"task","id":"T-audit"},"data":{"session":"t-audit","adapter":""}}

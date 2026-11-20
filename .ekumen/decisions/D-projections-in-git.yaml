@@ -18,5 +18,9 @@ context:
   summary: |
     Reported as FRICTION by T-cli-gaps after building on the real log. Settled at C-event-log v1 freeze as "projections are committed" without noticing the aggregate files. Every parallel PR from now on (e.g. PR #9 and PR #10) hits this.
   evidence: [.ekumen/contracts/C-event-log.md#8-file-layout, .ekumen/registry.yaml, .ekumen/state.json]
-status: pending
+status: decided
 questions: []
+answer: per-item-only
+answer_note: As recommended (lead, in chat 2026-11-20).
+decided_by: Yashswarnkar
+decided_on: 2026-11-20

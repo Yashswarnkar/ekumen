@@ -19,5 +19,9 @@ context:
     Found by T-audit's first run. Reproduced on a scratch copy. A hand-made DecisionApplied for D-alias-field stamped 07:1xZ left the decision "decided, applied_on null", and ekumen check was clean. The 11 decisions decided at 12:00Z include D-alias-field, D-lane-gaps and D-task-status-approved. T-cli-gaps is adding `decision apply` now, so the window is live today. C-http-api's SSE cursor makes the same order assumption.
   evidence: [internal/core/state.go, .ekumen/events/decision/D-alias-field, .ekumen/contracts/C-event-log.md#2-envelope, .ekumen/contracts/C-http-api.md#4-live-updates]
   prior_decisions: [D-blocker-semantics, D-apply-before-loop]
-status: pending
+status: decided
 questions: []
+answer: causal-within-subject
+answer_note: As recommended (lead, in chat 2026-11-20).
+decided_by: Yashswarnkar
+decided_on: 2026-11-20

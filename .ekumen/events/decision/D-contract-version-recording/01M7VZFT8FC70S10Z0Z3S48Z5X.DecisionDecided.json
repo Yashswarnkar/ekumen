@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7VZFT8FC70S10Z0Z3S48Z5X","type":"DecisionDecided","at":"2026-11-20T07:59:41.839248Z","actor":{"role":"lead","id":"Yashswarnkar"},"subject":{"kind":"decision","id":"D-contract-version-recording"},"data":{"answer":"versioned-command","note":"As recommended (lead, in chat 2026-11-20)."}}

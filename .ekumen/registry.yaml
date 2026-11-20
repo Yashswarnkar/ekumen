@@ -16,7 +16,7 @@ tasks:
     worktree: .worktrees/r1-acp
     session: r1-acp
     tier_grants: [read_web, clone_public_repos_to_scratch, write_own_output, push_own_branch, open_draft_pr]
-    status: ready
+    status: done
   T-audit:
     title: Recurring read-only audit
     kind: research
@@ -27,9 +27,9 @@ tasks:
     base_branch: main
     branch: audit/run
     worktree: .worktrees/t-audit
-    session: null
+    session: t-audit
     tier_grants: [push_own_branch, open_draft_pr]
-    status: blocked
+    status: ready
   T-claude-adapter:
     title: Claude Code adapter
     kind: build
@@ -55,7 +55,7 @@ tasks:
     worktree: .worktrees/t-cli
     session: t-cli
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: blocked
+    status: done
   T-cli-gaps:
     title: CLI commands the orchestrator needs after the switch
     kind: build
@@ -68,7 +68,7 @@ tasks:
     worktree: .worktrees/t-cli-gaps
     session: t-cli-gaps
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: blocked
+    status: done
   T-core:
     title: 'Core domain: events, lanes, reducer, conflicts'
     kind: build
@@ -81,7 +81,7 @@ tasks:
     worktree: .worktrees/t-core
     session: t-core
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: ready
+    status: done
   T-core-align:
     title: Align core and file store with C-event-log v3
     kind: build
@@ -94,7 +94,7 @@ tasks:
     worktree: .worktrees/t-core-align
     session: t-core-align
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: blocked
+    status: done
   T-decision-views:
     title: Decision inbox and decision screen
     kind: build
@@ -120,7 +120,7 @@ tasks:
     worktree: .worktrees/t-file-store
     session: t-file-store
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: ready
+    status: done
   T-graph-view:
     title: Task graph view
     kind: build
@@ -146,7 +146,7 @@ tasks:
     worktree: .worktrees/t-import
     session: t-import
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: blocked
+    status: done
   T-landscape-research:
     title: Landscape of agent-supervisor tools
     aliases: [R2]
@@ -160,7 +160,7 @@ tasks:
     worktree: .worktrees/r2-landscape
     session: r2-landscape
     tier_grants: [read_web, clone_public_repos_to_scratch, write_own_output, push_own_branch, open_draft_pr]
-    status: ready
+    status: done
   T-reconcile:
     title: Control loop, one pass (ekumen reconcile)
     kind: build
@@ -187,7 +187,7 @@ tasks:
     worktree: .worktrees/t0-scaffold
     session: t0-scaffold
     tier_grants: [push_own_branch, open_draft_pr, restack, add_listed_dependencies]
-    status: ready
+    status: done
   T-server:
     title: HTTP server and live updates
     kind: build
