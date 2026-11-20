@@ -22,7 +22,7 @@ tier_grants: [push_own_branch, open_draft_pr, restack]
 **Context (verified against `main` at `23e3040`; re-verify against `origin/main` when you start):**
 - Six tasks were imported as placeholders with empty `repo`, `base_branch`, `branch`, `worktree` and `brief`: T-skills, T-reconcile, T-claude-adapter, T-server, T-graph-view, T-decision-views. `task draft` refuses an id already in use, and no command sets these fields.
 - Consequences today: status rule 7 in `internal/core/status.go` keeps them `approved` instead of `ready`; the observer links pull requests to tasks by `branch`, so a placeholder task's merged PR never makes it `in_review` or `done`, and tasks blocked by it stay blocked.
-- **T-skills and T-reconcile are already approved** and building (PRs #17, #18 and the T-reconcile stack). The decision's option text said "allowed only before approval". That would leave both broken, so this brief splits the fields (Job 1). This split is the one point the lead confirms when approving this brief.
+- **T-skills and T-reconcile are already approved** and building (PRs #17, #18 and the T-reconcile stack), so updates must also work on approved tasks. **Rule (lead, 2026-11-20): any change to a task is proposed by the orchestrator and approved by the lead.** Before approval there is nothing to re-approve: the lead approves the task as a whole. After approval, an update waits for the lead.
 - `TaskDrafted` data (C-event-log v4 §6): `title, kind, brief, repo, base_branch, branch, worktree, blocked_by[], tier_grants[]`, optional `session`, optional `aliases[]`. Orchestrator lane: C-event-log §3.
 - `C-cli-json` is v2. D-cli-json-v3 (decided `v3-after-merge`) already collects `reconcile`, `skills list` and `skills install` for v3; the two commands here join the same v3 text. `C-event-log` is v4; the new event type needs v5, covered by D-placeholder-task-fields (`contract_impact: [C-event-log, C-cli-json]`).
 - `decision show C-http-api` today returns a bare not-found. Ids carry their kind letter (C-event-log §1).
@@ -32,25 +32,30 @@ tier_grants: [push_own_branch, open_draft_pr, restack]
 
 1. **Event type `TaskUpdated`** (orchestrator lane).
    - `data`: any subset of `repo, base_branch, branch, worktree, brief, title`, plus `reason`. At least one field besides `reason`. Fields not present are unchanged; an explicit empty string is refused.
-   - **Location fields** (`repo, base_branch, branch, worktree, brief`) may be updated at any time before the task is `done` or deferred. They say where the work happens, not what it is, so they don't touch the frozen §A.
-   - **`title`** may be updated only before `TaskApproved`. After approval the task's meaning is frozen with §A.
+   - **Proposal, then approval.** The orchestrator writes `TaskUpdated`. Same rule for every field:
+     - **Task not yet approved:** the update takes effect at once. The lead's later `TaskApproved` covers it.
+     - **Task approved:** the update is **pending**. Reads show the current values plus `pending_update` (the proposed fields, reason, event id). It takes effect only when the lead approves again with the existing `ekumen task approve <id>`: a `TaskApproved` after a pending `TaskUpdated` accepts every pending update before it. Grants and the §A hash are re-recorded as usual, so §A stays frozen.
+     - **Task done or deferred:** refused.
+   - Several pending updates merge field by field, newest wins; one re-approval accepts them all. A pending update does not change derived status.
    - `kind`, `blocked_by`, `tier_grants`, `session` and `aliases` are not updatable here: they already have their own events (`TaskBlockersChanged`, `task approve --grants`, `TaskSessionAttached`) or are fixed at creation.
-   - Reducer: apply in log order; newest value wins per field. A `TaskUpdated` for a task with no `TaskDrafted` is an orphan step (existing rule). Validate the same formats as `TaskDrafted` (branch and path rules, `brief` resolved inside `.ekumen/`).
-   - Lanes: orchestrator only (with the claim, like `TaskDrafted`). A `title` update after approval, or any update after `done`, is refused by the CLI and reported by `check` as a `lane`-style violation if it arrives through a merge. Add the rule in the same place as the other §3/§5 checks.
+   - Reducer: apply in log order. A `TaskUpdated` for a task with no `TaskDrafted` is an orphan step (existing rule). Validate the same formats as `TaskDrafted` (branch and path rules, `brief` resolved inside `.ekumen/`).
+   - Lanes: `TaskUpdated` is orchestrator only (with the claim, like `TaskDrafted`); acceptance is the lead's `TaskApproved`, already in the lead's lane. An update to a done or deferred task is refused by the CLI and reported by `check` if it arrives through a merge.
+   - **Inbox:** a task with a pending update gives the lead an action "Approve update to T-x: <fields> (<reason>)" whose command is `ekumen task approve T-x`. Use the existing lead-action mechanism.
 2. **`ekumen task update <id> [--repo r] [--base-branch b] [--branch b] [--worktree w] [--brief p] [--title t] --reason t`** (orchestrator, with the claim). Prints the usual write result. `--json` errors name the field. A no-op (every given value equals the current one) prints a no-op result and writes nothing.
 3. **`ekumen contract show <id> [--json]`** (read). Output: `{contract: {id, title, aliases, status, version, frozen_on, path, consumers, producers, blocked_by, freezes: [{version, text_sha256, at}], versions: [{version, by_decision, text_sha256, at}], pending}, text}` where `text` is the contract file's body. Plain-text output prints the front-matter fields, the freeze history, then the body. Accepts aliases (`C1`).
 4. **Kind hint on not-found.** When `decision show`, `task show` or `contract show` gets a valid id of another kind (`C-…` to `decision show`), the not-found error message says which command to use. Exit code stays 3.
 5. **Docs.** `docs/cli.md`: both commands and the hint. Handoff: the exact C-event-log v5 text (§3 lane row, §6 event row, any §5 rule) and the exact C-cli-json text for both commands, for the orchestrator to fold into the contract versions.
-6. **Dogfood on a scratch copy** of the real `.ekumen/` (never the repo's): run `task update` for T-skills (`repo ekumen, base_branch main, branch build/t-skills, worktree .worktrees/t-skills, brief briefs/T-skills/brief.md`) and T-reconcile (its brief's values), then show `task list` derives `ready`, and with observation on, that T-skills links to PR #17. Put the commands and output in the handoff. The orchestrator runs the real updates after merge.
+6. **Dogfood on a scratch copy** of the real `.ekumen/` (never the repo's): run `task update` for T-skills (`repo ekumen, base_branch main, branch build/t-skills, worktree .worktrees/t-skills, brief briefs/T-skills/brief.md`) and T-reconcile (its brief's values), show the pending update in `inbox --for lead`, run `task approve` as the lead, then show `task list` derives `ready` and, with observation on, that T-skills links to PR #17. Put the commands and output in the handoff. After merge, the orchestrator proposes the real updates and the lead approves them.
 
 **Touches:** `internal/event` (type and validation), `internal/core` (reducer, lanes, conflict rule), `internal/cli` (both commands, the hint, tests), `internal/project` if the contract view needs it, `docs/cli.md`. Target: one PR of about 600 changed lines or fewer; stack `contract show` as a second PR if it goes past that. Don't edit contract files or the spine.
 
 **Definition of done:**
-- [ ] `TaskUpdated` reduces per field, is orchestrator-lane only, refuses `title` after approval and any update after done, and `check` reports a violating event that arrived by merge. Golden and lane tests.
-- [ ] `task update` golden `--json` tests: success, no-op, refused title after approval, refused empty value, refused without the claim.
+- [ ] `TaskUpdated` applies at once on an unapproved task, stays pending on an approved one until the lead's next `task approve`, merges several pending updates, is refused after done, and `check` reports a violating event that arrived by merge. Golden, reducer and lane tests.
+- [ ] The lead inbox shows "Approve update to T-x" for a pending update, and it disappears after `task approve`.
+- [ ] `task update` golden `--json` tests: applied (unapproved task), pending (approved task), no-op, refused empty value, refused after done, refused without the claim.
 - [ ] `contract show` golden `--json` and text tests for a draft, a frozen and a versioned contract; alias lookup works.
 - [ ] Not-found hint test for each of the three `show` commands.
-- [ ] Scratch-copy dogfood in the handoff shows T-skills and T-reconcile deriving `ready`, and T-skills linked to its PR.
+- [ ] Scratch-copy dogfood in the handoff: `task update` on T-skills and T-reconcile shows a pending update in the lead's inbox; after `task approve`, both derive `ready` and T-skills links to its PR.
 - [ ] `go test -race ./...`, vet and gofmt clean; `scripts/ci-check.sh` passes; CI green on the draft PR.
 - [ ] Handoff recorded with `ekumen task handoff T-task-update`, with the exact contract texts and a `FRICTION` section.
 
@@ -61,7 +66,7 @@ tier_grants: [push_own_branch, open_draft_pr, restack]
 - Changing `blocked_by`, `tier_grants`, `session` or `aliases` through `task update`
 
 **Escalate if:**
-- Splitting location fields from `title` turns out to conflict with C-event-log's freeze rules (`frozen-text-changed`) or with D-task-status-approved.
+- Accepting updates through a repeated `TaskApproved` conflicts with C-event-log's freeze rules (`frozen-text-changed`), the first-wins handling of `TaskApproved`, or D-task-status-approved. If so, propose a separate lead event (`TaskUpdateApproved`) in a decision instead.
 - The reducer change collides with the T-reconcile stack in a way a rebase can't settle.
 
 **Start prompt:**
