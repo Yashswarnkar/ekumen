@@ -68,7 +68,7 @@ tasks:
     worktree: .worktrees/t-cli-gaps
     session: t-cli-gaps
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: ready
+    status: running
   T-core:
     title: 'Core domain: events, lanes, reducer, conflicts'
     kind: build

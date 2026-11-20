@@ -96,7 +96,7 @@
       "aliases": [],
       "title": "CLI commands the orchestrator needs after the switch",
       "kind": "build",
-      "status": "ready",
+      "status": "running",
       "blocked_by": [
         "T-cli",
         "T-core-align",
@@ -1991,6 +1991,74 @@
       "holds_up": []
     },
     {
+      "id": "D-projections-in-git",
+      "aliases": [],
+      "title": "Which generated files are committed to git",
+      "tier": 2,
+      "raised_by": {
+        "task": null,
+        "session": "main",
+        "on": "2026-11-20"
+      },
+      "question": "Every ekumen write regenerates registry.yaml and state.json, which aggregate the whole project. Two branches that each record one event therefore always conflict in git, which breaks C-event-log's promise that git never sees two writers on one file. Which generated files stay in git?\n",
+      "options": [
+        {
+          "id": "per-item-only",
+          "tradeoff": "Keep per-item files (decisions/\u003cid\u003e.yaml) committed, since two branches rarely touch the same decision, and stop committing the aggregates (registry.yaml, state.json), which every command can regenerate. Readable on GitHub per decision; no routine conflicts. CI checks the committed per-item files match the events.\n"
+        },
+        {
+          "id": "ignore-all",
+          "tradeoff": "Commit only events and prose. Every generated file is local (git-ignored). Zero conflicts, but nothing is readable on GitHub without running ekumen.\n"
+        },
+        {
+          "id": "keep-all-regenerate",
+          "tradeoff": "Keep committing everything. On conflict, take either side and run `ekumen project`. CI fails if the files are stale. Readable, but every parallel PR needs a manual fix-up.\n"
+        }
+      ],
+      "recommendation": "per-item-only",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [
+        "C-event-log"
+      ],
+      "context": {
+        "summary": "Reported as FRICTION by T-cli-gaps after building on the real log. Settled at C-event-log v1 freeze as \"projections are committed\" without noticing the aggregate files. Every parallel PR from now on (e.g. PR #9 and PR #10) hits this.\n",
+        "evidence": [
+          ".ekumen/contracts/C-event-log.md#8-file-layout",
+          ".ekumen/registry.yaml",
+          ".ekumen/state.json"
+        ],
+        "prior_decisions": []
+      },
+      "status": "pending",
+      "questions": [],
+      "answer": null,
+      "answer_note": null,
+      "decided_by": null,
+      "decided_on": null,
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 13,
+      "holds_up": [
+        "C-event-log",
+        "T-audit",
+        "T-claude-adapter",
+        "T-cli",
+        "T-cli-gaps",
+        "T-core",
+        "T-core-align",
+        "T-decision-views",
+        "T-file-store",
+        "T-graph-view",
+        "T-import",
+        "T-reconcile",
+        "T-server",
+        "T-skills"
+      ]
+    },
+    {
       "id": "D-research-location",
       "aliases": [
         "D-011"
@@ -2517,6 +2585,14 @@
         "priority": 13,
         "reason": "blocks 13 tasks",
         "created_at": "2026-11-20T07:16:35Z"
+      },
+      {
+        "kind": "decision",
+        "id": "D-projections-in-git",
+        "title": "Which generated files are committed to git",
+        "priority": 13,
+        "reason": "blocks 13 tasks",
+        "created_at": "2026-11-20T07:20:58Z"
       }
     ],
     "orchestrator": []
@@ -2526,9 +2602,10 @@
     "tasks_by_status": {
       "done": 8,
       "draft": 6,
-      "ready": 2
+      "ready": 1,
+      "running": 1
     },
-    "decisions_open": 3,
+    "decisions_open": 4,
     "routes_open": 0,
     "conflicts": 0
   }
