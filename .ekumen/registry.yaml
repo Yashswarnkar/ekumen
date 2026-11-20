@@ -80,7 +80,7 @@ tasks:
     worktree: .worktrees/t-core-align
     session: t-core-align
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: in_review
+    status: done
   T-cli:
     title: "ekumen CLI with --json, incl. ekumen map"
     kind: build
