@@ -18,5 +18,9 @@ context:
   summary: |
     The rule is unsatisfiable as written, so every legitimate brief or contract edit looks like a violation, and a real violation of the spine looks like nothing. Approved §A and frozen contracts are already hashed (frozen-text-changed); the spine and drafts are not.
   evidence: [.ekumen/spine.md#8-how-this-repo-is-built-dogfooding, docs/cli.md, .ekumen/contracts/C-event-log.md#5-conflicts]
-status: pending
+status: decided
 questions: []
+answer: prose-carve-out
+answer_note: As recommended (lead, in chat 2026-11-20).
+decided_by: Yashswarnkar
+decided_on: 2026-11-20
