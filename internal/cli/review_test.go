@@ -147,3 +147,15 @@ func TestMapReplacesOutputAtomically(t *testing.T) {
 		t.Errorf("map file %v, %v", fi, err)
 	}
 }
+
+func TestMapLinkBaseMustBeHTTP(t *testing.T) {
+	h := gapsFixture(t)
+	for _, base := range []string{"javascript:alert(1)//", "file:///etc/", "data:text/html,x", "//evil.example/", "git.example.com/o/r/"} {
+		out := mustExit(t, h, ExitUsage, "map", "--out", "map.html", "--link-base", base)
+		if e := decodeJSON(t, out)["error"].(map[string]any); e["field"] != "link-base" {
+			t.Errorf("%s: %v", base, e)
+		}
+	}
+	mustExit(t, h, ExitOK, "map", "--out", "map.html", "--link-base", "https://git.example.com/o/r/src/branch/main/")
+	mustExit(t, h, ExitOK, "map", "--out", "map.html", "--link-base", "http://git.internal/o/r/")
+}

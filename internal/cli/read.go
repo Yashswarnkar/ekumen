@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -365,6 +366,11 @@ func (r *run) mapCmd(args []string) error {
 	}
 	if *outPath == "" {
 		return fieldErr(CodeUsage, "out", "map: --out <file.html> is required")
+	}
+	if *linkBase != "" {
+		if u, err := url.Parse(*linkBase); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			return fieldErr(CodeUsage, "link-base", "map: --link-base must be an http or https URL, got %q", *linkBase)
+		}
 	}
 	s, err := r.load()
 	if err != nil {
