@@ -189,7 +189,12 @@ func TestLaneRefusals_EventLog3(t *testing.T) {
 	_, out, _ := h.run("question", "list", "--open", "--for", "t-cli", "--json")
 	qid := decodeJSON(t, out)["questions"].([]any)[0].(map[string]any)["id"].(string)
 	_, out, _ = h.run("inbox", "--for", "orchestrator", "--json")
-	route := decodeJSON(t, out)["items"].([]any)[0].(map[string]any)["id"].(string)
+	var route string
+	for _, it := range decodeJSON(t, out)["items"].([]any) {
+		if it := it.(map[string]any); it["kind"] == "route" && route == "" {
+			route = it["id"].(string)
+		}
+	}
 	before := countEvents(t, h)
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

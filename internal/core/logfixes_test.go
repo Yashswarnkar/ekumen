@@ -371,12 +371,41 @@ func TestLeadActions_AuditF2(t *testing.T) {
 	var got []string
 	for _, a := range LeadActions(&s, Observed{}, now, hasBrief) {
 		got = append(got, a.Action+" "+a.Subject.ID)
-		if !strings.Contains(a.Command, a.Subject.ID) {
+		if a.Action == ActionApply {
+			if a.Command != "ekumen reconcile --as loop:<session>" {
+				t.Errorf("apply command %q", a.Command)
+			}
+		} else if !strings.Contains(a.Command, a.Subject.ID) {
 			t.Errorf("command %q", a.Command)
 		}
 	}
 	want := []string{"approve T-ready", "freeze C-draft", "apply D-old"}
 	if !slices.Equal(got, want) {
 		t.Errorf("actions %v, want %v", got, want)
+	}
+}
+
+// Brief T-reconcile job 4: a task drafted without a brief can never reach
+// the lead's approve action, so the orchestrator's inbox lists it (brief);
+// approved, deferred and briefed tasks are not listed.
+func TestOrchestratorBriefAction_InboxGaps(t *testing.T) {
+	b := newLog(t)
+	b.draftTask("T-nobrief")
+	b.draftTask("T-brief")
+	b.draftTask("T-approved")
+	b.approve("T-approved", "h")
+	b.draftTask("T-deferred")
+	b.add(event.TaskDeferredType, event.RoleOrchestrator, "orch", event.KindTask, "T-deferred", event.TaskDeferred{Reason: "later"})
+	s := b.state()
+	hasBrief := func(id string) bool { return id == "T-brief" }
+	got := OrchestratorActions(&s, hasBrief)
+	if len(got) != 1 || got[0].Action != ActionBrief || got[0].Subject.ID != "T-nobrief" ||
+		got[0].Command != "write .ekumen/briefs/T-nobrief/brief.md" || got[0].Event != s.Tasks["T-nobrief"].Drafts[0].Event {
+		t.Errorf("orchestrator actions %+v", got)
+	}
+	for _, a := range LeadActions(&s, Observed{}, t0, hasBrief) {
+		if a.Subject.ID == "T-nobrief" {
+			t.Errorf("lead action for a task with no brief: %+v", a)
+		}
 	}
 }

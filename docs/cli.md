@@ -43,7 +43,7 @@ inbox for orchestrator:
   route     route-01M7W42VG0000000000000000N p=0    T-cli handoff: Done, in review. (handoff has follow-ups, …)
 ```
 
-Ranked: for the lead, pending decisions by priority, then conflicts, then the lead's next moves (`kind: action`, below); then, for every owner, open routed items (questions and handoffs needing action), oldest first. Until the control loop exists, the CLI computes the routes the loop would write (C-event-log §4), so questions and handoffs show up straight away. `--for session:t-cli` and `--for t-cli` are the same.
+Ranked: for the lead, pending decisions by priority, then conflicts, then the lead's next moves (`kind: action`, below); for the orchestrator, its next moves (`kind: action`, `action: brief`, below); then, for every owner, open routed items (questions and handoffs needing action), oldest first. Until the control loop exists, the CLI computes the routes the loop would write (C-event-log §4), so questions and handoffs show up straight away. `--for session:t-cli` and `--for t-cli` are the same.
 
 The lead's `action` items carry `action` and `command` (C-cli-json v3), with `subject` naming the item:
 
@@ -51,7 +51,13 @@ The lead's `action` items carry `action` and `command` (C-cli-json v3), with `su
 |---|---|---|
 | `approve` | A task is drafted, has its `brief.md`, has no open blockers, and is not approved or deferred. | `ekumen task approve <id>` |
 | `freeze` | A draft contract has no open blockers, or a frozen contract has a newer version recorded by `contract version`. | `ekumen contract freeze <id>` |
-| `apply` | A decision has been decided or defaulted for a day or more and is not applied. | `ekumen decision apply <id> --as loop:<orchestrator session>` |
+| `apply` | A decision has been decided or defaulted for a day or more and is not applied. | `ekumen reconcile --as loop:<session>` (one pass applies every such decision) |
+
+The orchestrator's `action` items have the same shape. They are derived, not routed or stored:
+
+| `action` | When | `command` |
+|---|---|---|
+| `brief` | A task is drafted, not approved or deferred, and has no `brief.md`, so it can never reach the lead's `approve`. | `write .ekumen/briefs/<id>/brief.md` |
 
 ```
 $ ekumen inbox --for lead --json
@@ -411,7 +417,7 @@ One pass of the control loop (D-control-loop, spine §6, §7). It compares the e
 | `route` | A handoff with follow-ups, decisions raised or deviations, or an unanswered question, not yet routed (C-event-log §4). | `RoutedToOwner` |
 | `conflict` | A C-event-log §5 conflict not yet recorded. | A tier-2 decision `D-conflict-<rule>-<the first 6 hex digits of sha256("<rule>\|<sorted event ids, comma-joined>")>` (options `fix` and `accept`, no recommendation, no blocks, the events' files as evidence, raised by the loop for no task), then `ConflictDetected {rule, events}` on that decision. The suffix grows by 2 digits only on a hash collision; when 10 digits are taken too, the conflict is skipped with a reason. A conflict whose events grow (a third answer) is a new conflict with a new decision. |
 
-It also reports, without acting: actions `held` and `skipped` (each `{kind, subject, reason}`, `skipped` with the error `code`), `ready` tasks, tasks `not_startable` because branch or worktree is empty (D-placeholder-task-fields), the tasks this pass `unblocked`, and the sessions to `notify` of amended tasks. It never starts or messages sessions.
+It also reports, without acting: actions `held` and `skipped` (each `{kind, subject, reason}`, `skipped` with the error `code`), `ready` tasks, tasks `not_startable` because branch or worktree is empty (D-placeholder-task-fields), the tasks this pass `unblocked`, the sessions to `notify` of amended tasks, and the orchestrator's `brief` actions (`orchestrator_actions`, InboxItems as in `inbox --for orchestrator`). It never starts or messages sessions.
 
 ```
 $ ekumen --as loop:main reconcile
@@ -438,6 +444,7 @@ notify: t-gated
  "held": [{"kind": "apply", "subject": {"kind": "decision", "id": "D-x"}, "reason": "contested: …"}],
  "skipped": [],                                    // {kind, subject, reason, code}
  "unblocked": ["T-gated"], "notify": ["t-gated"],
+ "orchestrator_actions": [{"kind": "action", "id": "T-skills", "action": "brief", "command": "write .ekumen/briefs/T-skills/brief.md", "…": "…"}],
  "events": ["01M7…"], "paths": ["…", ".ekumen/decisions/D-late.yaml", ".ekumen/registry.yaml", ".ekumen/state.json"]}
 ```
 
