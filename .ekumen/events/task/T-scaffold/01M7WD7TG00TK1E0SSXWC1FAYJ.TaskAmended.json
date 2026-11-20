@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WD7TG00TK1E0SSXWC1FAYJ","type":"TaskAmended","at":"2026-11-20T12:00:00Z","actor":{"role":"orchestrator","id":"orchestrator"},"subject":{"kind":"task","id":"T-scaffold"},"data":{"file":"briefs/T-scaffold/amendments/20261120T120000Z-orchestrator.md","text_sha256":"ed1a236437ff607f0e3c42cff6912bbdef6c136484ec393e04419a62ff43f505","note":"approved by lead."}}

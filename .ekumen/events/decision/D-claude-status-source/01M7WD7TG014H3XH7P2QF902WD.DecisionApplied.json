@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WD7TG014H3XH7P2QF902WD","type":"DecisionApplied","at":"2026-11-20T12:00:00Z","actor":{"role":"loop","id":"loop"},"subject":{"kind":"decision","id":"D-claude-status-source"},"data":{"amended_tasks":[],"unblocked_tasks":[],"notified_sessions":[],"legacy":{"applied":{"amended":["spine §6"],"notified_sessions":[],"unblocked":["C1","C2","C4"]}}}}

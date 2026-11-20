@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7STV3G008N0GCKP78658XMZ","type":"TaskDrafted","at":"2026-11-19T12:00:00Z","actor":{"role":"orchestrator","id":"orchestrator"},"subject":{"kind":"task","id":"T-graph-view"},"data":{"title":"Task graph view","kind":"build","brief":"","repo":"","base_branch":"","branch":"","worktree":"","blocked_by":["T-server"],"tier_grants":[],"legacy":{"date_unknown":true}}}

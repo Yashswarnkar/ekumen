@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WD7TG001BZ7Y2AKXJ6EBA4","type":"ContractDrafted","at":"2026-11-20T12:00:00Z","actor":{"role":"orchestrator","id":"orchestrator"},"subject":{"kind":"contract","id":"C-cli-json"},"data":{"title":"CLI commands and JSON output","path":"contracts/C-cli-json.md","aliases":["C3"],"blocked_by":["C-event-log","C-decision-record"]}}

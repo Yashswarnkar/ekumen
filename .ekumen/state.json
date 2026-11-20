@@ -1,0 +1,2397 @@
+{
+  "generated": "by `ekumen` from .ekumen/events; do not edit",
+  "as_of": "2026-11-20",
+  "last_event": "01M7WD7TG017VBEFJJWNWXM68W",
+  "project": "ekumen",
+  "tasks": [
+    {
+      "id": "T-acp-research",
+      "aliases": [
+        "R1"
+      ],
+      "title": "Agent Client Protocol (ACP) as the agent adapter base",
+      "kind": "research",
+      "status": "done",
+      "blocked_by": [],
+      "blocked_by_open": [],
+      "approved_on": "2026-11-20",
+      "branch": "research/r1-acp",
+      "session": "r1-acp",
+      "tier_grants": [
+        "read_web",
+        "clone_public_repos_to_scratch",
+        "write_own_output",
+        "push_own_branch",
+        "open_draft_pr"
+      ],
+      "observed": null,
+      "brief": "briefs/T-acp-research/brief.md"
+    },
+    {
+      "id": "T-audit",
+      "aliases": [],
+      "title": "Recurring read-only audit",
+      "kind": "research",
+      "status": "ready",
+      "blocked_by": [
+        "T-core-align"
+      ],
+      "blocked_by_open": [],
+      "approved_on": "2026-11-20",
+      "branch": "audit/run",
+      "session": null,
+      "tier_grants": [
+        "push_own_branch",
+        "open_draft_pr"
+      ],
+      "observed": null,
+      "brief": "briefs/T-audit/brief.md"
+    },
+    {
+      "id": "T-claude-adapter",
+      "aliases": [],
+      "title": "Claude Code adapter",
+      "kind": "build",
+      "status": "draft",
+      "blocked_by": [
+        "C-adapter",
+        "T-core"
+      ],
+      "blocked_by_open": [
+        "C-adapter"
+      ],
+      "approved_on": null,
+      "branch": null,
+      "session": null,
+      "tier_grants": [],
+      "observed": null,
+      "brief": null
+    },
+    {
+      "id": "T-cli",
+      "aliases": [],
+      "title": "ekumen CLI with --json, incl. ekumen map",
+      "kind": "build",
+      "status": "done",
+      "blocked_by": [
+        "C-cli-json",
+        "T-core",
+        "T-file-store",
+        "D-yaml-library"
+      ],
+      "blocked_by_open": [],
+      "approved_on": "2026-11-20",
+      "branch": "build/t-cli",
+      "session": "t-cli",
+      "tier_grants": [
+        "push_own_branch",
+        "open_draft_pr",
+        "restack"
+      ],
+      "observed": null,
+      "brief": "briefs/T-cli/brief.md"
+    },
+    {
+      "id": "T-cli-gaps",
+      "aliases": [],
+      "title": "CLI commands the orchestrator needs after the switch",
+      "kind": "build",
+      "status": "ready",
+      "blocked_by": [
+        "T-cli",
+        "T-core-align",
+        "D-apply-before-loop",
+        "D-cli-missing-writes"
+      ],
+      "blocked_by_open": [],
+      "approved_on": "2026-11-20",
+      "branch": "build/t-cli-gaps",
+      "session": "t-cli-gaps",
+      "tier_grants": [
+        "push_own_branch",
+        "open_draft_pr",
+        "restack"
+      ],
+      "observed": null,
+      "brief": "briefs/T-cli-gaps/brief.md"
+    },
+    {
+      "id": "T-core",
+      "aliases": [],
+      "title": "Core domain: events, lanes, reducer, conflicts",
+      "kind": "build",
+      "status": "done",
+      "blocked_by": [
+        "C-event-log",
+        "C-decision-record"
+      ],
+      "blocked_by_open": [],
+      "approved_on": "2026-11-19",
+      "branch": "build/t-core",
+      "session": "t-core",
+      "tier_grants": [
+        "push_own_branch",
+        "open_draft_pr",
+        "restack"
+      ],
+      "observed": null,
+      "brief": "briefs/T-core/brief.md"
+    },
+    {
+      "id": "T-core-align",
+      "aliases": [],
+      "title": "Align core and file store with C-event-log v3",
+      "kind": "build",
+      "status": "done",
+      "blocked_by": [
+        "T-import",
+        "D-contract-blockers",
+        "D-claim-lane",
+        "D-apply-before-loop"
+      ],
+      "blocked_by_open": [],
+      "approved_on": "2026-11-20",
+      "branch": "build/t-core-align",
+      "session": "t-core-align",
+      "tier_grants": [
+        "push_own_branch",
+        "open_draft_pr",
+        "restack"
+      ],
+      "observed": null,
+      "brief": "briefs/T-core-align/brief.md"
+    },
+    {
+      "id": "T-decision-views",
+      "aliases": [],
+      "title": "Decision inbox and decision screen",
+      "kind": "build",
+      "status": "draft",
+      "blocked_by": [
+        "T-server"
+      ],
+      "blocked_by_open": [
+        "T-server"
+      ],
+      "approved_on": null,
+      "branch": null,
+      "session": null,
+      "tier_grants": [],
+      "observed": null,
+      "brief": null
+    },
+    {
+      "id": "T-file-store",
+      "aliases": [],
+      "title": "File store for events and entries",
+      "kind": "build",
+      "status": "done",
+      "blocked_by": [
+        "C-event-log"
+      ],
+      "blocked_by_open": [],
+      "approved_on": "2026-11-19",
+      "branch": "build/t-file-store",
+      "session": "t-file-store",
+      "tier_grants": [
+        "push_own_branch",
+        "open_draft_pr",
+        "restack"
+      ],
+      "observed": null,
+      "brief": "briefs/T-file-store/brief.md"
+    },
+    {
+      "id": "T-graph-view",
+      "aliases": [],
+      "title": "Task graph view",
+      "kind": "build",
+      "status": "draft",
+      "blocked_by": [
+        "T-server"
+      ],
+      "blocked_by_open": [
+        "T-server"
+      ],
+      "approved_on": null,
+      "branch": null,
+      "session": null,
+      "tier_grants": [],
+      "observed": null,
+      "brief": null
+    },
+    {
+      "id": "T-import",
+      "aliases": [],
+      "title": "Import hand-written records into events",
+      "kind": "build",
+      "status": "done",
+      "blocked_by": [
+        "T-core",
+        "T-file-store"
+      ],
+      "blocked_by_open": [],
+      "approved_on": "2026-11-20",
+      "branch": "build/t-import",
+      "session": "t-import",
+      "tier_grants": [
+        "push_own_branch",
+        "open_draft_pr",
+        "restack"
+      ],
+      "observed": null,
+      "brief": "briefs/T-import/brief.md"
+    },
+    {
+      "id": "T-landscape-research",
+      "aliases": [
+        "R2"
+      ],
+      "title": "Landscape of agent-supervisor tools",
+      "kind": "research",
+      "status": "done",
+      "blocked_by": [],
+      "blocked_by_open": [],
+      "approved_on": "2026-11-20",
+      "branch": "research/r2-landscape",
+      "session": "r2-landscape",
+      "tier_grants": [
+        "read_web",
+        "clone_public_repos_to_scratch",
+        "write_own_output",
+        "push_own_branch",
+        "open_draft_pr"
+      ],
+      "observed": null,
+      "brief": "briefs/T-landscape-research/brief.md"
+    },
+    {
+      "id": "T-reconcile",
+      "aliases": [],
+      "title": "Control loop, one pass (ekumen reconcile)",
+      "kind": "build",
+      "status": "draft",
+      "blocked_by": [
+        "T-core",
+        "T-file-store",
+        "T-cli"
+      ],
+      "blocked_by_open": [],
+      "approved_on": null,
+      "branch": null,
+      "session": null,
+      "tier_grants": [],
+      "observed": null,
+      "brief": null
+    },
+    {
+      "id": "T-scaffold",
+      "aliases": [
+        "T0"
+      ],
+      "title": "Repo scaffold",
+      "kind": "build",
+      "status": "done",
+      "blocked_by": [],
+      "blocked_by_open": [],
+      "approved_on": "2026-11-20",
+      "branch": "build/t0-scaffold",
+      "session": "t0-scaffold",
+      "tier_grants": [
+        "push_own_branch",
+        "open_draft_pr",
+        "restack",
+        "add_listed_dependencies"
+      ],
+      "observed": null,
+      "brief": "briefs/T-scaffold/brief.md"
+    },
+    {
+      "id": "T-server",
+      "aliases": [],
+      "title": "HTTP server and live updates",
+      "kind": "build",
+      "status": "draft",
+      "blocked_by": [
+        "C-http-api",
+        "T-core",
+        "T-file-store"
+      ],
+      "blocked_by_open": [
+        "C-http-api"
+      ],
+      "approved_on": null,
+      "branch": null,
+      "session": null,
+      "tier_grants": [],
+      "observed": null,
+      "brief": null
+    },
+    {
+      "id": "T-skills",
+      "aliases": [],
+      "title": "/blocked and /decide skills",
+      "kind": "build",
+      "status": "draft",
+      "blocked_by": [
+        "T-cli"
+      ],
+      "blocked_by_open": [],
+      "approved_on": null,
+      "branch": null,
+      "session": null,
+      "tier_grants": [],
+      "observed": null,
+      "brief": null
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D-acp-version",
+      "aliases": [
+        "D-018"
+      ],
+      "title": "ACP version target",
+      "tier": 1,
+      "raised_by": {
+        "task": "T-acp-research",
+        "session": "r1-acp",
+        "on": "2026-11-20"
+      },
+      "question": "Target ACP v1 (stable) with unstable features behind capability checks, or the v2 draft?",
+      "options": [
+        {
+          "id": "v1-plus-unstable",
+          "tradeoff": "Works with every agent today; state and steering through extensions"
+        },
+        {
+          "id": "v2-draft",
+          "tradeoff": "Better model (prompt while running"
+        }
+      ],
+      "recommendation": "v1-plus-unstable",
+      "default_if_no_answer": "v1-plus-unstable",
+      "deadline": "2026-11-27",
+      "blocks": [],
+      "contract_impact": [],
+      "context": {
+        "summary": "Not needed for v0.1, which has no ACP driver.",
+        "evidence": [
+          ".ekumen/research/R1-acp.md"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "v1-plus-unstable",
+      "answer_note": "As recommended.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": "2026-11-20",
+      "applied": {
+        "amended_tasks": [],
+        "unblocked_tasks": [],
+        "notified_sessions": []
+      },
+      "priority": 0,
+      "holds_up": []
+    },
+    {
+      "id": "D-adapter-base",
+      "aliases": [
+        "D-015"
+      ],
+      "title": "Agent adapter base. ACP, native, or both?",
+      "tier": 2,
+      "raised_by": {
+        "task": "T-acp-research",
+        "session": "r1-acp",
+        "on": "2026-11-20"
+      },
+      "question": "Should Ekumen's agent adapters be built on ACP, on each tool's native CLI/SDK, or both?",
+      "options": [
+        {
+          "id": "acp-only",
+          "tradeoff": "One driver for all tools; cannot see or message lead-started sessions; fork/status unstable in ACP v1"
+        },
+        {
+          "id": "acp-plus-native",
+          "tradeoff": "Uniform control of owned sessions plus native observers for all sessions; two paths per tool"
+        },
+        {
+          "id": "native-only",
+          "tradeoff": "Fewest dependencies"
+        }
+      ],
+      "recommendation": "acp-plus-native",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [
+        "C-adapter"
+      ],
+      "context": {
+        "summary": "ACP (spec 1.19.0, Apache-2.0, Zed + JetBrains) is healthy, but its Claude and Codex adapters start their own private agent process, so they cannot see or message sessions the lead opened in a terminal. Fork and status are unstable in v1. Plan: v0.1 ships a native Claude Code adapter only; a generic ACP driver arrives with the dispatcher, with a small native status reader per tool.\n",
+        "evidence": [
+          ".ekumen/research/R1-acp.md"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "acp-plus-native",
+      "answer_note": "As recommended.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": "2026-11-20",
+      "applied": {
+        "amended_tasks": [],
+        "unblocked_tasks": [],
+        "notified_sessions": []
+      },
+      "priority": 0,
+      "holds_up": [
+        "C-adapter",
+        "T-claude-adapter"
+      ]
+    },
+    {
+      "id": "D-agent-agnostic",
+      "aliases": [
+        "D-002"
+      ],
+      "title": "Agent-agnostic or Claude Code only?",
+      "tier": 2,
+      "raised_by": {
+        "task": null,
+        "session": "orchestrator",
+        "on": "2026-11-19"
+      },
+      "question": "Bind to one agent tool or define an adapter interface?",
+      "options": [
+        {
+          "id": "agnostic",
+          "tradeoff": "Long-term durable; slower v0.1"
+        },
+        {
+          "id": "claude-only",
+          "tradeoff": "Fastest; risk of being absorbed by the platform"
+        }
+      ],
+      "recommendation": "agnostic",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [],
+      "context": {
+        "summary": "From the vision discussion. Binding to one agent tool is fastest but risks being absorbed by that platform; an adapter layer keeps Ekumen above any one tool.\n",
+        "evidence": [],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "agnostic",
+      "answer_note": "Adapter per agent tool; support order Claude Code + Codex, then Gemini CLI + OpenCode, then Cursor + Copilot.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-19",
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 0,
+      "holds_up": []
+    },
+    {
+      "id": "D-alias-field",
+      "aliases": [],
+      "title": "Carry aliases as an optional field on creating events",
+      "tier": 2,
+      "raised_by": {
+        "task": "T-core",
+        "session": "t-core",
+        "on": "2026-11-20"
+      },
+      "question": "C-event-log §1 says readers resolve aliases everywhere, but only DecisionRaised (through the record) has an aliases field. Where do task, contract and external aliases live?\n",
+      "options": [
+        {
+          "id": "optional-field",
+          "tradeoff": "Add optional aliases[] to TaskDrafted, ContractDrafted and ExternalAdded. This is a minor change under §9. Implemented for reading only."
+        },
+        {
+          "id": "alias-event",
+          "tradeoff": "A new AliasAssigned event (orchestrator lane). Aliases can then be added after creation, at the cost of one more type."
+        }
+      ],
+      "recommendation": "optional-field",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [
+        "C-event-log"
+      ],
+      "context": {
+        "summary": "T-import needs somewhere to write R1, T0 and C1. Until this is decided, the reducer accepts the optional field.",
+        "evidence": [
+          ".ekumen/contracts/C-event-log.md#1-ids",
+          "internal/event/data.go"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "optional-field",
+      "answer_note": "As recommended.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 0,
+      "holds_up": [
+        "C-event-log",
+        "T-audit",
+        "T-claude-adapter",
+        "T-cli",
+        "T-cli-gaps",
+        "T-core",
+        "T-core-align",
+        "T-decision-views",
+        "T-file-store",
+        "T-graph-view",
+        "T-import",
+        "T-reconcile",
+        "T-server",
+        "T-skills"
+      ]
+    },
+    {
+      "id": "D-apply-before-loop",
+      "aliases": [],
+      "title": "Add a manual `ekumen decision apply` until the loop exists",
+      "tier": 2,
+      "raised_by": {
+        "task": "T-cli",
+        "session": "t-cli",
+        "on": "2026-11-20"
+      },
+      "question": "A decided decision keeps blocking its tasks until DecisionApplied (C-decision-record §3), which only the loop writes, and no CLI command writes it. Until T-reconcile ships, every task gated by a decided decision stays blocked. How should decisions be applied before then?\n",
+      "options": [
+        {
+          "id": "apply-command",
+          "tradeoff": "Add `ekumen decision apply \u003cid\u003e`, run by the orchestrator as `--as loop:\u003csession\u003e`. It writes DecisionApplied and the §B amendments. Small minor addition to C-cli-json."
+        },
+        {
+          "id": "wait-for-loop",
+          "tradeoff": "No change. T-reconcile becomes urgent, and statuses read \"blocked\" for decided work until it ships."
+        },
+        {
+          "id": "decided-clears",
+          "tradeoff": "Treat decided as cleared in core. Simplest, but it changes C-decision-record §3 semantics."
+        }
+      ],
+      "recommendation": "apply-command",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [
+        "T-skills",
+        "T-reconcile"
+      ],
+      "contract_impact": [
+        "C-cli-json"
+      ],
+      "context": {
+        "summary": "Seen in the end-to-end run: after `decision answer`, the task stays \"blocked\" by the decision. The orchestrator can't clear it with `task block --remove` either, because core also blocks through the decision's own `blocks`.\n",
+        "evidence": [
+          "internal/core/status.go",
+          "internal/cli/cli_test.go"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "apply-command",
+      "answer_note": "As recommended.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": "2026-11-20",
+      "applied": {
+        "amended_tasks": [
+          "T-core-align",
+          "T-cli-gaps"
+        ],
+        "unblocked_tasks": [],
+        "notified_sessions": []
+      },
+      "priority": 0,
+      "holds_up": [
+        "C-cli-json",
+        "T-audit",
+        "T-cli",
+        "T-cli-gaps",
+        "T-core-align",
+        "T-reconcile",
+        "T-skills"
+      ]
+    },
+    {
+      "id": "D-blocker-semantics",
+      "aliases": [],
+      "title": "Settle what clears a blocker and how far priority reaches",
+      "tier": 2,
+      "raised_by": {
+        "task": "T-core",
+        "session": "t-core",
+        "on": "2026-11-20"
+      },
+      "question": "(a) C-decision-record says tasks stay blocked \"until the decision is applied\", and that a superseded decision is never applied. Does a superseded decision keep blocking? (b) Priority counts tasks blocked \"directly or through contracts\". Is \"through contracts\" the tasks whose blocked_by names a contract in contract_impact, followed transitively through blocked_by?\n",
+      "options": [
+        {
+          "id": "superseded-releases",
+          "tradeoff": "A superseded decision stops gating, and its replacement carries the gate. For priority, the transitive reach through blocked_by is as above. Implemented."
+        },
+        {
+          "id": "superseded-holds",
+          "tradeoff": "The literal reading. Tasks stay blocked until something else unblocks them, and a replacement that doesn't list them leaves them stuck."
+        }
+      ],
+      "recommendation": "superseded-releases",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [
+        "C-decision-record"
+      ],
+      "context": {
+        "summary": "Blockers clear as follows: task → done (observed), decision → applied, contract → frozen, external → resolved, and an unknown id never clears. Priority counts deferred tasks out. Done tasks are counted in, because the priority functions take no observations.\n",
+        "evidence": [
+          "internal/core/status.go",
+          "internal/core/priority.go"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "superseded-releases",
+      "answer_note": "As recommended.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 0,
+      "holds_up": [
+        "C-decision-record",
+        "T-audit",
+        "T-claude-adapter",
+        "T-cli",
+        "T-cli-gaps",
+        "T-core",
+        "T-core-align",
+        "T-decision-views",
+        "T-graph-view",
+        "T-import",
+        "T-reconcile",
+        "T-server",
+        "T-skills"
+      ]
+    },
+    {
+      "id": "D-claim-lane",
+      "aliases": [],
+      "title": "Let the claiming session write RoleClaimed and RoleReleased",
+      "tier": 2,
+      "raised_by": {
+        "task": "T-cli",
+        "session": "t-cli",
+        "on": "2026-11-20"
+      },
+      "question": "C-cli-json §3 says `ekumen claim \u003crole\u003e` is run by \"the claiming session\" and records RoleClaimed, but C-event-log §3 puts RoleClaimed and RoleReleased in the loop's lane only. Who writes them?\n",
+      "options": [
+        {
+          "id": "claiming-session",
+          "tradeoff": "The session writes its own claim (data.session must equal the actor). Matches the CLI and works before the loop exists. Implemented."
+        },
+        {
+          "id": "loop-only",
+          "tradeoff": "Matches the table, but nobody can claim until T-reconcile exists, so no orchestrator write is possible after the switch."
+        }
+      ],
+      "recommendation": "claiming-session",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [
+        "C-event-log"
+      ],
+      "context": {
+        "summary": "The two frozen contracts disagree. The CLI writes the claim as the session and checks the lane in internal/project/lanes.go. core.CheckLane still reports it as a lane conflict, so `check` re-checks core's lane conflicts against the v3 table before reporting them.\n",
+        "evidence": [
+          ".ekumen/contracts/C-cli-json.md",
+          ".ekumen/contracts/C-event-log.md",
+          "internal/project/lanes.go"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "claiming-session",
+      "answer_note": "As recommended.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": "2026-11-20",
+      "applied": {
+        "amended_tasks": [
+          "T-core-align",
+          "T-cli-gaps"
+        ],
+        "unblocked_tasks": [],
+        "notified_sessions": []
+      },
+      "priority": 0,
+      "holds_up": [
+        "C-event-log",
+        "T-audit",
+        "T-claude-adapter",
+        "T-cli",
+        "T-cli-gaps",
+        "T-core",
+        "T-core-align",
+        "T-decision-views",
+        "T-file-store",
+        "T-graph-view",
+        "T-import",
+        "T-reconcile",
+        "T-server",
+        "T-skills"
+      ]
+    },
+    {
+      "id": "D-claude-auth",
+      "aliases": [
+        "D-017"
+      ],
+      "title": "How Ekumen authenticates to Claude Code",
+      "tier": 2,
+      "raised_by": {
+        "task": "T-acp-research",
+        "session": "r1-acp",
+        "on": "2026-11-20"
+      },
+      "question": "Anthropic does not allow third-party products to offer claude.ai login or rate limits (including Agent SDK apps, which claude-agent-acp is) unless approved. How does Ekumen drive Claude Code?\n",
+      "options": [
+        {
+          "id": "drive-installed-cli",
+          "tradeoff": "Ekumen runs the lead's own installed `claude` binary under the lead's own login; Ekumen never handles credentials"
+        },
+        {
+          "id": "api-key-only-acp",
+          "tradeoff": "claude-agent-acp with ANTHROPIC_API_KEY only; clean on terms; costs API spend"
+        },
+        {
+          "id": "seek-approval",
+          "tradeoff": "Ask Anthropic; slow"
+        }
+      ],
+      "recommendation": "drive-installed-cli",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [
+        "C-adapter"
+      ],
+      "context": {
+        "summary": "For personal use, running one's own CLI is the safe default. Never ship or broker Claude credentials. Revisit the terms before the first public release, because distribution is what the rule is about.\n",
+        "evidence": [
+          ".ekumen/research/R1-acp.md",
+          "https://code.claude.com/docs/en/agent-sdk/overview"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "drive-installed-cli",
+      "answer_note": "As recommended.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": "2026-11-20",
+      "applied": {
+        "amended_tasks": [],
+        "unblocked_tasks": [],
+        "notified_sessions": []
+      },
+      "priority": 0,
+      "holds_up": [
+        "C-adapter",
+        "T-claude-adapter"
+      ]
+    },
+    {
+      "id": "D-claude-status-source",
+      "aliases": [
+        "D-013"
+      ],
+      "title": "Needs-input and status signal sources for the Claude Code adapter",
+      "tier": 2,
+      "raised_by": {
+        "task": "T-landscape-research",
+        "session": "r2-landscape",
+        "on": "2026-11-20"
+      },
+      "question": "Which signals does the Claude Code adapter treat as authoritative for session status and \"needs input\"?\n",
+      "options": [
+        {
+          "id": "hooks-plus-listing",
+          "tradeoff": "Hooks (PermissionRequest, Notification, PreToolUse:AskUserQuestion, Stop, SessionStart, UserPromptSubmit) post events; `claude agents --json --all` (documented) reconciles liveness; transcript tail only for the ask's text. Proven by signalbox, quanticstudios, leggetter. Needs a hooks install step (backup, dry-run, reversal) and dedup of twin events.\n"
+        },
+        {
+          "id": "transcript-only",
+          "tradeoff": "No install; read-only (aidarkazybekov). Misses live permission prompts until written; slower; parses undocumented JSONL."
+        },
+        {
+          "id": "screen-scrape",
+          "tradeoff": "Works for any tool in tmux (claude-squad, ccmanager). Brittle across versions and layouts; rejected by most mature tools."
+        }
+      ],
+      "recommendation": "hooks-plus-listing",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [
+        "C-adapter"
+      ],
+      "context": {
+        "summary": "Every mature supervisor converged on hooks. Missing data should fail toward \"needs you\". Undocumented files (~/.claude/sessions, ~/.claude/jobs) stay behind a fail-soft adapter with version fixtures.\n",
+        "evidence": [
+          ".ekumen/research/R2-landscape.md#3-how-they-detect-needs-input-and-status-per-agent-tool"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "hooks-plus-listing",
+      "answer_note": "As recommended.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": "2026-11-20",
+      "applied": {
+        "amended_tasks": [],
+        "unblocked_tasks": [],
+        "notified_sessions": []
+      },
+      "priority": 0,
+      "holds_up": [
+        "C-adapter",
+        "T-claude-adapter"
+      ]
+    },
+    {
+      "id": "D-cli-missing-writes",
+      "aliases": [],
+      "title": "Add CLI commands for the remaining orchestrator events",
+      "tier": 2,
+      "raised_by": {
+        "task": "T-cli",
+        "session": "t-cli",
+        "on": "2026-11-20"
+      },
+      "question": "C-cli-json has no command for ContractDrafted, ContractVersioned, TaskDeferred, TaskSessionAttached or ExternalAdded/Updated/Resolved. After the switch point, nobody may edit .ekumen/ by hand, so these can't be written at all. Add them?\n",
+      "options": [
+        {
+          "id": "add-commands",
+          "tradeoff": "`contract draft|version`, `task defer|attach`, `external add|update|resolve`. A minor change under C-cli-json §5. About a day of work."
+        },
+        {
+          "id": "later",
+          "tradeoff": "Wait until one is needed, and hand-write events in the meantime, which breaks the switch-point rule."
+        }
+      ],
+      "recommendation": "add-commands",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [
+        "C-cli-json"
+      ],
+      "context": {
+        "summary": "Found while building the test fixture: contracts and loop events had to be written straight through the store. Planned contracts (C-adapter, C-http-api) can't be created through the CLI.\n",
+        "evidence": [
+          "internal/cli/harness_test.go"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "add-commands",
+      "answer_note": "As recommended.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": "2026-11-20",
+      "applied": {
+        "amended_tasks": [
+          "T-core-align",
+          "T-cli-gaps"
+        ],
+        "unblocked_tasks": [],
+        "notified_sessions": []
+      },
+      "priority": 0,
+      "holds_up": [
+        "C-cli-json",
+        "T-cli",
+        "T-cli-gaps",
+        "T-reconcile",
+        "T-skills"
+      ]
+    },
+    {
+      "id": "D-code-over-tokens",
+      "aliases": [
+        "D-007"
+      ],
+      "title": "Code over tokens",
+      "tier": 2,
+      "raised_by": {
+        "task": null,
+        "session": "lead",
+        "on": "2026-11-19"
+      },
+      "question": "Should agents do deterministic work such as graph drawing, queries, status and routing?",
+      "options": [
+        {
+          "id": "code-first",
+          "tradeoff": "Deterministic"
+        },
+        {
+          "id": "agent-does-it",
+          "tradeoff": "Less code to write; costs tokens on every run"
+        }
+      ],
+      "recommendation": null,
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [],
+      "context": {
+        "summary": "The lead's principle: deterministic work (graph layout, queries, status, routing) is software, and agents are used only for judgment, to save tokens and keep results reproducible.\n",
+        "evidence": [],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "code-first",
+      "answer_note": "Agents only for judgment; everything deterministic is software exposed via ekumen CLI --json.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-19",
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 0,
+      "holds_up": []
+    },
+    {
+      "id": "D-contract-blockers",
+      "aliases": [],
+      "title": "Give contracts blockers and a planned state in events",
+      "tier": 2,
+      "raised_by": {
+        "task": "T-import",
+        "session": "t-import",
+        "on": "2026-11-20"
+      },
+      "question": "registry.yaml gives contracts blocked_by (e.g. C-adapter on D-013..D-017) and used to give a `planned` status. C-event-log has no field for either, so the import keeps them as legacy data on ContractDrafted, where nothing reads them. Should events carry them?\n",
+      "options": [
+        {
+          "id": "optional-fields",
+          "tradeoff": "Add optional blocked_by[] to ContractDrafted plus a ContractBlockersChanged event (orchestrator lane); blockers then count in status and priority. Minor change (§9)."
+        },
+        {
+          "id": "move-to-tasks",
+          "tradeoff": "No contract change: drop contract blockers and put the gates on the tasks that produce the contract. Loses the 'contract waits on decision' edge in the graph."
+        },
+        {
+          "id": "keep-legacy",
+          "tradeoff": "Leave it as legacy data; the build map can't show contract blockers."
+        }
+      ],
+      "recommendation": "optional-fields",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [
+        "C-event-log"
+      ],
+      "context": {
+        "summary": "Found while importing registry.yaml, whose own comment says \"until contracts carry their own blockers (FRICTION)\". Today no task status depends on it: every task blocked by a draft contract is blocked by the contract itself. Not blocking T-import.\n",
+        "evidence": [
+          ".ekumen/registry.yaml",
+          "internal/legacyimport/build.go"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "optional-fields",
+      "answer_note": "As recommended.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": "2026-11-20",
+      "applied": {
+        "amended_tasks": [
+          "T-core-align",
+          "T-cli-gaps"
+        ],
+        "unblocked_tasks": [],
+        "notified_sessions": []
+      },
+      "priority": 0,
+      "holds_up": [
+        "C-event-log",
+        "T-audit",
+        "T-claude-adapter",
+        "T-cli",
+        "T-cli-gaps",
+        "T-core",
+        "T-core-align",
+        "T-decision-views",
+        "T-file-store",
+        "T-graph-view",
+        "T-import",
+        "T-reconcile",
+        "T-server",
+        "T-skills"
+      ]
+    },
+    {
+      "id": "D-control-loop",
+      "aliases": [
+        "D-012"
+      ],
+      "title": "Make a reconcile control loop the core of the engine",
+      "tier": 2,
+      "raised_by": {
+        "task": null,
+        "session": "lead",
+        "on": "2026-11-20"
+      },
+      "question": "Should Ekumen's engine be one level-triggered control loop (observe actual state, compare with desired state, act), in place of separate reconcile, dispatcher, defaults and audit steps?\n",
+      "options": [
+        {
+          "id": "control-loop",
+          "tradeoff": "One idempotent loop with pluggable observers (git, PRs, sessions) and actuators (apply decision, start session, send message, open decision). Restart-safe; the same model as Kubernetes controllers. Audit = the loop in dry-run mode. Pure code, no tokens. Needs care to keep actions idempotent.\n"
+        },
+        {
+          "id": "separate-commands",
+          "tradeoff": "Simpler to start; the logic gets duplicated and drifts across commands."
+        }
+      ],
+      "recommendation": "control-loop",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [],
+      "context": {
+        "summary": "Desired state = spine, frozen contracts, approved briefs, decided decisions. Observed state = remote default branch, PR state, session status. Each pass derives the difference and takes only pre-authorized actions; anything else becomes a decision. v0.1 can ship the loop with one pass run on demand (`ekumen reconcile`), and v0.3 just runs it on a timer (the dispatcher).\n",
+        "evidence": [
+          ".ekumen/spine.md"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "control-loop",
+      "answer_note": "Adopted. Spine §6 and §7 amended.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 0,
+      "holds_up": []
+    },
+    {
+      "id": "D-core-language",
+      "aliases": [
+        "D-003"
+      ],
+      "title": "Core language",
+      "tier": 2,
+      "raised_by": {
+        "task": null,
+        "session": "orchestrator",
+        "on": "2026-11-19"
+      },
+      "question": "What language is the core and CLI written in?",
+      "options": [
+        {
+          "id": "go",
+          "tradeoff": "Single binary"
+        },
+        {
+          "id": "python",
+          "tradeoff": "Quick to script; harder distribution"
+        },
+        {
+          "id": "typescript",
+          "tradeoff": "Same language as the UI; needs a Node runtime"
+        }
+      ],
+      "recommendation": "go",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [],
+      "context": {
+        "summary": "From the vision discussion. The lead knows Go, and a single binary suits a developer tool.\n",
+        "evidence": [],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "go",
+      "answer_note": null,
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-19",
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 0,
+      "holds_up": []
+    },
+    {
+      "id": "D-decision-delivery",
+      "aliases": [
+        "D-014"
+      ],
+      "title": "How Ekumen raises decisions from, and delivers answers to, a live Claude Code session",
+      "tier": 2,
+      "raised_by": {
+        "task": "T-landscape-research",
+        "session": "r2-landscape",
+        "on": "2026-11-20"
+      },
+      "question": "What channel carries a decision from a session to Ekumen, and the applied answer back, and where do side questions run?\n",
+      "options": [
+        {
+          "id": "mcp-raise-inbox-deliver-fork-ask",
+          "tradeoff": "Raise via an Ekumen MCP tool that only acknowledges (or `ekumen decision raise --json` from the skill); deliver via Claude Code's session inbox (CLAUDE_CODE_MESSAGING_SOCKET / relay, as gavel and leggetter), which cannot approve permission prompts (good: answers are guidance); questions in `claude -p --resume \u003cid\u003e --fork-session` read-only (chekrd), satisfying invariant 10. Depends on Claude Code messaging (\u003e= 2.1.295 per leggetter) and needs a queued fallback.\n"
+        },
+        {
+          "id": "tmux-injection",
+          "tradeoff": "Works with any CLI (chekrd, claude-squad). Requires owning the terminal; fragile; risks answering the wrong prompt without the pre-send checks."
+        },
+        {
+          "id": "blocking-tool",
+          "tradeoff": "Session blocks on a tool call until answered. Simple, but holds a turn open for hours and derails the session — contrary to spine §1."
+        }
+      ],
+      "recommendation": "mcp-raise-inbox-deliver-fork-ask",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [
+        "C-event-log",
+        "C-adapter"
+      ],
+      "context": {
+        "summary": "Delivery is a separate effect from the answer (docket R21): record `decided` once, then deliver with pending/delivered/uncertain state, re-checking the target decision version just before sending (chekrd/quanticstudios first-wins with typed refusals).\n",
+        "evidence": [
+          ".ekumen/research/R2-landscape.md#4-adopt--avoid"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "other",
+      "answer_note": "As recommended, in the revised form from the orchestrator note: raise through the ekumen CLI; deliver to Ekumen-started sessions through their input stream and to lead-started sessions as a queued side question; side questions in a fork.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": "2026-11-20",
+      "applied": {
+        "amended_tasks": [],
+        "unblocked_tasks": [],
+        "notified_sessions": []
+      },
+      "priority": 0,
+      "holds_up": [
+        "C-adapter",
+        "C-event-log",
+        "T-audit",
+        "T-claude-adapter",
+        "T-cli",
+        "T-cli-gaps",
+        "T-core",
+        "T-core-align",
+        "T-decision-views",
+        "T-file-store",
+        "T-graph-view",
+        "T-import",
+        "T-reconcile",
+        "T-server",
+        "T-skills"
+      ]
+    },
+    {
+      "id": "D-entry-name-same-author-branches",
+      "aliases": [],
+      "title": "Accept that one author writing entries on two branches in the same second can collide?",
+      "tier": 2,
+      "raised_by": {
+        "task": "T-file-store",
+        "session": "t-file-store",
+        "on": "2026-11-20"
+      },
+      "question": "C-event-log §8 says two writers never pick the same entry name. The -N suffix only works within one checkout. If the same author (e.g. orchestrator) writes an entry for the same task on two branches in the same second, both get the same name with different text, and git reports a merge conflict. Accept and document, or change the name format?",
+      "options": [
+        {
+          "id": "accept-document",
+          "tradeoff": "No contract change. Relies on one live holder per role (§3) usually working on one branch at a time. The case is rare, and git surfaces it loudly."
+        },
+        {
+          "id": "random-suffix",
+          "tradeoff": "Add a short random or ULID suffix to entry names. Collisions become impossible, but names are less readable and the contract changes."
+        }
+      ],
+      "recommendation": "accept-document",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [
+        "C-event-log"
+      ],
+      "context": {
+        "summary": "Found while writing the branch-merge test. Event files can't collide (ULIDs). Entry names are \u003ctimestamp\u003e-\u003cauthor\u003e, so different authors never collide, but one author on two branches in one second can.",
+        "evidence": [
+          "internal/store/files/events_test.go#TestBranchesMergeByCopy"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "accept-document",
+      "answer_note": "As recommended.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 0,
+      "holds_up": [
+        "C-event-log",
+        "T-audit",
+        "T-claude-adapter",
+        "T-cli",
+        "T-cli-gaps",
+        "T-core",
+        "T-core-align",
+        "T-decision-views",
+        "T-file-store",
+        "T-graph-view",
+        "T-import",
+        "T-reconcile",
+        "T-server",
+        "T-skills"
+      ]
+    },
+    {
+      "id": "D-id-scheme",
+      "aliases": [
+        "D-019"
+      ],
+      "title": "How Ekumen ids are formed",
+      "tier": 2,
+      "raised_by": {
+        "task": null,
+        "session": "orchestrator",
+        "on": "2026-11-20"
+      },
+      "question": "Ids like D-012 or R1 are opaque to read, and sequential numbers collide when two branches each create \"the next\" one. What should decision and task ids look like?\n",
+      "options": [
+        {
+          "id": "slug",
+          "tradeoff": "Readable kebab-case slug with a kind prefix, e.g. D-control-loop, T-event-store, C-event-log. Self-explaining anywhere it appears. The CLI refuses a slug already in use; two branches choosing the same slug is rare and caught by the id-collision rule. Longer to type.\n"
+        },
+        {
+          "id": "task-prefixed-number",
+          "tradeoff": "Decisions raised by a task are numbered within it (D-R1-1); the lead's on main stay D-013. Unique without coordination, but just as opaque as today.\n"
+        },
+        {
+          "id": "ulid-plus-number",
+          "tradeoff": "A hidden ULID is the real id; a short number is assigned when the item reaches main. Robust, but an item has no stable readable name until it is merged.\n"
+        }
+      ],
+      "recommendation": "slug",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [
+        "C-event-log",
+        "C-decision-record"
+      ],
+      "context": {
+        "summary": "The lead found bare ids unreadable, and R1 and R2 both had to invent placeholder ids because no owner hands them out. Existing ids (D-001..D-019, R1, R2, T0..T10, C1..C5) would be migrated by the one-off import (T9), keeping old ids as aliases so links keep working.\n",
+        "evidence": [
+          ".ekumen/contracts/C1-event-log.md",
+          ".ekumen/research/R1-acp.md",
+          ".ekumen/research/R2-landscape.md"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "slug",
+      "answer_note": "As recommended.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": "2026-11-20",
+      "applied": {
+        "amended_tasks": [],
+        "unblocked_tasks": [],
+        "notified_sessions": []
+      },
+      "priority": 0,
+      "holds_up": [
+        "C-decision-record",
+        "C-event-log",
+        "T-audit",
+        "T-claude-adapter",
+        "T-cli",
+        "T-cli-gaps",
+        "T-core",
+        "T-core-align",
+        "T-decision-views",
+        "T-file-store",
+        "T-graph-view",
+        "T-import",
+        "T-reconcile",
+        "T-server",
+        "T-skills"
+      ]
+    },
+    {
+      "id": "D-lane-gaps",
+      "aliases": [],
+      "title": "Fill three gaps in the lane table",
+      "tier": 2,
+      "raised_by": {
+        "task": "T-core",
+        "session": "t-core",
+        "on": "2026-11-20"
+      },
+      "question": "(1) Only a session or integrator may write DecisionRaised, yet §5 says the loop \"raises a tier-2 decision\" for a conflict, and project decisions (raised_by.task null) have no lane. (2) \"Its own task\" can only be known from TaskSessionAttached, which only the loop writes, so in the manual phase every session handoff fails the lane. (3) RouteResolved is orchestrator-only, so a route to the lead or a session closes only when its question is answered.\n",
+      "options": [
+        {
+          "id": "widen",
+          "tradeoff": "Let the loop, orchestrator and lead raise decisions (task null allowed). Add an optional `session` to TaskDrafted, or accept the orchestrator's attach. Let any route's owner resolve it.\n"
+        },
+        {
+          "id": "literal",
+          "tradeoff": "Keep the table as written. Implemented. Lane conflicts will be reported for these cases."
+        }
+      ],
+      "recommendation": "widen",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [
+        "C-event-log"
+      ],
+      "context": {
+        "summary": "The code follows the table literally (core.Lanes, CheckLaneIn). Once the CLI and loop write events, all three cases will show up as lane conflicts.",
+        "evidence": [
+          "internal/core/lanes.go"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "widen",
+      "answer_note": "As recommended.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 0,
+      "holds_up": [
+        "C-event-log",
+        "T-audit",
+        "T-claude-adapter",
+        "T-cli",
+        "T-cli-gaps",
+        "T-core",
+        "T-core-align",
+        "T-decision-views",
+        "T-file-store",
+        "T-graph-view",
+        "T-import",
+        "T-reconcile",
+        "T-server",
+        "T-skills"
+      ]
+    },
+    {
+      "id": "D-legacy-pseudo-tasks",
+      "aliases": [],
+      "title": "Import raised_by.task values that are not tasks as null",
+      "tier": 1,
+      "raised_by": {
+        "task": "T-import",
+        "session": "t-import",
+        "on": "2026-11-20"
+      },
+      "question": "D-001..D-010 and D-012 name raised_by.task \"vision\", \"public-repo\" or \"spine\", which are not tasks. Import them as task null (kept as legacy.raised_by_task), or create done tasks for them?\n",
+      "options": [
+        {
+          "id": "null-plus-legacy",
+          "tradeoff": "As implemented. No invented tasks; the original word is kept in the event."
+        },
+        {
+          "id": "synthetic-tasks",
+          "tradeoff": "Draft T-vision, T-public-repo, T-spine as done tasks; raised_by stays a task, but adds three tasks with no brief, branch or PR."
+        }
+      ],
+      "recommendation": "null-plus-legacy",
+      "default_if_no_answer": "null-plus-legacy",
+      "deadline": "2026-11-24",
+      "blocks": [],
+      "contract_impact": [],
+      "context": {
+        "summary": "C-decision-record §1 allows task null for decisions about the project itself, which these are.",
+        "evidence": [
+          ".ekumen/decisions/D-001.yaml",
+          "internal/legacyimport/build.go"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "null-plus-legacy",
+      "answer_note": "Decided by the lead ahead of the default deadline.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": "2026-11-20",
+      "applied": {
+        "amended_tasks": [],
+        "unblocked_tasks": [],
+        "notified_sessions": []
+      },
+      "priority": 0,
+      "holds_up": []
+    },
+    {
+      "id": "D-license",
+      "aliases": [
+        "D-009"
+      ],
+      "title": "License",
+      "tier": 1,
+      "raised_by": {
+        "task": null,
+        "session": "orchestrator",
+        "on": "2026-11-19"
+      },
+      "question": "Which open-source license?",
+      "options": [
+        {
+          "id": "apache-2-0",
+          "tradeoff": "Includes a patent grant; safer if it ever becomes a product"
+        },
+        {
+          "id": "mit",
+          "tradeoff": "Simplest"
+        }
+      ],
+      "recommendation": "apache-2-0",
+      "default_if_no_answer": "apache-2-0",
+      "deadline": "2026-11-19",
+      "blocks": [],
+      "contract_impact": [],
+      "context": {
+        "summary": "The public repo needed a license when it was created. The lead approved creating it without choosing, so the recommended default was applied. Easy to change before outside contributions.\n",
+        "evidence": [],
+        "prior_decisions": []
+      },
+      "status": "defaulted",
+      "questions": [],
+      "answer": "apache-2-0",
+      "answer_note": null,
+      "decided_by": "loop",
+      "decided_on": "2026-11-19",
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 0,
+      "holds_up": []
+    },
+    {
+      "id": "D-managed-observed-sessions",
+      "aliases": [
+        "D-016"
+      ],
+      "title": "Managed vs observed sessions",
+      "tier": 2,
+      "raised_by": {
+        "task": "T-acp-research",
+        "session": "r1-acp",
+        "on": "2026-11-20"
+      },
+      "question": "Does Ekumen act only on sessions it starts (managed), or also on sessions the lead starts in a terminal (observed)?\n",
+      "options": [
+        {
+          "id": "both-with-degradation",
+          "tradeoff": "Full visibility; observed sessions get status"
+        },
+        {
+          "id": "managed-only",
+          "tradeoff": "Every operation works uniformly; the lead must start every session through Ekumen"
+        }
+      ],
+      "recommendation": "both-with-degradation",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [
+        "C-adapter"
+      ],
+      "context": {
+        "summary": "Verified on Claude Code 2.1.328: there is no CLI way to send a message into a session started elsewhere (`claude agents` lists sessions but has no send). Codex (`codex queue`) and OpenCode (HTTP API) can, per source.\n",
+        "evidence": [
+          ".ekumen/research/R1-acp.md"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "both-with-degradation",
+      "answer_note": "As recommended.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": "2026-11-20",
+      "applied": {
+        "amended_tasks": [],
+        "unblocked_tasks": [],
+        "notified_sessions": []
+      },
+      "priority": 0,
+      "holds_up": [
+        "C-adapter",
+        "T-claude-adapter"
+      ]
+    },
+    {
+      "id": "D-plain-vocabulary",
+      "aliases": [
+        "D-010"
+      ],
+      "title": "Le Guin vocabulary in the product",
+      "tier": 2,
+      "raised_by": {
+        "task": null,
+        "session": "orchestrator",
+        "on": "2026-11-19"
+      },
+      "question": "Should parts of the system use Ekumen's own terms (Mobiles, Stabiles, ansible)?",
+      "options": [
+        {
+          "id": "plain",
+          "tradeoff": "Clear to everyone"
+        },
+        {
+          "id": "themed",
+          "tradeoff": "Flavor; a learning curve"
+        }
+      ],
+      "recommendation": "plain",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [],
+      "context": {
+        "summary": "Le Guin's terms (Mobiles, Stabiles, ansible) add flavour but also a learning curve; the lead chose plain words everywhere for now.\n",
+        "evidence": [],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "plain",
+      "answer_note": "Skip the themed terms for now; plain words (task, decision, session, lead) everywhere.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-19",
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 0,
+      "holds_up": []
+    },
+    {
+      "id": "D-project-folder",
+      "aliases": [
+        "D-008"
+      ],
+      "title": "Project folder name",
+      "tier": 2,
+      "raised_by": {
+        "task": null,
+        "session": "orchestrator",
+        "on": "2026-11-19"
+      },
+      "question": "What folder holds Ekumen state inside a user's repo?",
+      "options": [
+        {
+          "id": "dot-ekumen",
+          "tradeoff": "Explicit and recognizable"
+        },
+        {
+          "id": "dot-ek",
+          "tradeoff": "Short; cryptic"
+        }
+      ],
+      "recommendation": "dot-ekumen",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [],
+      "context": {
+        "summary": "Part of the file format; renaming after release breaks users' repos.",
+        "evidence": [],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "dot-ekumen",
+      "answer_note": "The folder is named .ekumen/",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-19",
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 0,
+      "holds_up": []
+    },
+    {
+      "id": "D-project-name",
+      "aliases": [
+        "D-005"
+      ],
+      "title": "Public project name",
+      "tier": 2,
+      "raised_by": {
+        "task": null,
+        "session": "orchestrator",
+        "on": "2026-11-19"
+      },
+      "question": "What is the public name (repo, Go module path, binary, project folder)?",
+      "options": [
+        {
+          "id": "ekumen",
+          "tradeoff": "Le Guin's voluntary federation; coordination without command; no agent-space clash; a robotics company shares the name"
+        },
+        {
+          "id": "prime-radiant",
+          "tradeoff": "Asimov's plan-and-drift device; long"
+        },
+        {
+          "id": "landsraad",
+          "tradeoff": "Dune's council of Houses; hard to pronounce; political connotations"
+        }
+      ],
+      "recommendation": "ekumen",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [],
+      "context": {
+        "summary": "Real-word names (signalbox, pitwall, yardmaster, docket, gavel, verdict) are already used by many agent-supervisor projects created in Nov 2026. Fiction names were checked for clashes. The Ekumen coordinates autonomous worlds by consent: mobiles = sessions, stabiles = lead, ansible = messaging, worlds = projects.\n",
+        "evidence": [],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "ekumen",
+      "answer_note": "The gentle \"coordination without command\" framing fits the vision.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-19",
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 0,
+      "holds_up": []
+    },
+    {
+      "id": "D-projection-observed",
+      "aliases": [],
+      "title": "Derive projected task status from events plus observed PRs",
+      "tier": 1,
+      "raised_by": {
+        "task": "T-cli",
+        "session": "t-cli",
+        "on": "2026-11-20"
+      },
+      "question": "registry.yaml and state.json show task status. Without observed PRs, a merged task can't be \"done\". Should the committed projections use observed PRs (when `gh` works) or events only?\n",
+      "options": [
+        {
+          "id": "include-observed",
+          "tradeoff": "Statuses read right on GitHub. The projections then depend on when and where they were generated, and a run without gh shows merged tasks as not done. Implemented, with a header comment saying so."
+        },
+        {
+          "id": "events-only",
+          "tradeoff": "Fully reproducible from events, but done tasks show as ready, blocked or running."
+        }
+      ],
+      "recommendation": "include-observed",
+      "default_if_no_answer": "include-observed",
+      "deadline": "2026-11-27",
+      "blocks": [],
+      "contract_impact": [],
+      "context": {
+        "summary": "C-event-log §7 rule 2 forbids storing observations as events, and projections are not events. state.json leaves out the observed PR details and keeps only the derived status.\n",
+        "evidence": [
+          "internal/project/projections.go"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "include-observed",
+      "answer_note": "As recommended.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": "2026-11-20",
+      "applied": {
+        "amended_tasks": [
+          "T-core-align",
+          "T-cli-gaps"
+        ],
+        "unblocked_tasks": [],
+        "notified_sessions": []
+      },
+      "priority": 0,
+      "holds_up": []
+    },
+    {
+      "id": "D-research-location",
+      "aliases": [
+        "D-011"
+      ],
+      "title": "Where research lives",
+      "tier": 2,
+      "raised_by": {
+        "task": "T-acp-research",
+        "session": "lead",
+        "on": "2026-11-20"
+      },
+      "question": "Should research reports live in docs/ or inside .ekumen/?",
+      "options": [
+        {
+          "id": "ekumen-research",
+          "tradeoff": "Research is the phase before a project; it is evidence for the spine and decisions and belongs with them"
+        },
+        {
+          "id": "docs",
+          "tradeoff": "Keeps .ekumen/ to coordination state only"
+        }
+      ],
+      "recommendation": "ekumen-research",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [],
+      "context": {
+        "summary": "Research is the phase before a project, and its reports are evidence for the spine and decisions, so they live in .ekumen/research/.\n",
+        "evidence": [],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "ekumen-research",
+      "answer_note": "Research is a first-class task kind; outputs go to .ekumen/research/\u003ctask-id\u003e-\u003cslug\u003e.md and are cited as evidence.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 0,
+      "holds_up": []
+    },
+    {
+      "id": "D-slug-length-scope",
+      "aliases": [],
+      "title": "Does the 40-character limit in C-event-log §1 cover the slug or the whole id?",
+      "tier": 2,
+      "raised_by": {
+        "task": "T-file-store",
+        "session": "t-file-store",
+        "on": "2026-11-20"
+      },
+      "question": "C-event-log §1 says \"slug ... ≤ 40 characters in total\" and the regex has no length. Is the limit on the slug after \"\u003cletter\u003e-\" (id ≤ 42) or on the whole id (≤ 40)?",
+      "options": [
+        {
+          "id": "slug-only",
+          "tradeoff": "Matches the wording 'slug: ... ≤ 40'. Ids can be up to 42 characters."
+        },
+        {
+          "id": "whole-id",
+          "tradeoff": "Simpler to state, but 'T-' takes 2 of the 40 characters."
+        }
+      ],
+      "recommendation": "slug-only",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [
+        "C-event-log"
+      ],
+      "context": {
+        "summary": "The store validates ids before using them in paths. It currently enforces slug-only (internal/store/files/validate.go, maxSlugLen). T-core validates ids too, and the two must agree. Clarifying the wording is enough; no data changes.",
+        "evidence": [
+          ".ekumen/contracts/C-event-log.md#1-ids",
+          "internal/store/files/validate.go"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "slug-only",
+      "answer_note": "As recommended.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 0,
+      "holds_up": [
+        "C-event-log",
+        "T-audit",
+        "T-claude-adapter",
+        "T-cli",
+        "T-cli-gaps",
+        "T-core",
+        "T-core-align",
+        "T-decision-views",
+        "T-file-store",
+        "T-graph-view",
+        "T-import",
+        "T-reconcile",
+        "T-server",
+        "T-skills"
+      ]
+    },
+    {
+      "id": "D-store-event-type-check",
+      "aliases": [],
+      "title": "Store checks event type shape only, not membership in the §6 list",
+      "tier": 1,
+      "raised_by": {
+        "task": "T-file-store",
+        "session": "t-file-store",
+        "on": "2026-11-20"
+      },
+      "question": "Should Append refuse event types not listed in C-event-log §6, or check only that the type is a safe PascalCase name?",
+      "options": [
+        {
+          "id": "shape-only",
+          "tradeoff": "The store stays opaque and new types (a minor change, §9) need no store change. T-core/CLI enforce the list."
+        },
+        {
+          "id": "known-list",
+          "tradeoff": "Fails earlier, but duplicates T-core's list, and the store must change with every new type."
+        }
+      ],
+      "recommendation": "shape-only",
+      "default_if_no_answer": "shape-only",
+      "deadline": "2026-11-24",
+      "blocks": [],
+      "contract_impact": [],
+      "context": {
+        "summary": "The brief asks for validation of id, ULID and subject kind, and treats payloads as opaque. Type is part of the file name, so the store checks only that it is ^[A-Z][A-Za-z0-9]{0,63}$ (path safe).",
+        "evidence": [
+          "internal/store/files/validate.go"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "shape-only",
+      "answer_note": "As recommended.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 0,
+      "holds_up": []
+    },
+    {
+      "id": "D-target-user",
+      "aliases": [
+        "D-001"
+      ],
+      "title": "Who is Ekumen for?",
+      "tier": 2,
+      "raised_by": {
+        "task": null,
+        "session": "orchestrator",
+        "on": "2026-11-19"
+      },
+      "question": "Solo engineer, solo engineers generally, or teams with several approvers?",
+      "options": [
+        {
+          "id": "solo-5-20",
+          "tradeoff": "Focused scope; the multi-approver format is deferred"
+        },
+        {
+          "id": "teams",
+          "tradeoff": "Bigger market; needs permissions and approvers from day one"
+        }
+      ],
+      "recommendation": "solo-5-20",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [],
+      "context": {
+        "summary": "Scope choice from the vision discussion. Targeting one engineer running 5-20 sessions keeps v0.1 small; the format must not rule out teams later.\n",
+        "evidence": [],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "solo-5-20",
+      "answer_note": "Solo engineers running 5-20 sessions.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-19",
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 0,
+      "holds_up": []
+    },
+    {
+      "id": "D-task-status-approved",
+      "aliases": [],
+      "title": "Define when a task is \"approved\" rather than \"ready\"",
+      "tier": 2,
+      "raised_by": {
+        "task": "T-core",
+        "session": "t-core",
+        "on": "2026-11-20"
+      },
+      "question": "Spine §3 lists both approved and ready as derived statuses but never says what separates them. What should \"approved\" mean?",
+      "options": [
+        {
+          "id": "not-startable",
+          "tradeoff": "Approved, nothing blocking, but branch or worktree is not set, so the dispatcher can't start it. Useful and reachable. Implemented."
+        },
+        {
+          "id": "drop-approved",
+          "tradeoff": "Approved and unblocked is always ready. Simpler, but changes the spine's status list."
+        },
+        {
+          "id": "pre-first-pass",
+          "tradeoff": "Approved until the loop has computed blockers once. That needs stored loop state, which the event model avoids."
+        }
+      ],
+      "recommendation": "not-startable",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [],
+      "context": {
+        "summary": "Every derived status needs a rule. This is the only one with no source. internal/core/status.go DeriveTaskStatus, rule 7.",
+        "evidence": [
+          ".ekumen/spine.md#3-domain",
+          "internal/core/status.go"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "not-startable",
+      "answer_note": "As recommended.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 0,
+      "holds_up": []
+    },
+    {
+      "id": "D-ui-stack",
+      "aliases": [
+        "D-004"
+      ],
+      "title": "UI stack",
+      "tier": 2,
+      "raised_by": {
+        "task": null,
+        "session": "orchestrator",
+        "on": "2026-11-19"
+      },
+      "question": "How is the local web UI built and shipped?",
+      "options": [
+        {
+          "id": "react-ts-vite",
+          "tradeoff": "Rich interactive graph (React Flow + ELK); needs a Node build step; static output embedded in the Go binary"
+        },
+        {
+          "id": "go-templates-htmx",
+          "tradeoff": "No JS build"
+        }
+      ],
+      "recommendation": "react-ts-vite",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [],
+      "context": {
+        "summary": "The UI needs an interactive task graph. React, TypeScript and Vite are the common default, built to static files embedded in the Go binary.\n",
+        "evidence": [],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "react-ts-vite",
+      "answer_note": null,
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-19",
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 0,
+      "holds_up": []
+    },
+    {
+      "id": "D-urgency-formula",
+      "aliases": [],
+      "title": "Use stepped urgency weights for decision priority",
+      "tier": 1,
+      "raised_by": {
+        "task": "T-core",
+        "session": "t-core",
+        "on": "2026-11-20"
+      },
+      "question": "What urgency weight multiplies the number of blocked tasks? Proposed: no deadline 1, 8 or more days 1, 4–7 days 2, 2–3 days 3, tomorrow 4, today 5, overdue 6, using UTC dates.\n",
+      "options": [
+        {
+          "id": "steps",
+          "tradeoff": "Whole numbers that change once a day and are easy to read. Implemented."
+        },
+        {
+          "id": "inverse-days",
+          "tradeoff": "A smooth 1 + 7/max(days, 1). Finer ranking, but the numbers are harder to explain."
+        }
+      ],
+      "recommendation": "steps",
+      "default_if_no_answer": "steps",
+      "deadline": "2026-11-27",
+      "blocks": [],
+      "contract_impact": [],
+      "context": {
+        "summary": "The brief asks for the formula to be documented in code and tests. See Urgency in internal/core/priority.go. A decision that blocks nothing has priority 0, and ties break by earliest deadline and then by id.\n",
+        "evidence": [
+          "internal/core/priority.go"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "steps",
+      "answer_note": "As recommended.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 0,
+      "holds_up": []
+    },
+    {
+      "id": "D-v01-ui-scope",
+      "aliases": [
+        "D-006"
+      ],
+      "title": "v0.1 UI scope",
+      "tier": 2,
+      "raised_by": {
+        "task": null,
+        "session": "orchestrator",
+        "on": "2026-11-19"
+      },
+      "question": "Which UI views ship in v0.1?",
+      "options": [
+        {
+          "id": "inbox-only",
+          "tradeoff": "Smallest"
+        },
+        {
+          "id": "graph-inbox-screen",
+          "tradeoff": "Full loop visible; more work"
+        }
+      ],
+      "recommendation": "inbox-only",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [],
+      "context": {
+        "summary": "Which UI views ship in v0.1. The lead wanted the whole loop visible: task graph, decision inbox and decision screen.\n",
+        "evidence": [],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "graph-inbox-screen",
+      "answer_note": "Task graph, decision inbox, and decision screen.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-19",
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 0,
+      "holds_up": []
+    },
+    {
+      "id": "D-yaml-library",
+      "aliases": [],
+      "title": "Which YAML library the CLI uses",
+      "tier": 1,
+      "raised_by": {
+        "task": null,
+        "session": "orchestrator",
+        "on": "2026-11-20"
+      },
+      "question": "T-cli must read YAML input (decision and task files) and write YAML projections. The Go standard library has no YAML package. Which library is allowed?\n",
+      "options": [
+        {
+          "id": "go-yaml-in",
+          "tradeoff": "go.yaml.in/yaml/v3: the YAML organisation's maintained continuation of gopkg.in/yaml.v3; same API; widely used"
+        },
+        {
+          "id": "goccy",
+          "tradeoff": "github.com/goccy/go-yaml: actively maintained, better error messages; different API"
+        },
+        {
+          "id": "json-only",
+          "tradeoff": "Standard library only; input and projections become JSON"
+        }
+      ],
+      "recommendation": "go-yaml-in",
+      "default_if_no_answer": "go-yaml-in",
+      "deadline": "2026-11-21",
+      "blocks": [
+        "T-cli"
+      ],
+      "contract_impact": [],
+      "context": {
+        "summary": "First dependency outside the standard library. YAML stays because people read and write decision and task files by hand. The library is confined to reading and writing files; the core never sees YAML.\n",
+        "evidence": [
+          ".ekumen/briefs/T-cli/brief.md"
+        ],
+        "prior_decisions": []
+      },
+      "status": "decided",
+      "questions": [],
+      "answer": "go-yaml-in",
+      "answer_note": "As recommended.",
+      "decided_by": "Yashswarnkar",
+      "decided_on": "2026-11-20",
+      "superseded_by": null,
+      "applied_on": "2026-11-20",
+      "applied": {
+        "amended_tasks": [
+          "T-cli"
+        ],
+        "unblocked_tasks": [
+          "T-cli"
+        ],
+        "notified_sessions": []
+      },
+      "priority": 0,
+      "holds_up": [
+        "T-cli",
+        "T-cli-gaps",
+        "T-reconcile",
+        "T-skills"
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "id": "C-adapter",
+      "aliases": [
+        "C4"
+      ],
+      "title": "Agent adapter interface",
+      "path": "contracts/C-adapter.md",
+      "status": "draft",
+      "version": 0
+    },
+    {
+      "id": "C-cli-json",
+      "aliases": [
+        "C3"
+      ],
+      "title": "CLI commands and JSON output",
+      "path": "contracts/C-cli-json.md",
+      "status": "frozen",
+      "version": 2
+    },
+    {
+      "id": "C-decision-record",
+      "aliases": [
+        "C2"
+      ],
+      "title": "Decision record",
+      "path": "contracts/C-decision-record.md",
+      "status": "frozen",
+      "version": 2
+    },
+    {
+      "id": "C-event-log",
+      "aliases": [
+        "C1"
+      ],
+      "title": "Event log",
+      "path": "contracts/C-event-log.md",
+      "status": "frozen",
+      "version": 4
+    },
+    {
+      "id": "C-http-api",
+      "aliases": [
+        "C5"
+      ],
+      "title": "HTTP API for the UI",
+      "path": "contracts/C-http-api.md",
+      "status": "draft",
+      "version": 0
+    }
+  ],
+  "externals": [],
+  "questions": [],
+  "inbox": {
+    "lead": [],
+    "orchestrator": [
+      {
+        "kind": "route",
+        "id": "route-01M7TQ3ZHR0WTMAR7JZS7VPYBM",
+        "title": "T-file-store handoff: done. `internal/store/files` built from C-event-log v1 alone (no import of `internal/event` or `internal/core`). `go test -race ./...`, `go vet ./...` and `gofmt -l` are clean locally. The draft PR's…",
+        "priority": 0,
+        "reason": "handoff has follow-ups, decisions raised or deviations",
+        "created_at": "2026-11-19T20:14:11Z",
+        "subject": {
+          "kind": "task",
+          "id": "T-file-store"
+        }
+      },
+      {
+        "kind": "route",
+        "id": "route-01M7TQKBQR0X9V54460CGMWHC6",
+        "title": "T-core handoff: Done, in review. Built against C-event-log v2 (rebased on origin/main, amendment `20261119T202137Z-orchestrator.md` applied: the slug, not the whole id, is ≤ 40 characters). `go test ./...`, `go vet …",
+        "priority": 0,
+        "reason": "handoff has follow-ups, decisions raised or deviations",
+        "created_at": "2026-11-19T20:22:35Z",
+        "subject": {
+          "kind": "task",
+          "id": "T-core"
+        }
+      },
+      {
+        "kind": "route",
+        "id": "route-01M7VQDSJR0X7C6X39JZKWRVHY",
+        "title": "T-import handoff: Done, in review (draft PR). Built against C-event-log v3 and C-decision-record v2, rebased on origin/main at `1cc5ec2` (C-adapter and C-http-api drafted). Dry run on that `.ekumen/`: every record map…",
+        "priority": 0,
+        "reason": "handoff has follow-ups, decisions raised or deviations",
+        "created_at": "2026-11-20T05:38:47Z",
+        "subject": {
+          "kind": "task",
+          "id": "T-import"
+        }
+      },
+      {
+        "kind": "route",
+        "id": "route-01M7VQSRCR0Z4H3CM1AR4CRTVD",
+        "title": "T-cli handoff: Done, in review (draft PR). Every C-cli-json v1 command is implemented with `--json`, plus `ekumen project`. Built against C-event-log v3, C-decision-record v2 and C-cli-json v1 on main at 3f695f3. `…",
+        "priority": 0,
+        "reason": "handoff has follow-ups, decisions raised or deviations",
+        "created_at": "2026-11-20T05:45:19Z",
+        "subject": {
+          "kind": "task",
+          "id": "T-cli"
+        }
+      },
+      {
+        "kind": "route",
+        "id": "route-01M7VW51DR0WRQF4VHGSYDPEJ7",
+        "title": "T-core-align handoff: Done, in review (draft PR). Core, event and file store now follow C-event-log v4 and C-decision-record v2. The import dry run on main gives 0 validation failures and 0 conflicts (lane conflicts inclu…",
+        "priority": 0,
+        "reason": "handoff has follow-ups, decisions raised or deviations",
+        "created_at": "2026-11-20T07:01:23Z",
+        "subject": {
+          "kind": "task",
+          "id": "T-core-align"
+        }
+      },
+      {
+        "kind": "route",
+        "id": "route-01M7WD7TG00X9DGQEYAH052P73",
+        "title": "T-landscape-research handoff: done; awaiting review (draft PR).",
+        "priority": 0,
+        "reason": "handoff has follow-ups, decisions raised or deviations",
+        "created_at": "2026-11-20T12:00:00Z",
+        "subject": {
+          "kind": "task",
+          "id": "T-landscape-research"
+        }
+      },
+      {
+        "kind": "route",
+        "id": "route-01M7WD7TG00XZ42KNE7RDHZERT",
+        "title": "T-scaffold handoff: in_review. All §A job items done; draft PR #1 (https://github.com/Yashswarnkar/ekumen/pull/1), CI green. Not merged.",
+        "priority": 0,
+        "reason": "handoff has follow-ups, decisions raised or deviations",
+        "created_at": "2026-11-20T12:00:00Z",
+        "subject": {
+          "kind": "task",
+          "id": "T-scaffold"
+        }
+      },
+      {
+        "kind": "route",
+        "id": "route-01M7WD7TG00YXVRABQN6QN52ZS",
+        "title": "T-acp-research handoff: done (draft PR open, not merged)",
+        "priority": 0,
+        "reason": "handoff has follow-ups, decisions raised or deviations",
+        "created_at": "2026-11-20T12:00:00Z",
+        "subject": {
+          "kind": "task",
+          "id": "T-acp-research"
+        }
+      }
+    ]
+  },
+  "conflicts": [],
+  "counts": {
+    "tasks_by_status": {
+      "done": 8,
+      "draft": 6,
+      "ready": 2
+    },
+    "decisions_open": 0,
+    "routes_open": 8,
+    "conflicts": 0
+  }
+}

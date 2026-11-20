@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WD7TG003H3CHRHY7W4Z3FS","type":"ContractDrafted","at":"2026-11-20T12:00:00Z","actor":{"role":"orchestrator","id":"orchestrator"},"subject":{"kind":"contract","id":"C-event-log"},"data":{"title":"Event log","path":"contracts/C-event-log.md","aliases":["C1"]}}

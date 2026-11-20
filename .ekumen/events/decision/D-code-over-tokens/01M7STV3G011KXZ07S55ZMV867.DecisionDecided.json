@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7STV3G011KXZ07S55ZMV867","type":"DecisionDecided","at":"2026-11-19T12:00:00Z","actor":{"role":"lead","id":"Yashswarnkar"},"subject":{"kind":"decision","id":"D-code-over-tokens"},"data":{"answer":"code-first","note":"Agents only for judgment; everything deterministic is software exposed via ekumen CLI --json."}}

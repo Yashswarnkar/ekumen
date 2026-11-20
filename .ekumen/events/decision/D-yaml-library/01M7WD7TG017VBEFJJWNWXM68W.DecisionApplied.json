@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WD7TG017VBEFJJWNWXM68W","type":"DecisionApplied","at":"2026-11-20T12:00:00Z","actor":{"role":"loop","id":"loop"},"subject":{"kind":"decision","id":"D-yaml-library"},"data":{"amended_tasks":["T-cli"],"unblocked_tasks":["T-cli"],"notified_sessions":[],"legacy":{"applied":{"amended":["T-cli"],"notified_sessions":[],"unblocked":["T-cli"]}}}}

@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7STV3G001NRN8A32T9RDNER","type":"ContractDrafted","at":"2026-11-19T12:00:00Z","actor":{"role":"orchestrator","id":"orchestrator"},"subject":{"kind":"contract","id":"C-http-api"},"data":{"title":"HTTP API for the UI","path":"contracts/C-http-api.md","aliases":["C5"],"blocked_by":["C-event-log","C-decision-record"],"legacy":{"date_unknown":true}}}

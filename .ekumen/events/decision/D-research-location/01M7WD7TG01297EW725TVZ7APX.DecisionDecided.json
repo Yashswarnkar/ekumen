@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WD7TG01297EW725TVZ7APX","type":"DecisionDecided","at":"2026-11-20T12:00:00Z","actor":{"role":"lead","id":"Yashswarnkar"},"subject":{"kind":"decision","id":"D-research-location"},"data":{"answer":"ekumen-research","note":"Research is a first-class task kind; outputs go to .ekumen/research/\u003ctask-id\u003e-\u003cslug\u003e.md and are cited as evidence."}}

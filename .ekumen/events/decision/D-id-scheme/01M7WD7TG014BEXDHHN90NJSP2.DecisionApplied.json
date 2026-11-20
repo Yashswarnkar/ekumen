@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WD7TG014BEXDHHN90NJSP2","type":"DecisionApplied","at":"2026-11-20T12:00:00Z","actor":{"role":"loop","id":"loop"},"subject":{"kind":"decision","id":"D-id-scheme"},"data":{"amended_tasks":[],"unblocked_tasks":[],"notified_sessions":[],"legacy":{"applied":{"amended":["C1","C2 pending id migration"],"notified_sessions":[],"unblocked":["C1","C2"]}}}}

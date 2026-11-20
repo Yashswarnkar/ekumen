@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WD7TG00KRX3Z2GA0JK7GCG","type":"TaskApproved","at":"2026-11-20T12:00:00Z","actor":{"role":"lead","id":"Yashswarnkar"},"subject":{"kind":"task","id":"T-scaffold"},"data":{"tier_grants":["push_own_branch","open_draft_pr","restack","add_listed_dependencies"],"text_sha256":"81b3a79244c1a61d699df9518d057cbfd63e186973c3325b7d9582a022e45fcc"}}

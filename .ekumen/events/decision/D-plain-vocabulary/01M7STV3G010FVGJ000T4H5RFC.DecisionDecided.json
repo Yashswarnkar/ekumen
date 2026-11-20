@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7STV3G010FVGJ000T4H5RFC","type":"DecisionDecided","at":"2026-11-19T12:00:00Z","actor":{"role":"lead","id":"Yashswarnkar"},"subject":{"kind":"decision","id":"D-plain-vocabulary"},"data":{"answer":"plain","note":"Skip the themed terms for now; plain words (task, decision, session, lead) everywhere."}}
