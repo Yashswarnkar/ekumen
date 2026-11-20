@@ -332,6 +332,7 @@ func LifecycleRank(t event.Type) int {
 const (
 	keyCreated = "created" // TaskDrafted, DecisionRaised, ContractDrafted, ExternalAdded
 	keyDecided = "decided" // DecisionDecided, DecisionDefaulted
+	keyApplied = "applied" // DecisionApplied
 )
 
 func provides(e event.Event) []string {
@@ -340,6 +341,8 @@ func provides(e event.Event) []string {
 		return []string{keyCreated}
 	case event.DecisionDecidedType, event.DecisionDefaultedType:
 		return []string{keyDecided}
+	case event.DecisionAppliedType:
+		return []string{keyApplied}
 	case event.QuestionAskedType:
 		if p, err := e.Payload(); err == nil {
 			return []string{"asked:" + p.(*event.QuestionAsked).QuestionID}
@@ -348,26 +351,39 @@ func provides(e event.Event) []string {
 	return nil
 }
 
-// needs is the one prerequisite an event must follow within its subject:
-// an apply its decide (or default), an answer its question, and any other
-// event about an item the event that creates the item. Project-wide
-// events, and routing and conflict events, need nothing.
-func needs(e event.Event) string {
+// needs lists the prerequisites an event must follow within its subject,
+// most specific first; the first one present in the log is used: a
+// supersede its apply (else its decide or default), an apply its decide,
+// an answer its question, and any other event about an item the event that
+// creates the item. Project-wide events, and routing and conflict events,
+// need nothing.
+func needs(e event.Event) []string {
 	if e.Subject.Kind == event.KindProject {
-		return ""
+		return nil
 	}
 	switch e.Type {
 	case event.TaskDraftedType, event.DecisionRaisedType, event.ContractDraftedType, event.ExternalAddedType,
 		event.RoutedToOwnerType, event.RouteResolvedType, event.ConflictDetectedType:
-		return ""
+		return nil
+	case event.DecisionSupersededType:
+		return []string{keyApplied, keyDecided, keyCreated}
 	case event.DecisionAppliedType:
-		return keyDecided
+		return []string{keyDecided}
 	case event.QuestionAnsweredType:
 		if p, err := e.Payload(); err == nil {
-			return "asked:" + p.(*event.QuestionAnswered).QuestionID
+			return []string{"asked:" + p.(*event.QuestionAnswered).QuestionID}
 		}
 	}
-	return keyCreated
+	return []string{keyCreated}
+}
+
+func firstPresent(keys []string, present map[string]bool) string {
+	for _, k := range keys {
+		if present[k] {
+			return k
+		}
+	}
+	return ""
 }
 
 // ulidTime is the millisecond-timestamp part of a ULID (its first 10
@@ -387,9 +403,8 @@ func ulidTime(id string) string {
 //     stamped before its own prerequisite (see needs: an apply its decide or
 //     default, an answer its question, anything else the item's creating
 //     event) is moved to right after it. An apply therefore always comes
-//     after its decide, whatever their clocks said (backdated imports,
-//     clock skew), and nothing else moves: decide → apply → supersede stays
-//     in that order.
+//     after its decide, and a supersede after the decision's apply (or
+//     decide), whatever their clocks said (backdated imports, clock skew).
 //   - Across subjects, events are ordered by time: the subjects' sequences
 //     are merged by always taking the earliest next event.
 //
@@ -501,7 +516,7 @@ func SortEvents(events []event.Event) []event.Event {
 			}
 		}
 		for _, k := range seq {
-			if n := needs(k.e); n != "" && present[n] && !done[n] {
+			if n := firstPresent(needs(k.e), present); n != "" && !done[n] {
 				waiting[n] = append(waiting[n], k)
 				continue
 			}

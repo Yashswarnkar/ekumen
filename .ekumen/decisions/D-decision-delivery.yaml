@@ -21,4 +21,10 @@ context:
   evidence: [.ekumen/research/R2-landscape.md#4-adopt--avoid]
 status: superseded
 questions: []
+answer: other
+answer_note: 'As recommended, in the revised form from the orchestrator note: raise through the ekumen CLI; deliver to Ekumen-started sessions through their input stream and to lead-started sessions as a queued side question; side questions in a fork.'
+decided_by: Yashswarnkar
+decided_on: 2026-11-20
 superseded_by: D-session-delivery-bg
+applied_on: 2026-11-20
+applied: {amended_tasks: [], unblocked_tasks: [], notified_sessions: []}
