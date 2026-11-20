@@ -1,7 +1,10 @@
 package core
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -14,11 +17,7 @@ var loopActor = event.Actor{Role: event.RoleLoop, ID: "main"}
 
 func planAt(t *testing.T, events []event.Event, now time.Time) Plan {
 	t.Helper()
-	p, err := PlanPass(PlanInput{Events: events, Now: now, Loop: loopActor})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return p
+	return PlanPass(PlanInput{Events: events, Now: now, Loop: loopActor, Observation: ObservationOK})
 }
 
 // written returns the log after a plan's events are recorded, with the
@@ -231,7 +230,8 @@ func TestPlanConflict_EventLog5(t *testing.T) {
 		t.Fatalf("plan %v", got)
 	}
 	a := p.Actions[0]
-	wantID := "D-conflict-decided-twice-" + strings.ToLower(d1.ID[len(d1.ID)-6:])
+	sum := sha256.Sum256([]byte("decided-twice|" + d1.ID + "," + d2.ID))
+	wantID := "D-conflict-decided-twice-" + hex.EncodeToString(sum[:])[:6]
 	if a.Subject.ID != wantID || event.ValidateID(wantID) != nil {
 		t.Errorf("decision id %s, want %s", a.Subject.ID, wantID)
 	}
@@ -284,5 +284,126 @@ func TestPlanReadinessAndNotStartable_DPlaceholderTaskFields(t *testing.T) {
 		if e.Type == event.TaskSessionAttachedType {
 			t.Error("the loop attached a session")
 		}
+	}
+}
+
+// Issue #15 (review): DecisionApplied records unblocked_tasks for good, so
+// without a complete observation the loop holds applies, and reports ready
+// and not-startable tasks as unknown; defaults and routes still go ahead.
+// T-a is blocked by D-x and by T-b, whose PR is merged.
+func TestPlanHoldsAppliesWithoutObservation_Issue15(t *testing.T) {
+	b := newLog(t)
+	b.draftTask("T-b")
+	b.approve("T-b", "h")
+	b.draftTask("T-a", "T-b")
+	b.approve("T-a", "h")
+	rec := record("D-x", "T-a", "s1", 2)
+	rec.Blocks = []string{"T-a"}
+	leadRaise(b, rec)
+	b.decide("D-x", "a")
+	tierOne(b, "D-late", "2026-11-19")
+	b.add(event.QuestionAskedType, event.RoleLead, "lead", event.KindTask, "T-a", event.QuestionAsked{QuestionID: "q-1", Text: "?", To: "orchestrator"})
+	merged := Observed{Tasks: map[string]TaskObservation{"T-b": {PR: PRMerged}}}
+
+	ok := PlanPass(PlanInput{Events: b.events, Now: t0, Loop: loopActor, Observation: ObservationOK, Observed: merged})
+	if got := kinds(ok); !slices.Equal(got, []string{"default D-late", "apply D-late", "apply D-x", "route T-a"}) {
+		t.Fatalf("observed plan %v", got)
+	}
+	if !slices.Equal(ok.Unblocked, []string{"T-a"}) || !slices.Equal(ok.Ready, []string{"T-a"}) {
+		t.Errorf("observed: unblocked %v ready %v", ok.Unblocked, ok.Ready)
+	}
+
+	for _, obs := range []string{ObservationUnavailable, ObservationTruncated, ""} {
+		p := PlanPass(PlanInput{Events: b.events, Now: t0, Loop: loopActor, Observation: obs})
+		if got := kinds(p); !slices.Equal(got, []string{"default D-late", "route T-a"}) {
+			t.Errorf("%q: plan %v", obs, got)
+		}
+		var held []string
+		for _, h := range p.Held {
+			held = append(held, h.Subject.ID)
+			if h.Reason != HeldObservation {
+				t.Errorf("%q: held %+v", obs, h)
+			}
+		}
+		if !slices.Equal(held, []string{"D-late", "D-x"}) || p.Ready != nil || p.NotStartable != nil || len(p.Unblocked) != 0 {
+			t.Errorf("%q: held %v ready %v not_startable %v unblocked %v", obs, held, p.Ready, p.NotStartable, p.Unblocked)
+		}
+	}
+}
+
+// C-event-log §5 (detected, never resolved silently): a decision decided
+// with two different answers is not applied; the apply is held and the
+// conflict is raised for the lead.
+func TestPlanHoldsContestedDecision_EventLog5(t *testing.T) {
+	b := newLog(t)
+	b.draftTask("T-a")
+	rec := record("D-x", "T-a", "s1", 2)
+	rec.Blocks = []string{"T-a"}
+	leadRaise(b, rec)
+	b.decide("D-x", "a")
+	b.decide("D-x", "b")
+	p := planAt(t, b.events, t0)
+	if got := kinds(p); len(got) != 1 || !strings.HasPrefix(got[0], "conflict D-conflict-decided-twice-") {
+		t.Fatalf("plan %v", got)
+	}
+	if len(p.Held) != 1 || p.Held[0].Subject.ID != "D-x" || p.Held[0].Reason != HeldContested {
+		t.Errorf("held %+v", p.Held)
+	}
+	after := written(t, b.events, p)
+	if again := planAt(t, after, t0); !again.Empty() || len(again.Held) != 1 {
+		t.Errorf("after the conflict is recorded: %v, held %v", kinds(again), again.Held)
+	}
+}
+
+// The conflict decision id is a hash of the rule and the sorted event ids:
+// the same conflict gets the same id whatever else is in the log or the
+// order it is found in; a conflict whose events grow (a third answer) is a
+// new conflict with a new decision.
+func TestConflictDecisionIDIsAHashOfTheConflict_EventLog5(t *testing.T) {
+	b := newLog(t)
+	b.draftTask("T-a")
+	leadRaise(b, record("D-x", "T-a", "s1", 2))
+	d1 := b.decide("D-x", "a")
+	d2 := b.decide("D-x", "b")
+	s := b.state()
+	c := Conflict{Rule: RuleDecidedTwice, Events: []string{d2.ID, d1.ID}}
+	id := ConflictDecisionID(&s, b.events, c)
+	if id != ConflictDecisionID(&s, b.events, Conflict{Rule: RuleDecidedTwice, Events: []string{d1.ID, d2.ID}}) {
+		t.Error("id depends on event order")
+	}
+	if event.ValidateID(id) != nil || len(id) != len("D-conflict-decided-twice-")+6 {
+		t.Errorf("id %s", id)
+	}
+	first := written(t, b.events, planAt(t, b.events, t0))
+	b.events = first
+	b.decide("D-x", "a2")
+	p := planAt(t, b.events, t0)
+	if got := kinds(p); len(got) != 1 || p.Actions[0].Subject.ID == id || len(p.Actions[0].Events) != 2 {
+		t.Fatalf("third answer: plan %v (first decision %s)", got, id)
+	}
+	closed(t, b.events, p, t0)
+}
+
+// Review: one action that cannot be planned is skipped with its reason;
+// the other actions of the pass are still planned.
+func TestPlanSkipsAnActionAndGoesOn(t *testing.T) {
+	b := newLog(t)
+	b.draftTask("T-a")
+	tierOne(b, "D-one", "2026-11-18")
+	tierOne(b, "D-two", "2026-11-18")
+	calls := 0
+	newID := func(at time.Time) (string, error) {
+		calls++
+		if calls == 1 {
+			return "", errors.New("no id")
+		}
+		return event.ULIDFromParts(uint64(at.UnixMilli()), [10]byte{9: byte(calls)})
+	}
+	p := PlanPass(PlanInput{Events: b.events, Now: t0, Loop: loopActor, Observation: ObservationOK, NewID: newID})
+	if got := kinds(p); !slices.Equal(got, []string{"default D-two", "apply D-two"}) {
+		t.Errorf("plan %v", got)
+	}
+	if len(p.Skipped) != 1 || p.Skipped[0].Subject.ID != "D-one" || p.Skipped[0].Kind != LoopDefault || !strings.Contains(p.Skipped[0].Reason, "no id") {
+		t.Errorf("skipped %+v", p.Skipped)
 	}
 }

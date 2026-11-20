@@ -38,7 +38,8 @@ type ApplyEffect struct {
 }
 
 // ApplyEffectOf works out what applying decision id writes, from the log
-// events (reduced into s) and this pass's observations. An amendment
+// events and this pass's observations. s must be Reduce(events): the
+// before-state is read from s, the after-state is events plus the apply. An amendment
 // counts as made for the decision when its by_decision names it, or (for
 // amendments written before D-apply-amend-lane) its note is
 // "applies <id>".
@@ -66,7 +67,7 @@ func ApplyEffectOf(s *State, events []event.Event, obs Observed, id string, now 
 			continue
 		}
 		eff.Tasks = append(eff.Tasks, tid)
-		if !amendedFor(s.Tasks[tid], id) {
+		if !AmendedFor(s.Tasks[tid], id) {
 			eff.Amend = append(eff.Amend, tid)
 		}
 	}
@@ -88,7 +89,9 @@ func ApplyEffectOf(s *State, events []event.Event, obs Observed, id string, now 
 	return eff, nil
 }
 
-func amendedFor(t *Task, id string) bool {
+// AmendedFor reports whether a task already has a §B amendment made by
+// applying decision id.
+func AmendedFor(t *Task, id string) bool {
 	return slices.ContainsFunc(t.Amendments, func(a Entry) bool { return a.ByDecision == id || a.Note == "applies "+id })
 }
 
