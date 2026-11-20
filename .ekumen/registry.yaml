@@ -80,7 +80,7 @@ tasks:
     worktree: .worktrees/t-core-align
     session: t-core-align
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: running
+    status: in_review
   T-cli:
     title: "ekumen CLI with --json, incl. ekumen map"
     kind: build
@@ -106,7 +106,7 @@ tasks:
     worktree: .worktrees/t-cli-gaps
     session: t-cli-gaps
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: draft
+    status: blocked
   T-audit:
     title: Recurring read-only audit
     kind: research
@@ -119,7 +119,7 @@ tasks:
     worktree: .worktrees/t-audit
     session: null
     tier_grants: [push_own_branch, open_draft_pr]
-    status: draft
+    status: blocked
   T-skills:
     title: /blocked and /decide skills
     kind: build
