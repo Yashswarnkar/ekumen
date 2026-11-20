@@ -1,7 +1,9 @@
 package core
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/Yashswarnkar/ekumen/internal/event"
 )
@@ -115,5 +117,55 @@ func TestAddresseeMatchesRouteOwnerWithoutSession(t *testing.T) {
 	}
 	if err := CheckLaneIn(&s, ans); err != nil {
 		t.Errorf("the route owner could not answer: %v", err)
+	}
+}
+
+func TestStatusDerivationIsNotExponential(t *testing.T) {
+	b := newLog(t)
+	const layers = 24
+	name := func(l, i int) string { return fmt.Sprintf("T-l%d-%d", l, i) }
+	for l := range layers {
+		var below []string
+		if l > 0 {
+			below = []string{name(l-1, 0), name(l-1, 1)}
+		}
+		for i := range 2 {
+			b.draftTask(name(l, i), below...)
+			b.approve(name(l, i), "h")
+		}
+	}
+	s := b.state()
+	start := time.Now()
+	statuses := TaskStatuses(&s, Observed{})
+	top := DeriveTaskStatus(&s, Observed{}, name(layers-1, 0))
+	open := OpenBlockers(&s, Observed{}, name(layers-1, 1))
+	if d := time.Since(start); d > 100*time.Millisecond {
+		t.Errorf("deriving took %v", d)
+	}
+	if top != TaskBlocked || statuses[name(0, 0)] != TaskReady || len(open) != 2 {
+		t.Errorf("top=%s bottom=%s open=%v", top, statuses[name(0, 0)], open)
+	}
+}
+
+func TestStatusCyclesStayBlocked(t *testing.T) {
+	b := newLog(t)
+	b.draftTask("T-a", "T-b", "C-x")
+	b.draftTask("T-b", "T-a")
+	b.approve("T-a", "h")
+	b.approve("T-b", "h")
+	b.add(event.ContractDraftedType, event.RoleOrchestrator, "orch", event.KindContract, "C-x",
+		event.ContractDrafted{Title: "x", Path: "contracts/C-x.md", BlockedBy: []string{"C-y"}})
+	b.add(event.ContractDraftedType, event.RoleOrchestrator, "orch", event.KindContract, "C-y",
+		event.ContractDrafted{Title: "y", Path: "contracts/C-y.md", BlockedBy: []string{"C-x"}})
+	b.freeze("C-x", 1, "h")
+	b.freeze("C-y", 1, "h")
+	s := b.state()
+	for id, st := range TaskStatuses(&s, Observed{}) {
+		if st != TaskBlocked {
+			t.Errorf("%s = %s, want blocked", id, st)
+		}
+	}
+	if got := ContractOpenBlockers(&s, Observed{}, "C-x"); len(got) != 1 || got[0] != "C-y" {
+		t.Errorf("C-x open blockers = %v", got)
 	}
 }

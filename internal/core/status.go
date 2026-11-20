@@ -77,15 +77,31 @@ func (o Observed) task(id string) TaskObservation { return o.Tasks[id] }
 // Rule 7 is this package's reading of the spine's `approved` status, raised
 // as decision draft D-task-status-approved. An unknown id gives "".
 func DeriveTaskStatus(s *State, obs Observed, id string) TaskStatus {
-	return deriveTaskStatus(s, obs, s.Resolve(id), map[string]bool{})
+	return newDeriver(s, obs).taskStatus(s.Resolve(id))
 }
 
-func deriveTaskStatus(s *State, obs Observed, id string, visiting map[string]bool) TaskStatus {
-	t, ok := s.Tasks[id]
+// deriver derives statuses for one call. cleared memoizes blockerCleared
+// by id; onStack marks the tasks and contracts whose blockers are being
+// listed, so a cycle counts as open. A result computed while a cycle was
+// on the stack is still safe to keep: an item is only reported cleared
+// when every blocker it depends on is, which no member of a cycle is.
+type deriver struct {
+	s       *State
+	obs     Observed
+	cleared map[string]bool
+	onStack map[string]bool
+}
+
+func newDeriver(s *State, obs Observed) *deriver {
+	return &deriver{s: s, obs: obs, cleared: map[string]bool{}, onStack: map[string]bool{}}
+}
+
+func (d *deriver) taskStatus(id string) TaskStatus {
+	t, ok := d.s.Tasks[id]
 	if !ok {
 		return taskStatusNil
 	}
-	o := obs.task(id)
+	o := d.obs.task(id)
 	switch {
 	case o.PR == PRMerged:
 		return TaskDone
@@ -97,7 +113,7 @@ func deriveTaskStatus(s *State, obs Observed, id string, visiting map[string]boo
 		return TaskInReview
 	case o.PR == PRDraft || o.Session == SessionRunning || o.Session == SessionIdle || o.Session == SessionNeedsInput:
 		return TaskRunning
-	case len(openBlockers(s, obs, id, visiting)) > 0:
+	case len(d.openBlockers(id)) > 0:
 		return TaskBlocked
 	case t.Branch == "" || t.Worktree == "":
 		return TaskApproved
@@ -108,8 +124,9 @@ func deriveTaskStatus(s *State, obs Observed, id string, visiting map[string]boo
 // TaskStatuses derives the status of every task.
 func TaskStatuses(s *State, obs Observed) map[string]TaskStatus {
 	out := make(map[string]TaskStatus, len(s.Tasks))
+	d := newDeriver(s, obs)
 	for id := range s.Tasks {
-		out[id] = DeriveTaskStatus(s, obs, id)
+		out[id] = d.taskStatus(id)
 	}
 	return out
 }
@@ -129,30 +146,31 @@ func TaskStatuses(s *State, obs Observed) map[string]TaskStatus {
 // draft D-blocker-semantics). Task blockers are followed through their own
 // status; a cycle counts as open.
 func OpenBlockers(s *State, obs Observed, id string) []string {
-	return openBlockers(s, obs, s.Resolve(id), map[string]bool{})
+	return newDeriver(s, obs).openBlockers(s.Resolve(id))
 }
 
-func openBlockers(s *State, obs Observed, id string, visiting map[string]bool) []string {
+func (d *deriver) openBlockers(id string) []string {
+	s := d.s
 	t, ok := s.Tasks[id]
 	if !ok {
 		return nil
 	}
-	if visiting[id] {
-		return []string{id} // cycle
+	if d.onStack[id] {
+		return []string{id}
 	}
-	visiting[id] = true
-	defer delete(visiting, id)
+	d.onStack[id] = true
+	defer delete(d.onStack, id)
 
 	var open []string
 	for _, raw := range t.BlockedBy {
 		b := s.Resolve(raw)
-		if !blockerCleared(s, obs, b, visiting) {
+		if !d.blockerCleared(b) {
 			open = appendUnique(open, b)
 		}
 	}
 	for _, did := range sortedKeys(s.Decisions) {
-		d := s.Decisions[did]
-		if decisionGates(d) && slices.ContainsFunc(d.Blocks, func(b string) bool { return s.Resolve(b) == id }) {
+		dec := s.Decisions[did]
+		if decisionGates(dec) && slices.ContainsFunc(dec.Blocks, func(b string) bool { return s.Resolve(b) == id }) {
 			open = appendUnique(open, did)
 		}
 	}
@@ -171,22 +189,35 @@ func decisionGates(d *Decision) bool {
 	return len(d.Raises) > 0 && d.AppliedOn == "" && d.Status != StatusSuperseded
 }
 
-func blockerCleared(s *State, obs Observed, id string, visiting map[string]bool) bool {
+func (d *deriver) blockerCleared(id string) bool {
+	if d.onStack[id] {
+		return false
+	}
+	if v, ok := d.cleared[id]; ok {
+		return v
+	}
+	v := d.clear(id)
+	d.cleared[id] = v
+	return v
+}
+
+// clear is blockerCleared without the memo. A task is done only when its
+// PR is merged (DeriveTaskStatus rule 1), so its own blockers never matter.
+func (d *deriver) clear(id string) bool {
+	s := d.s
 	switch event.KindOf(id) {
 	case event.KindTask:
-		if visiting[id] {
-			return false
-		}
-		return deriveTaskStatus(s, obs, id, visiting) == TaskDone
+		_, ok := s.Tasks[id]
+		return ok && d.obs.task(id).PR == PRMerged
 	case event.KindDecision:
-		d, ok := s.Decisions[id]
-		return ok && len(d.Raises) > 0 && !decisionGates(d)
+		dec, ok := s.Decisions[id]
+		return ok && len(dec.Raises) > 0 && !decisionGates(dec)
 	case event.KindContract:
 		c, ok := s.Contracts[id]
-		if !ok || c.Status != ContractFrozen || visiting[id] {
+		if !ok || c.Status != ContractFrozen {
 			return false
 		}
-		return len(contractOpenBlockers(s, obs, id, visiting)) == 0
+		return len(d.contractOpenBlockers(id)) == 0
 	case event.KindExternal:
 		x, ok := s.Externals[id]
 		return ok && x.Resolved
@@ -199,23 +230,23 @@ func blockerCleared(s *State, obs Observed, id string, visiting map[string]bool)
 // contract stays blocked while this is non-empty, even once the contract is
 // frozen (C-event-log v4 §6, D-contract-blockers). A cycle counts as open.
 func ContractOpenBlockers(s *State, obs Observed, id string) []string {
-	return contractOpenBlockers(s, obs, s.Resolve(id), map[string]bool{})
+	return newDeriver(s, obs).contractOpenBlockers(s.Resolve(id))
 }
 
-func contractOpenBlockers(s *State, obs Observed, id string, visiting map[string]bool) []string {
-	c, ok := s.Contracts[id]
+func (d *deriver) contractOpenBlockers(id string) []string {
+	c, ok := d.s.Contracts[id]
 	if !ok {
 		return nil
 	}
-	if visiting[id] {
+	if d.onStack[id] {
 		return []string{id}
 	}
-	visiting[id] = true
-	defer delete(visiting, id)
+	d.onStack[id] = true
+	defer delete(d.onStack, id)
 	var open []string
 	for _, raw := range c.BlockedBy {
-		b := s.Resolve(raw)
-		if !blockerCleared(s, obs, b, visiting) {
+		b := d.s.Resolve(raw)
+		if !d.blockerCleared(b) {
 			open = appendUnique(open, b)
 		}
 	}
