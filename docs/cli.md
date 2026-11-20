@@ -11,7 +11,8 @@ The CLI is how people, agents and scripts read and change Ekumen state. The comm
 | `--json` | Prints exactly one JSON object on stdout. Warnings go to stderr. |
 | Flags | Global flags (`--root`, `--as`, `--json`) go anywhere. Flags and positional arguments may be mixed. |
 | Files | `--file` and `--text-file` take a path, or `-` for stdin. |
-| Ids | An id or an alias (`C1`, `D-012`) is accepted anywhere; output always uses the id. |
+| Ids | An id or an alias (`C1`, `D-012`) is accepted anywhere; output always uses the id. Question and route ids also take a unique prefix, in any case (`q-01m7w3`); an ambiguous prefix is a usage error (exit 1) that lists the matches. |
+| Paths | Every path the CLI prints (`paths` of a write, `Entry.path`, `Task.brief`, `check`'s `invalid[].path`, `map`'s output) is relative to the project root, e.g. `.ekumen/briefs/T-core/brief.md`. Paths recorded inside events (`file`, `path`, `brief`) and in `registry.yaml` stay relative to `.ekumen/`, as the event log records them. |
 | Exit codes | `0` ok · `1` usage · `2` refused (validation, lane, or role claim) · `3` not found · `4` conflict · `5` internal. |
 | Errors | With `--json`: `{"error": {"code": "lane\|validation\|not_found\|conflict\|usage\|internal", "message": "…", "field": "…"}}`. |
 | Writes | Print `{"ok": true, "events": [ids], "paths": [files written]}`. A write records all its events or none. After every write the projections are regenerated, and the changed ones are listed in `paths`. The CLI never commits; `git add` the paths yourself. |
@@ -200,7 +201,41 @@ amendment recorded for T-cli
 $ ekumen --as session:t-cli task handoff T-cli --text-file handoff.md
 ```
 
-The handoff needs a `## STATUS` section; its first line is the event's `status_line`. `has_followups`, `has_decisions` and `has_deviations` are true when `FOLLOW-UPS`, `DECISIONS RAISED` and `DEVIATIONS` have any content other than "None". Any of them routes the handoff to the orchestrator's inbox. Front matter is ignored.
+The handoff needs a `## STATUS` section; its first line is the event's `status_line`. `has_followups`, `has_decisions` and `has_deviations` are true when `FOLLOW-UPS`, `DECISIONS RAISED` and `DEVIATIONS` have any content other than "None". Any of them routes the handoff to the orchestrator's inbox. See [Entry front matter](#entry-front-matter).
+
+### Entry front matter
+
+Amendments (§B) and handoffs (§C) start with YAML front matter:
+
+```markdown
+---
+task: T-cli          # the task id (or an alias)
+author: t-cli        # the writer: its id, its file-name slug, or <role>:<id>
+date: 2026-11-20     # UTC date, YYYY-MM-DD
+---
+
+# T-cli handoff
+```
+
+Every key is optional, and other keys are kept and ignored. When the file has no front matter, `task amend`, `task handoff` and `decision apply` add all three (the task, the actor's id, today in UTC) before writing it, so the stored file and its `sha256` include them. When it has front matter, each key that is present is checked: `task` must name the task being written, `author` the actor, and `date` must be a date; otherwise the write is refused (exit 2, `field` names the key). The front matter is never rewritten.
+
+### `ekumen task defer <id> --reason t` (orchestrator, with the claim)
+
+```
+$ ekumen --as orchestrator:main task defer T-skills --reason "after v0.1"
+deferred T-skills
+```
+
+Records `TaskDeferred`; the task's status becomes `deferred`, and it no longer counts toward any decision's priority. Deferring a deferred task is refused.
+
+### `ekumen task attach <id> --session s [--adapter a]` (orchestrator with the claim, or loop)
+
+```
+$ ekumen --as orchestrator:main task attach T-skills --session t-skills --adapter acp
+attached T-skills to session t-skills
+```
+
+Records `TaskSessionAttached`. The session (`t-skills` or `session:t-skills`) then writes in the task's lane, alongside the session named at draft time. Attaching the same session and adapter again records nothing.
 
 ### `ekumen task block <id> --add x --remove y --reason t` (orchestrator, with the claim)
 
@@ -209,6 +244,71 @@ $ ekumen --as orchestrator:main task block T-skills --add D-new-choice --reason 
 ```
 
 `--add` and `--remove` repeat or take comma-separated lists.
+
+### `ekumen decision apply <id> [--amend-text-file f]` (loop; the orchestrator runs it as `loop:<its session>`)
+
+```
+$ ekumen --as loop:orchestrator decision apply D-gate
+ekumen: warning: no session messaging exists yet; tell the sessions of T-gated yourself
+applied D-gate: amended 1 task(s), unblocked 1
+  .ekumen/briefs/T-gated/amendments/20261120T093000Z-orchestrator.md
+  .ekumen/events/task/T-gated/01M7….TaskAmended.json
+  .ekumen/events/decision/D-gate/01M7….DecisionApplied.json
+  …
+```
+
+For a decided or defaulted decision (C-decision-record §3, D-apply-before-loop): adds a §B amendment to each task in `blocks` (the text of `--amend-text-file`, or a generated line naming the answer and note), then records `DecisionApplied {amended_tasks, unblocked_tasks, notified_sessions: []}`. `unblocked_tasks` are the tasks that were `blocked` before and are not after. All of it is recorded, or none of it.
+
+- **Idempotent:** applying an applied decision prints `{"ok": true, "events": [], "paths": []}` and writes nothing.
+- A pending or superseded decision is refused (exit 2).
+- `DecisionApplied` is in the loop's lane, `TaskAmended` in the orchestrator's (C-event-log §3). The amendments are recorded as `orchestrator:<the same id>`, so the session running the command must hold the orchestrator claim when the decision blocks any task (D-apply-amend-lane).
+
+### `ekumen contract draft --file <c.yaml> [--text-file body.md]` (orchestrator, with the claim)
+
+```yaml
+# c.yaml
+id: C-http-api
+title: HTTP API
+path: contracts/C-http-api.md   # default; relative to .ekumen/
+blocked_by: [D-adapter-base]     # optional (D-contract-blockers)
+aliases: []
+```
+
+```
+$ ekumen --as orchestrator:main contract draft --file c.yaml --text-file c-http-api.md
+drafted C-http-api
+```
+
+`--text-file` copies the contract's body to `path`, and never replaces an existing file. Without it, the file must already be there.
+
+### `ekumen contract block <id> --add x --remove y --reason t` (orchestrator, with the claim)
+
+```
+$ ekumen --as orchestrator:main contract block C-http-api --add D-adapter-base --reason "waits on the adapter base"
+```
+
+Records `ContractBlockersChanged`. A task blocked by the contract stays blocked while the contract has open blockers, even once it is frozen.
+
+### `ekumen external add --file f` · `external update <id> --file f` · `external resolve <id> --note t` (orchestrator, with the claim)
+
+```yaml
+# x.yaml
+id: X-sandbox-creds
+what: Sandbox credentials for the staging cluster
+owner_team: platform
+asked_on: 2026-11-18     # UTC dates
+needed_by: 2026-11-25
+blocks: [T-claude-adapter]
+aliases: []
+```
+
+```
+$ ekumen --as orchestrator:main external add --file x.yaml
+$ printf 'needed_by: 2026-12-01\n' | ekumen --as orchestrator:main external update X-sandbox-creds --file -
+$ ekumen --as orchestrator:main external resolve X-sandbox-creds --note "granted"
+```
+
+An external dependency is a gate: every task in `blocks` is blocked until it is resolved. `what`, `owner_team`, `asked_on` and `needed_by` are required. `update` takes any of `what`, `owner_team`, `asked_on`, `needed_by` and `blocks`, and records only the fields that change. A resolved dependency can't be updated or resolved again.
 
 ### `ekumen contract freeze <id>` (lead)
 
@@ -223,6 +323,7 @@ The version is the contract file's front-matter `version`, or the next one. Free
 
 ```
 $ ekumen --as orchestrator:main route resolve route-01M7W42VG0000000000000000N --note "follow-ups filed"
+$ ekumen --as orchestrator:main route resolve route-01m7w42vg --note "follow-ups filed"   # a unique prefix
 ```
 
 ### `ekumen claim <role>` / `ekumen release <role>` (the claiming session)

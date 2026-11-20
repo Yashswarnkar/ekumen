@@ -10,7 +10,9 @@
 
 | Path | What |
 |---|---|
-| `cmd/ekumen` | The `ekumen` binary: `version` and `serve` |
+| `cmd/ekumen` | The `ekumen` binary (see [cli.md](cli.md)) |
+| `internal/cli`, `internal/project`, `internal/core`, `internal/event`, `internal/store/files` | Commands, views and projections, domain rules, events, the file store |
+| `scripts/ci-check.sh` | The CI `ekumen check` step |
 | `internal/server` | HTTP server: `GET /api/health` and the UI at `/` |
 | `internal/buildinfo` | Version, commit and build date, set with `-ldflags` |
 | `web/` | Vite + React + TypeScript UI, plus the Go package that embeds it |
@@ -24,6 +26,17 @@
 | `make test` | `go test ./...` and the UI typecheck. |
 | `make lint` | `go vet`, a `gofmt` check and `tsc --noEmit`. |
 | `make clean` | Removes `bin/` and `web/dist/`. |
+
+## CI
+
+`.github/workflows/ci.yml` runs on every push and pull request. The `Go (no Node)` job builds, vets, checks `gofmt`, runs `go test -race ./...`, and then runs **`ekumen check`** on the repository:
+
+```
+go build -o bin/ekumen ./cmd/ekumen
+scripts/ci-check.sh .
+```
+
+`scripts/ci-check.sh [root]` runs `ekumen check --json` at the root (binary from `$EKUMEN_BIN`, default `bin/ekumen`, with `EKUMEN_OBSERVE=off`), prints the JSON so a failure is readable in the log, and exits with its status. So nothing merges with invalid records, lane violations or conflicts in `.ekumen/` (exit 2 or 4). An `.ekumen/events/` folder with no events fails the step; a repository without that folder skips it with a notice. Run it locally the same way before pushing. `cmd/ekumen/cicheck_test.go` checks the script against fixtures, including one with a lane violation.
 
 Make targets that need Node run `npm ci` in `web/` when `node_modules` is missing or older than the lockfile.
 

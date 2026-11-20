@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "events": [
+    "01M7W4WFT00000000000000011"
+  ],
+  "paths": [
+    ".ekumen/events/contract/C-http-api/01M7W4WFT00000000000000011.ContractBlockersChanged.json",
+    ".ekumen/state.json"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "events": [
+    "01M7W4Q010000000000000000Y",
+    "01M7W4Q010000000000000000Z"
+  ],
+  "paths": [
+    ".ekumen/briefs/T-gated/amendments/<STAMP>-main.md",
+    ".ekumen/events/task/T-gated/01M7W4Q010000000000000000Y.TaskAmended.json",
+    ".ekumen/events/decision/D-gate-two/01M7W4Q010000000000000000Z.DecisionApplied.json",
+    ".ekumen/decisions/D-gate-two.yaml",
+    ".ekumen/registry.yaml",
+    ".ekumen/state.json"
+  ]
+}

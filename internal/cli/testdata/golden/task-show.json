@@ -28,7 +28,7 @@
         "title": "T-cli"
       }
     },
-    "brief": "briefs/T-cli/brief.md"
+    "brief": ".ekumen/briefs/T-cli/brief.md"
   },
   "brief": {
     "text": "# T-cli\n\nBuild the CLI.\n",
@@ -37,8 +37,8 @@
         "path": ".ekumen/briefs/T-cli/amendments/<STAMP>-main.md",
         "author": "orchestrator:main",
         "at": "2026-11-20T09:19:00Z",
-        "sha256": "923fdb68c938fdf1c85cb56c9d807d73036a493510dd0b3281af90837d962b40",
-        "text": "Use go.yaml.in/yaml/v3 (D-yaml-library).\n"
+        "sha256": "bd1fcb57bd8f05bbf34cbea3ec0735a503270c4b766500622e02d5790da99bac",
+        "text": "---\ntask: T-cli\nauthor: main\ndate: 2026-11-20\n---\n\nUse go.yaml.in/yaml/v3 (D-yaml-library).\n"
       }
     ],
     "handoffs": [

@@ -290,7 +290,7 @@ func TestEndToEnd(t *testing.T) {
 	h.must("--as", "orchestrator:main", "task", "amend", "T-demo", "--text-file", "am.md", "--note", "D-demo")
 
 	// handoff, read from stdin
-	code, out, errOut = h.runIn(handoffText, "--as", "session:t-demo", "task", "handoff", "T-demo", "--text-file", "-", "--json")
+	code, out, errOut = h.runIn(strings.NewReplacer("task: T-cli", "task: T-demo", "author: t-cli", "author: t-demo").Replace(handoffText), "--as", "session:t-demo", "task", "handoff", "T-demo", "--text-file", "-", "--json")
 	if code != 0 {
 		t.Fatalf("handoff: %s %s", out, errOut)
 	}
