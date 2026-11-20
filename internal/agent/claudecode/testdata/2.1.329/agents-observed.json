@@ -1,0 +1,7 @@
+[
+  {"cwd":"/work/repo-a","id":"aaaaaaa1","kind":"background","name":"bg-blocked","sessionId":"aaaaaaa1-0000-4000-8000-000000000001","startedAt":1795170000000,"state":"blocked"},
+  {"cwd":"/work/repo-a","id":"aaaaaaa2","kind":"background","name":"bg-failed","sessionId":"aaaaaaa2-0000-4000-8000-000000000002","startedAt":1795170000000,"state":"failed"},
+  {"cwd":"/work/repo-b","kind":"interactive","name":"term-idle","pid":101,"sessionId":"bbbbbbb1-0000-4000-8000-000000000001","startedAt":1795170000000,"status":"idle"},
+  {"cwd":"/work/repo-b","kind":"interactive","name":"term-busy","pid":102,"sessionId":"bbbbbbb2-0000-4000-8000-000000000002","startedAt":1795170000000,"status":"busy"},
+  {"cwd":"/work/probe","kind":"interactive","name":"work-bf","pid":103,"sessionId":"11111111-1111-4111-8111-000000000002","startedAt":1795178870673,"status":"busy"}
+]
