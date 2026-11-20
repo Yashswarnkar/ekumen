@@ -266,6 +266,31 @@
       "brief": ".ekumen/briefs/T-landscape-research/brief.md"
     },
     {
+      "id": "T-log-fixes",
+      "aliases": [],
+      "title": "Event log fixes from the first audit",
+      "kind": "build",
+      "status": "draft",
+      "blocked_by": [
+        "D-imported-event-time-order",
+        "D-projections-in-git",
+        "D-contract-version-recording",
+        "D-post-switch-hand-edits",
+        "D-apply-amend-lane"
+      ],
+      "blocked_by_open": [],
+      "approved_on": null,
+      "branch": "build/t-log-fixes",
+      "session": "t-log-fixes",
+      "tier_grants": [
+        "push_own_branch",
+        "open_draft_pr",
+        "restack"
+      ],
+      "observed": null,
+      "brief": ".ekumen/briefs/T-log-fixes/brief.md"
+    },
+    {
       "id": "T-reconcile",
       "aliases": [],
       "title": "Control loop, one pass (ekumen reconcile)",
@@ -616,8 +641,12 @@
       "decided_by": "Yashswarnkar",
       "decided_on": "2026-11-20",
       "superseded_by": null,
-      "applied_on": null,
-      "applied": null,
+      "applied_on": "2026-11-20",
+      "applied": {
+        "amended_tasks": [],
+        "unblocked_tasks": [],
+        "notified_sessions": []
+      },
       "priority": 0,
       "holds_up": [
         "C-event-log",
@@ -631,6 +660,7 @@
         "T-file-store",
         "T-graph-view",
         "T-import",
+        "T-log-fixes",
         "T-reconcile",
         "T-server",
         "T-skills"
@@ -1187,8 +1217,12 @@
       "decided_by": "Yashswarnkar",
       "decided_on": "2026-11-20",
       "superseded_by": null,
-      "applied_on": null,
-      "applied": null,
+      "applied_on": "2026-11-20",
+      "applied": {
+        "amended_tasks": [],
+        "unblocked_tasks": [],
+        "notified_sessions": []
+      },
       "priority": 0,
       "holds_up": [
         "C-cli-json",
@@ -1204,6 +1238,7 @@
         "T-file-store",
         "T-graph-view",
         "T-import",
+        "T-log-fixes",
         "T-reconcile",
         "T-server",
         "T-skills"
@@ -1569,8 +1604,12 @@
       "decided_by": "Yashswarnkar",
       "decided_on": "2026-11-20",
       "superseded_by": null,
-      "applied_on": null,
-      "applied": null,
+      "applied_on": "2026-11-20",
+      "applied": {
+        "amended_tasks": [],
+        "unblocked_tasks": [],
+        "notified_sessions": []
+      },
       "priority": 0,
       "holds_up": [
         "C-event-log",
@@ -1584,6 +1623,7 @@
         "T-file-store",
         "T-graph-view",
         "T-import",
+        "T-log-fixes",
         "T-reconcile",
         "T-server",
         "T-skills"
@@ -1895,8 +1935,12 @@
       "decided_by": "Yashswarnkar",
       "decided_on": "2026-11-20",
       "superseded_by": null,
-      "applied_on": null,
-      "applied": null,
+      "applied_on": "2026-11-20",
+      "applied": {
+        "amended_tasks": [],
+        "unblocked_tasks": [],
+        "notified_sessions": []
+      },
       "priority": 0,
       "holds_up": [
         "C-event-log",
@@ -1910,6 +1954,7 @@
         "T-file-store",
         "T-graph-view",
         "T-import",
+        "T-log-fixes",
         "T-reconcile",
         "T-server",
         "T-skills"
@@ -2109,8 +2154,12 @@
       "decided_by": "Yashswarnkar",
       "decided_on": "2026-11-20",
       "superseded_by": null,
-      "applied_on": null,
-      "applied": null,
+      "applied_on": "2026-11-20",
+      "applied": {
+        "amended_tasks": [],
+        "unblocked_tasks": [],
+        "notified_sessions": []
+      },
       "priority": 0,
       "holds_up": [
         "C-event-log",
@@ -2124,6 +2173,7 @@
         "T-file-store",
         "T-graph-view",
         "T-import",
+        "T-log-fixes",
         "T-reconcile",
         "T-server",
         "T-skills"
@@ -2652,7 +2702,7 @@
   "counts": {
     "tasks_by_status": {
       "done": 9,
-      "draft": 6,
+      "draft": 7,
       "ready": 1
     },
     "decisions_open": 0,

@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7VZJ5Q2WDDJJC15K92JBDXQ","type":"DecisionApplied","at":"2026-11-20T08:00:59.106452Z","actor":{"role":"loop","id":"main"},"subject":{"kind":"decision","id":"D-projections-in-git"},"data":{"amended_tasks":[],"unblocked_tasks":[],"notified_sessions":[]}}

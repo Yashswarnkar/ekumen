@@ -161,6 +161,19 @@ tasks:
     session: r2-landscape
     tier_grants: [read_web, clone_public_repos_to_scratch, write_own_output, push_own_branch, open_draft_pr]
     status: done
+  T-log-fixes:
+    title: Event log fixes from the first audit
+    kind: build
+    brief: briefs/T-log-fixes/brief.md
+    approved: null
+    blocked_by: [D-imported-event-time-order, D-projections-in-git, D-contract-version-recording, D-post-switch-hand-edits, D-apply-amend-lane]
+    repo: ekumen
+    base_branch: main
+    branch: build/t-log-fixes
+    worktree: .worktrees/t-log-fixes
+    session: t-log-fixes
+    tier_grants: [push_own_branch, open_draft_pr, restack]
+    status: draft
   T-reconcile:
     title: Control loop, one pass (ekumen reconcile)
     kind: build

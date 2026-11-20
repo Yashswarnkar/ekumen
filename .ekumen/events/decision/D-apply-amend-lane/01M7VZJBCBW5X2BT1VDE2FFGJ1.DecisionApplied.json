@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7VZJBCBW5X2BT1VDE2FFGJ1","type":"DecisionApplied","at":"2026-11-20T08:01:04.907051Z","actor":{"role":"loop","id":"main"},"subject":{"kind":"decision","id":"D-apply-amend-lane"},"data":{"amended_tasks":[],"unblocked_tasks":[],"notified_sessions":[]}}
