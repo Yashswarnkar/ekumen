@@ -75,124 +75,85 @@ func (r *run) decisionApply(args []string) error {
 		return err
 	}
 	d := s.State.Decisions[id]
+	eff, err := core.ApplyEffectOf(&s.State, s.Events, s.Observed, id, r.now())
 	switch {
-	case d.AppliedOn != "":
+	case errors.Is(err, core.ErrApplied):
 		return r.noop(fmt.Sprintf("%s was already applied on %s; nothing to do", id, d.AppliedOn))
-	case d.Status == core.StatusSuperseded:
-		return fieldErr(CodeValidation, "id", "%s is superseded; a superseded decision is never applied (C-decision-record §3)", id)
-	case d.Status != core.StatusDecided && d.Status != core.StatusDefaulted:
-		return fieldErr(CodeValidation, "id", "%s is %s; only a decided or defaulted decision is applied", id, d.Status)
+	case errors.Is(err, core.ErrSuperseded), errors.Is(err, core.ErrNotDecided):
+		return fieldErr(CodeValidation, "id", "%v", err)
+	case err != nil:
+		return errf(CodeInternal, "%v; nothing recorded", err)
 	}
-
-	var tasks []string
-	for _, b := range d.Blocks {
-		tid := s.State.Resolve(b)
-		if t, ok := s.State.Tasks[tid]; !ok || !t.Drafted() {
-			r.warn("%s blocks %s, which is not a drafted task; no amendment for it", id, b)
-			continue
-		}
-		if !slices.Contains(tasks, tid) {
-			tasks = append(tasks, tid)
-		}
+	for _, b := range eff.NotTasks {
+		r.warn("%s blocks %s, which is not a drafted task; no amendment for it", id, b)
 	}
-
-	done := amendedBy(s.Events, id)
-	var todo []string
-	for _, tid := range tasks {
-		if !done[tid] {
-			todo = append(todo, tid)
-		}
-	}
-	if text != nil && len(todo) > 1 {
+	if text != nil && len(eff.Amend) > 1 {
 		if f, err := ParseEntryFront(string(text)); err == nil && f.Present {
-			return fieldErr(CodeValidation, "front_matter", "--amend-text-file has front matter, but %s amends %d tasks (%s); drop it and each amendment gets its own", id, len(todo), strings.Join(todo, ", "))
+			return fieldErr(CodeValidation, "front_matter", "--amend-text-file has front matter, but %s amends %d tasks (%s); drop it and each amendment gets its own", id, len(eff.Amend), strings.Join(eff.Amend, ", "))
 		}
 	}
+	if text == nil {
+		text = []byte(eff.Line + "\n")
+	}
+	evs, written, err := r.applyEvents(s, a, eff, text)
+	if err != nil {
+		return err
+	}
+	if len(eff.Tasks) > 0 {
+		r.warn("no session messaging exists yet; tell the sessions of %s yourself", strings.Join(eff.Tasks, ", "))
+	}
+	return r.commit(s, evs, written, fmt.Sprintf("applied %s: amended %d task(s), unblocked %d", id, len(eff.Tasks), len(eff.Unblocked)))
+}
+
+// applyEvents writes the §B amendment files of an apply and returns its
+// events: a TaskAmended (by_decision) per task in eff.Amend, then
+// DecisionApplied. On error, files already written are removed.
+func (r *run) applyEvents(s *project.Snapshot, a event.Actor, eff core.ApplyEffect, text []byte) ([]event.Event, []string, error) {
 	var (
 		evs     []event.Event
 		written []string
 	)
-	cleanup := func() {
+	fail := func(err error) ([]event.Event, []string, error) {
 		for _, p := range written {
 			os.Remove(p)
 		}
+		return nil, nil, err
 	}
-	for _, tid := range todo {
-		body := text
-		if body == nil {
-			body = []byte(applyLine(d) + "\n")
-		}
-		body, err := r.entryBody(s, a, tid, body)
+	for _, tid := range eff.Amend {
+		p, rel, sum, err := r.writeAmendment(s, a, tid, text)
 		if err != nil {
-			cleanup()
-			return err
-		}
-		p, sum, err := s.Store.WriteEntryAt(tid, files.Amendments, authorSlug(a.ID), r.now(), body)
-		if err != nil {
-			cleanup()
-			return errf(CodeInternal, "write amendment for %s: %v", tid, err)
+			return fail(err)
 		}
 		written = append(written, p)
-		rel, _ := s.Store.Rel(p)
 		e, err := r.mkEvent(a, event.TaskAmendedType, event.Subject{Kind: event.KindTask, ID: tid},
-			event.TaskAmended{File: rel, TextSHA256: sum, Note: "applies " + id, ByDecision: id})
+			event.TaskAmended{File: rel, TextSHA256: sum, Note: "applies " + eff.Decision, ByDecision: eff.Decision})
 		if err != nil {
-			cleanup()
-			return err
+			return fail(err)
 		}
 		evs = append(evs, e)
 	}
-	applied, err := r.mkEvent(a, event.DecisionAppliedType, sub, event.DecisionApplied{
-		AmendedTasks: orEmpty(tasks), UnblockedTasks: []string{}, NotifiedSessions: []string{}})
+	applied, err := r.mkEvent(a, event.DecisionAppliedType, event.Subject{Kind: event.KindDecision, ID: eff.Decision},
+		event.DecisionApplied{AmendedTasks: orEmpty(eff.Tasks), UnblockedTasks: orEmpty(eff.Unblocked), NotifiedSessions: []string{}})
 	if err != nil {
-		cleanup()
-		return err
+		return fail(err)
 	}
-	// Unblocked: tasks blocked before and not after.
-	after := core.Reduce(append(slices.Clone(s.Events), append(slices.Clone(evs), applied)...))
-	// The apply must take effect (T-audit F-2026-11-20-1): refuse rather
-	// than record an event the reducer would ignore.
-	if after.Decisions[id].AppliedOn == "" {
-		cleanup()
-		return errf(CodeInternal, "applying %s would not take effect in the log; nothing recorded", id)
-	}
-	var unblocked []string
-	for _, tid := range s.TaskIDs() {
-		if s.TaskStatus(tid) == core.TaskBlocked && core.DeriveTaskStatus(&after, s.Observed, tid) != core.TaskBlocked {
-			unblocked = append(unblocked, tid)
-		}
-	}
-	applied.Data, _ = json.Marshal(event.DecisionApplied{AmendedTasks: orEmpty(tasks), UnblockedTasks: orEmpty(unblocked), NotifiedSessions: []string{}})
-	if len(tasks) > 0 {
-		r.warn("no session messaging exists yet; tell the sessions of %s yourself", strings.Join(tasks, ", "))
-	}
-	return r.commit(s, append(evs, applied), written, fmt.Sprintf("applied %s: amended %d task(s), unblocked %d", id, len(tasks), len(unblocked)))
+	return append(evs, applied), written, nil
 }
 
-func amendedBy(evs []event.Event, id string) map[string]bool {
-	done := map[string]bool{}
-	for _, e := range evs {
-		if e.Type != event.TaskAmendedType || e.Subject.Kind != event.KindTask {
-			continue
-		}
-		var d event.TaskAmended
-		if json.Unmarshal(e.Data, &d) == nil && (d.ByDecision == id || d.Note == "applies "+id) {
-			done[e.Subject.ID] = true
-		}
+// writeAmendment writes one §B entry for task, with front matter added
+// when text has none, and returns its full path, its path as events record
+// it, and its sha256.
+func (r *run) writeAmendment(s *project.Snapshot, a event.Actor, task string, text []byte) (string, string, string, error) {
+	body, err := r.entryBody(s, a, task, text)
+	if err != nil {
+		return "", "", "", err
 	}
-	return done
-}
-
-// applyLine is the generated §B amendment for an applied decision.
-func applyLine(d *core.Decision) string {
-	line := fmt.Sprintf("Applied %s (%s): `%s`, %s on %s.", d.ID, d.Title, d.Answer, d.Status, d.DecidedOn)
-	if n := strings.TrimSpace(d.AnswerNote); n != "" {
-		line += " Note: " + n
-		if !strings.HasSuffix(n, ".") {
-			line += "."
-		}
+	p, sum, err := s.Store.WriteEntryAt(task, files.Amendments, authorSlug(a.ID), r.now(), body)
+	if err != nil {
+		return "", "", "", errf(CodeInternal, "write amendment for %s: %v", task, err)
 	}
-	return line + " See .ekumen/decisions/" + d.ID + ".yaml."
+	rel, _ := s.Store.Rel(p)
+	return p, rel, sum, nil
 }
 
 // ---- task defer / attach ----
