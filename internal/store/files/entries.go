@@ -68,13 +68,21 @@ func validEntryKind(k EntryKind) error {
 }
 
 // WriteEntry writes body as a new amendment or handoff of task, named
-// briefs/<task>/<kind>/<UTC YYYYMMDDTHHMMSSZ>-<author>.md, and returns its
-// full path and the lowercase hex SHA-256 of body.
+// briefs/<task>/<kind>/<UTC YYYYMMDDTHHMMSSZ>-<author>.md with the store's
+// clock, and returns its full path and the lowercase hex SHA-256 of body.
+// See WriteEntryAt for the naming and clash rules.
+func (s *Store) WriteEntry(task string, kind EntryKind, author string, body []byte) (string, string, error) {
+	return s.WriteEntryAt(task, kind, author, s.clock(), body)
+}
+
+// WriteEntryAt is WriteEntry for an entry written at a given time, such as
+// a historical entry replayed by an import. The timestamp in the name is at
+// in UTC, to the second.
 //
 // It never overwrites. If the name is taken (same author, same second) it
 // tries "<timestamp>-<author>-2.md", "-3", and so on. author must be a
 // lowercase slug such as "orchestrator" or "t-core". The write is atomic.
-func (s *Store) WriteEntry(task string, kind EntryKind, author string, body []byte) (string, string, error) {
+func (s *Store) WriteEntryAt(task string, kind EntryKind, author string, at time.Time, body []byte) (string, string, error) {
 	if err := validTask(task); err != nil {
 		return "", "", err
 	}
@@ -84,11 +92,14 @@ func (s *Store) WriteEntry(task string, kind EntryKind, author string, body []by
 	if err := validAuthor(author); err != nil {
 		return "", "", err
 	}
+	if at.IsZero() {
+		return "", "", invalid("entry time is zero")
+	}
 	dir, err := s.join(briefsDir, task, string(kind))
 	if err != nil {
 		return "", "", err
 	}
-	ts := s.clock().UTC().Format(TimestampFormat)
+	ts := at.UTC().Format(TimestampFormat)
 	for n := 1; n <= maxSuffix; n++ {
 		name := ts + "-" + author + ".md"
 		if n > 1 {
@@ -104,6 +115,25 @@ func (s *Store) WriteEntry(task string, kind EntryKind, author string, body []by
 		return p, sha256Hex(body), nil
 	}
 	return "", "", fmt.Errorf("files: more than %d entries by %q in %s at %s", maxSuffix, author, dir, ts)
+}
+
+// WriteBrief writes text as briefs/<task>/brief.md (§A) and returns its
+// full path and the lowercase hex SHA-256 of text. It only creates: if
+// brief.md exists the error wraps fs.ErrExist and nothing is written. The
+// write is atomic.
+func (s *Store) WriteBrief(task string, text []byte) (string, string, error) {
+	if err := validTask(task); err != nil {
+		return "", "", err
+	}
+	dir, err := s.join(briefsDir, task)
+	if err != nil {
+		return "", "", err
+	}
+	p, err := s.writeNew(dir, briefFile, text)
+	if err != nil {
+		return "", "", err
+	}
+	return p, sha256Hex(text), nil
 }
 
 // ReadBrief returns the brief of task: §A from brief.md, then its

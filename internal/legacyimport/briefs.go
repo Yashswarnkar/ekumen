@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"go.yaml.in/yaml/v3"
+
+	"github.com/Yashswarnkar/ekumen/internal/store/files"
 )
 
 const entryTimestamp = "20060102T150405Z"
@@ -30,10 +32,15 @@ func (e entry) body() string {
 	return string(b)
 }
 
-// newFile is a file the real run writes.
+// newFile is a file the real run writes through the file store: a brief.md
+// (Kind "") or an entry written at its historical time.
 type newFile struct {
-	Rel  string
-	Text []byte
+	Rel    string
+	Text   []byte
+	Task   string
+	Kind   files.EntryKind
+	Author string
+	At     time.Time
 }
 
 // taskBrief is a task's brief in the new layout (C-event-log §8).
@@ -183,7 +190,7 @@ func splitOldBrief(old string, text []byte, t *legacyTask, session string) (*tas
 	}
 	dir := "briefs/" + t.ID
 	b := &taskBrief{Rel: dir + "/brief.md", Text: []byte("---\n" + newFM + "---\n" + secA), Remove: old}
-	b.Write = append(b.Write, newFile{b.Rel, b.Text})
+	b.Write = append(b.Write, newFile{Rel: b.Rel, Text: b.Text, Task: t.ID})
 
 	used := map[string]int{}
 	name := func(at time.Time, author string) string {
@@ -204,7 +211,7 @@ func splitOldBrief(old string, text []byte, t *legacyTask, session string) (*tas
 		text := fmt.Sprintf("---\ntask: %s\nauthor: %s\ndate: %s\nsource: %s %s\n---\n\n%s\n",
 			t.ID, author, date, old, section, strings.TrimSpace(content))
 		e := entry{Rel: dir + "/" + kind + "/" + n, Name: n, At: at, Author: author, Text: []byte(text)}
-		b.Write = append(b.Write, newFile{e.Rel, e.Text})
+		b.Write = append(b.Write, newFile{Rel: e.Rel, Text: e.Text, Task: t.ID, Kind: files.EntryKind(kind), Author: author, At: at})
 		return e, nil
 	}
 

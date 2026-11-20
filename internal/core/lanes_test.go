@@ -9,20 +9,25 @@ import (
 	"github.com/Yashswarnkar/ekumen/internal/event"
 )
 
-// C-event-log §3: the lane table, written out as in the contract so a change
-// to Lanes has to match it.
+// C-event-log v4 §3: the lane table, written out as in the contract so a
+// change to Lanes has to match it.
 var contractLanes = map[event.Role][]event.Type{
-	event.RoleLead: {event.TaskApprovedType, event.DecisionDecidedType, event.DecisionSupersededType, event.ContractFrozenType},
+	event.RoleLead: {event.TaskApprovedType, event.DecisionDecidedType, event.DecisionSupersededType, event.ContractFrozenType,
+		event.DecisionRaisedType},
 	event.RoleOrchestrator: {event.TaskDraftedType, event.TaskAmendedType, event.TaskBlockersChangedType, event.TaskDeferredType,
-		event.ContractDraftedType, event.ContractVersionedType, event.ExternalAddedType, event.ExternalUpdatedType,
-		event.ExternalResolvedType, event.RouteResolvedType},
+		event.TaskSessionAttachedType, event.ContractDraftedType, event.ContractBlockersChangedType, event.ContractVersionedType,
+		event.ExternalAddedType, event.ExternalUpdatedType, event.ExternalResolvedType, event.DecisionRaisedType},
 	event.RoleSession:    {event.TaskHandoffType, event.DecisionRaisedType},
 	event.RoleIntegrator: {event.TaskHandoffType, event.DecisionRaisedType},
 	event.RoleLoop: {event.DecisionDefaultedType, event.DecisionAppliedType, event.TaskSessionAttachedType,
-		event.RoutedToOwnerType, event.ConflictDetectedType, event.RoleClaimedType, event.RoleReleasedType},
+		event.RoutedToOwnerType, event.ConflictDetectedType, event.DecisionRaisedType},
 }
 
-var anyoneTypes = []event.Type{event.QuestionAskedType, event.QuestionAnsweredType}
+// Types any role may write, subject to a state or data check: questions,
+// route resolutions (the route's owner) and role claims (the claiming
+// session).
+var anyoneTypes = []event.Type{event.QuestionAskedType, event.QuestionAnsweredType, event.RouteResolvedType,
+	event.RoleClaimedType, event.RoleReleasedType}
 
 func subjectFor(typ event.Type) event.Subject {
 	l := Lanes[typ]
@@ -46,14 +51,40 @@ func TestLaneTable_EventLog3(t *testing.T) {
 	for _, typ := range event.Types {
 		for _, role := range event.Roles {
 			want := slices.Contains(contractLanes[role], typ) || slices.Contains(anyoneTypes, typ)
+			data := json.RawMessage(`{}`)
+			if typ == event.RoleClaimedType || typ == event.RoleReleasedType {
+				data = json.RawMessage(`{"role":"orchestrator","session":"x"}`)
+			}
 			e := event.Event{ID: "01JD8Z3K6Q4M2V7X9T1B5N0RCE", Type: typ, Actor: event.Actor{Role: role, ID: "x"},
-				Subject: subjectFor(typ), Data: json.RawMessage(`{}`)}
+				Subject: subjectFor(typ), Data: data}
 			err := CheckLane(e)
 			if (err == nil) != want {
 				t.Errorf("CheckLane(%s by %s) = %v, want allowed=%v", typ, role, err, want)
 			}
 			if err != nil && !errors.Is(err, ErrLane) {
 				t.Errorf("error does not wrap ErrLane: %v", err)
+			}
+		}
+	}
+}
+
+// C-event-log v4 §3: RoleClaimed and RoleReleased "by the claiming session"
+// (D-claim-lane).
+func TestLaneClaimingSession_EventLog3(t *testing.T) {
+	for _, tt := range []struct {
+		actor, session string
+		ok             bool
+	}{
+		{"orch-1", "orch-1", true},
+		{"orch-1", "orch-2", false},
+		{"loop", "orch-1", false},
+	} {
+		for _, typ := range []event.Type{event.RoleClaimedType, event.RoleReleasedType} {
+			data, _ := json.Marshal(event.RoleClaimed{Role: event.RoleOrchestrator, Session: tt.session})
+			e := event.Event{Type: typ, Actor: event.Actor{Role: event.RoleSession, ID: tt.actor},
+				Subject: event.Subject{Kind: event.KindProject, ID: event.ProjectSubjectID}, Data: data}
+			if err := CheckLane(e); (err == nil) != tt.ok {
+				t.Errorf("%s by %s for %s: %v, want ok=%v", typ, tt.actor, tt.session, err, tt.ok)
 			}
 		}
 	}
@@ -110,7 +141,7 @@ func TestLaneOwnTask_EventLog3(t *testing.T) {
 		{"integrator own task", integ, true},
 		{"raise for own task", raiseOwn, true},
 		{"raise for other task", raiseOther, false},
-		{"raise with null task", raiseProject, false},
+		{"session raise with null task", raiseProject, false},
 		{"raised_by.session not the actor", raiseWrong, false},
 		{"session with no attached task", unattached, false},
 	} {
@@ -155,22 +186,94 @@ func TestLaneAddressee_EventLog3(t *testing.T) {
 	}
 }
 
-// C-event-log §3: RouteResolved only for "items routed to it" (the orchestrator).
+// C-event-log v3 §3: the lead, orchestrator and loop raise decisions with
+// any raised_by, including task null (D-lane-gaps).
+func TestLaneDecisionRaisers_EventLog3(t *testing.T) {
+	b := newLog(t)
+	b.draftTask("T-core")
+	rec := record("D-proj", "T-core", "orch", 2)
+	rec.RaisedBy.Task = nil
+	var evs []event.Event
+	for _, role := range []event.Role{event.RoleLead, event.RoleOrchestrator, event.RoleLoop} {
+		rec.ID = "D-by-" + string(role)
+		evs = append(evs, b.add(event.DecisionRaisedType, role, "someone", event.KindDecision, rec.ID, rec))
+	}
+	s := b.state()
+	for _, e := range evs {
+		if err := CheckLaneIn(&s, e); err != nil {
+			t.Errorf("%s: %v", e.Actor.Role, err)
+		}
+	}
+}
+
+// C-event-log v3 §3: "A session's own task is the task whose
+// TaskDrafted.session names it, or the latest TaskSessionAttached for that
+// session (written by the orchestrator or the loop)".
+func TestLaneOwnTaskSources_EventLog3(t *testing.T) {
+	b := newLog(t)
+	b.add(event.TaskDraftedType, event.RoleOrchestrator, "orch", event.KindTask, "T-drafted", event.TaskDrafted{
+		Title: "x", Kind: event.TaskKindBuild, BlockedBy: []string{}, TierGrants: []string{}, Session: "s-draft"})
+	b.draftTask("T-attached")
+	b.add(event.TaskSessionAttachedType, event.RoleOrchestrator, "orch", event.KindTask, "T-attached",
+		event.TaskSessionAttached{Session: "s-att"})
+	byDraft := b.add(event.TaskHandoffType, event.RoleSession, "s-draft", event.KindTask, "T-drafted", event.TaskHandoff{File: "h.md"})
+	byAttach := b.add(event.TaskHandoffType, event.RoleSession, "s-att", event.KindTask, "T-attached", event.TaskHandoff{File: "h.md"})
+	notOwn := b.add(event.TaskHandoffType, event.RoleSession, "s-att", event.KindTask, "T-drafted", event.TaskHandoff{File: "h.md"})
+	s := b.state()
+	if got := s.Tasks["T-drafted"].Session; got != "s-draft" {
+		t.Errorf("T-drafted session = %q, want the drafted session", got)
+	}
+	for _, tt := range []struct {
+		name string
+		e    event.Event
+		ok   bool
+	}{{"TaskDrafted.session", byDraft, true}, {"TaskSessionAttached by orchestrator", byAttach, true}, {"other task", notOwn, false}} {
+		if err := CheckLaneIn(&s, tt.e); (err == nil) != tt.ok {
+			t.Errorf("%s: %v, want ok=%v", tt.name, err, tt.ok)
+		}
+	}
+	// A later attachment wins for Session; the drafted session stays an owner.
+	b.add(event.TaskSessionAttachedType, event.RoleLoop, "loop", event.KindTask, "T-drafted", event.TaskSessionAttached{Session: "s-new"})
+	s = b.state()
+	if got := s.Tasks["T-drafted"].Session; got != "s-new" {
+		t.Errorf("session after attach = %q", got)
+	}
+	if own := s.SessionTasks("s-draft"); !slices.Equal(own, []string{"T-drafted"}) {
+		t.Errorf("SessionTasks(s-draft) = %v", own)
+	}
+}
+
+// C-event-log v3 §3: RouteResolved by "the route's owner", for routes
+// written by the loop and for routes it has not written yet (D-lane-gaps).
 func TestLaneRouteResolved_EventLog3(t *testing.T) {
 	b := newLog(t)
+	b.draftTask("T-core")
+	b.attach("T-core", "t-core")
 	b.add(event.RoutedToOwnerType, event.RoleLoop, "loop", event.KindProject, "project", event.RoutedToOwner{RouteID: "r1", To: "orchestrator"})
 	b.add(event.RoutedToOwnerType, event.RoleLoop, "loop", event.KindProject, "project", event.RoutedToOwner{RouteID: "r2", To: "t-core"})
-	ok := b.add(event.RouteResolvedType, event.RoleOrchestrator, "orch", event.KindProject, "project", event.RouteResolved{RouteID: "r1"})
-	notMine := b.add(event.RouteResolvedType, event.RoleOrchestrator, "orch", event.KindProject, "project", event.RouteResolved{RouteID: "r2"})
-	missing := b.add(event.RouteResolvedType, event.RoleOrchestrator, "orch", event.KindProject, "project", event.RouteResolved{RouteID: "r3"})
+	h := b.add(event.TaskHandoffType, event.RoleSession, "t-core", event.KindTask, "T-core", event.TaskHandoff{File: "h.md", HasFollowups: true})
+	q := b.add(event.QuestionAskedType, event.RoleLead, "lead", event.KindTask, "T-core", event.QuestionAsked{QuestionID: "q1", Text: "?"})
+	res := func(role event.Role, actor, route string) event.Event {
+		return b.add(event.RouteResolvedType, role, actor, event.KindProject, "project", event.RouteResolved{RouteID: route})
+	}
+	cases := []struct {
+		name string
+		e    event.Event
+		ok   bool
+	}{
+		{"orchestrator, own route", res(event.RoleOrchestrator, "orch", "r1"), true},
+		{"orchestrator, a session's route", res(event.RoleOrchestrator, "orch", "r2"), false},
+		{"session, own route", res(event.RoleSession, "t-core", "r2"), true},
+		{"missing route", res(event.RoleOrchestrator, "orch", "r3"), false},
+		{"unwritten handoff route, orchestrator", res(event.RoleOrchestrator, "orch", RouteID(h.ID)), true},
+		{"unwritten handoff route, lead", res(event.RoleLead, "lead", RouteID(h.ID)), false},
+		{"unwritten question route, task session", res(event.RoleSession, "t-core", RouteID(q.ID)), true},
+		{"unwritten question route, orchestrator", res(event.RoleOrchestrator, "orch", RouteID(q.ID)), false},
+	}
 	s := b.state()
-	if err := CheckLaneIn(&s, ok); err != nil {
-		t.Errorf("resolve own route: %v", err)
-	}
-	if CheckLaneIn(&s, notMine) == nil {
-		t.Error("orchestrator resolved a route to a session")
-	}
-	if CheckLaneIn(&s, missing) == nil {
-		t.Error("resolved a missing route")
+	for _, tt := range cases {
+		if err := CheckLaneIn(&s, tt.e); (err == nil) != tt.ok {
+			t.Errorf("%s: CheckLaneIn = %v, want ok=%v", tt.name, err, tt.ok)
+		}
 	}
 }

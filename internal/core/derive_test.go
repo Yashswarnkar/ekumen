@@ -310,9 +310,9 @@ func TestConflicts_EventLog5(t *testing.T) {
 	})
 	t.Run("role", func(t *testing.T) {
 		b := newLog(t)
-		c1 := b.add(event.RoleClaimedType, event.RoleLoop, "loop", event.KindProject, "project", event.RoleClaimed{Role: "orchestrator", Session: "o1"})
-		c2 := b.add(event.RoleClaimedType, event.RoleLoop, "loop", event.KindProject, "project", event.RoleClaimed{Role: "orchestrator", Session: "o2"})
-		b.add(event.RoleClaimedType, event.RoleLoop, "loop", event.KindProject, "project", event.RoleClaimed{Role: "integrator", Session: "i1"})
+		c1 := b.add(event.RoleClaimedType, event.RoleSession, "o1", event.KindProject, "project", event.RoleClaimed{Role: "orchestrator", Session: "o1"})
+		c2 := b.add(event.RoleClaimedType, event.RoleSession, "o2", event.KindProject, "project", event.RoleClaimed{Role: "orchestrator", Session: "o2"})
+		b.add(event.RoleClaimedType, event.RoleSession, "i1", event.KindProject, "project", event.RoleClaimed{Role: "integrator", Session: "i1"})
 		s := b.state()
 		cs := Conflicts(&s, b.events, ConflictInputs{})
 		if len(cs) != 1 || cs[0].Rule != RuleRole || !slices.Equal(cs[0].Events, []string{c1.ID, c2.ID}) {
@@ -321,7 +321,7 @@ func TestConflicts_EventLog5(t *testing.T) {
 		if cs := Conflicts(&s, b.events, ConflictInputs{AliveSessions: map[string]bool{"o2": true, "i1": true}}); len(cs) != 0 {
 			t.Errorf("dead claim counted: %+v", cs)
 		}
-		b.add(event.RoleReleasedType, event.RoleLoop, "loop", event.KindProject, "project", event.RoleReleased{Role: "orchestrator", Session: "o1"})
+		b.add(event.RoleReleasedType, event.RoleSession, "o1", event.KindProject, "project", event.RoleReleased{Role: "orchestrator", Session: "o1"})
 		s = b.state()
 		if cs := Conflicts(&s, b.events, ConflictInputs{}); len(cs) != 0 {
 			t.Errorf("released claim counted: %+v", cs)

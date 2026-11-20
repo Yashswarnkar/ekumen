@@ -136,6 +136,11 @@ func verify(b *builder, s *core.State) []Mismatch {
 		if c.RegistryStatus != "" && c.File != "" {
 			add(rec, "registry status", c.RegistryStatus, c.Status)
 		}
+		wantBlocked := slices.Clone(b.refs(rec, orEmpty(c.BlockedBy)))
+		gotBlocked := slices.Clone(got.BlockedBy)
+		slices.Sort(wantBlocked)
+		slices.Sort(gotBlocked)
+		add(rec, "blocked_by", strings.Join(wantBlocked, ","), strings.Join(gotBlocked, ","))
 		if c.Status == core.ContractFrozen {
 			add(rec, "version", fmt.Sprint(max(c.Version, 1)), fmt.Sprint(got.Version))
 		}
@@ -197,23 +202,4 @@ func checkRecords(s *core.State, events []event.Event, sources map[string]string
 		}
 	}
 	return out
-}
-
-// lanesAllowedByV3 reports whether a lane conflict found by today's core is
-// an event C-event-log v3 allows: v3 lets the lead and the orchestrator
-// raise decisions (D-lane-gaps), which internal/core (built on v1) does not
-// yet know.
-func lanesAllowedByV3(s *core.State, c core.Conflict, byID map[string]event.Event) bool {
-	if c.Rule != "lane" || len(c.Events) != 1 {
-		return false
-	}
-	e, ok := byID[c.Events[0]]
-	if !ok || e.Type != event.DecisionRaisedType {
-		return false
-	}
-	switch e.Actor.Role {
-	case event.RoleLead, event.RoleOrchestrator, event.RoleLoop:
-		return true
-	}
-	return false
 }

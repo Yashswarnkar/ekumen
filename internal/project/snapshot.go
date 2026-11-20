@@ -7,7 +7,6 @@ package project
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -112,7 +111,6 @@ func Load(ctx context.Context, opt Options) (*Snapshot, error) {
 		s.byID[e.ID] = e
 	}
 	s.State = core.Reduce(s.Events)
-	s.attachDraftSessions()
 
 	obs := opt.Observer
 	if obs == nil {
@@ -126,28 +124,6 @@ func Load(ctx context.Context, opt Options) (*Snapshot, error) {
 	}
 	s.Observed = s.observed()
 	return s, nil
-}
-
-// attachDraftSessions applies the optional TaskDrafted.session field of
-// C-event-log v3 §6, which internal/event does not decode yet (FOLLOW-UP in
-// the T-cli handoff). A later TaskSessionAttached still wins: the reducer
-// has set Session from it already.
-func (s *Snapshot) attachDraftSessions() {
-	for _, e := range s.Events {
-		if e.Type != event.TaskDraftedType {
-			continue
-		}
-		t, ok := s.State.Tasks[s.State.Resolve(e.Subject.ID)]
-		if !ok || len(t.Drafts) == 0 || t.Drafts[0].Event != e.ID || t.Session != "" {
-			continue
-		}
-		var d struct {
-			Session string `json:"session"`
-		}
-		if json.Unmarshal(e.Data, &d) == nil && d.Session != "" {
-			t.Session = d.Session
-		}
-	}
 }
 
 func (s *Snapshot) observed() core.Observed {
@@ -242,21 +218,9 @@ func (s *Snapshot) FrozenHashes() map[string]string {
 	return out
 }
 
-// Conflicts runs the C-event-log §5 rules. Lane conflicts reported by core
-// are re-checked against the v3 lane table (CheckLane), because core still
-// implements the v2 table (FOLLOW-UP in the T-cli handoff).
+// Conflicts runs the C-event-log §5 rules.
 func (s *Snapshot) Conflicts() []core.Conflict {
-	all := core.Conflicts(&s.State, s.Events, core.ConflictInputs{TextSHA256: s.FrozenHashes()})
-	out := []core.Conflict{}
-	for _, c := range all {
-		if c.Rule == core.RuleLane && len(c.Events) == 1 {
-			if e, ok := s.byID[c.Events[0]]; ok && s.CheckLane(e) == nil {
-				continue
-			}
-		}
-		out = append(out, c)
-	}
-	return out
+	return core.Conflicts(&s.State, s.Events, core.ConflictInputs{TextSHA256: s.FrozenHashes()})
 }
 
 // ErrNotFound is wrapped when an id names nothing.

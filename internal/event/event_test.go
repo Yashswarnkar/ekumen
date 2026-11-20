@@ -57,8 +57,8 @@ func TestKindOf_EventLog1(t *testing.T) {
 // C-event-log §1, "Aliases".
 func TestValidateAlias_EventLog1Aliases(t *testing.T) {
 	for alias, ok := range map[string]bool{
-		"R1": true, "T0": true, "C1": true, "D-012": false /* is a valid slug id */, "": false,
-		"1R": false, "T 0": false, "a--b": false,
+		"R1": true, "T0": true, "C1": true, "D-012": true /* v3: may look like a slug id */, "": false,
+		"1R": true, "a--b": true, "T 0": false, "T\t0": false, "a/b": false, "T0\n": false,
 	} {
 		if err := ValidateAlias(alias); (err == nil) != ok {
 			t.Errorf("ValidateAlias(%q) = %v, want ok=%v", alias, err, ok)
@@ -222,8 +222,8 @@ func TestNewAndValidate_EventLog2(t *testing.T) {
 
 // C-event-log §6: every v1 type has a typed payload.
 func TestEveryTypeHasPayload_EventLog6(t *testing.T) {
-	if len(Types) != 25 {
-		t.Errorf("C-event-log §6 lists 25 types, Types has %d", len(Types))
+	if len(Types) != 26 {
+		t.Errorf("C-event-log v4 §6 lists 26 types, Types has %d", len(Types))
 	}
 	for _, typ := range Types {
 		if !typ.Known() || NewPayload(typ) == nil {

@@ -16,7 +16,7 @@ import (
 
 // Import actors. The import replays history in the lanes of C-event-log §3:
 // the lead approves, decides and freezes; the orchestrator drafts and
-// amends; sessions hand off; the loop applies, defaults and attaches.
+// amends; sessions hand off; the loop applies and defaults.
 const (
 	orchestratorID = "orchestrator"
 	loopID         = "loop"
@@ -27,27 +27,24 @@ const (
 // the first entropy byte of the event's ULID, so sorting by id (the log
 // order, C-event-log §2) follows a record's lifecycle.
 var rank = map[event.Type]byte{
-	event.ContractDraftedType:     0,
-	event.ContractFrozenType:      1,
-	event.TaskDraftedType:         2,
-	event.TaskSessionAttachedType: 3,
-	event.TaskApprovedType:        4,
-	event.DecisionRaisedType:      5,
-	event.TaskAmendedType:         6,
-	event.TaskHandoffType:         7,
-	event.DecisionDecidedType:     8,
-	event.DecisionDefaultedType:   8,
-	event.DecisionAppliedType:     9,
+	event.ContractDraftedType:   0,
+	event.ContractFrozenType:    1,
+	event.TaskDraftedType:       2,
+	event.TaskApprovedType:      4,
+	event.DecisionRaisedType:    5,
+	event.TaskAmendedType:       6,
+	event.TaskHandoffType:       7,
+	event.DecisionDecidedType:   8,
+	event.DecisionDefaultedType: 8,
+	event.DecisionAppliedType:   9,
 }
 
-// Payloads with the fields C-event-log v3 adds or that the import keeps
-// beyond the typed structs. Unknown data fields are kept by readers
+// Payloads with the fields the import keeps beyond the typed structs. Unknown data fields are kept by readers
 // (C-event-log §2, §9).
 
 type taskDrafted struct {
 	event.TaskDrafted
-	Session string    `json:"session,omitempty"` // C-event-log v3; not yet in event.TaskDrafted
-	Legacy  yamlExtra `json:"legacy,omitempty"`
+	Legacy yamlExtra `json:"legacy,omitempty"`
 }
 
 type contractDrafted struct {
@@ -220,10 +217,6 @@ func (b *builder) contract(c *legacyContract) {
 	}
 	sub := event.Subject{Kind: event.KindContract, ID: c.ID}
 	legacy := yamlExtra{}
-	if len(c.BlockedBy) > 0 {
-		legacy["blocked_by"] = b.refs(rec, c.BlockedBy)
-		b.note(rec, "info", "blocked_by %v kept as legacy data: C-event-log has no contract blockers", c.BlockedBy)
-	}
 	at := b.noon(rec, "frozen_on", c.FrozenOn)
 	switch c.Status {
 	case "frozen":
@@ -240,7 +233,8 @@ func (b *builder) contract(c *legacyContract) {
 	}
 	b.add(planned{typ: event.ContractDraftedType, at: at, subject: sub, source: cmp.Or(c.File, "registry.yaml"),
 		actor: event.Actor{Role: event.RoleOrchestrator, ID: orchestratorID},
-		data:  contractDrafted{event.ContractDrafted{Title: c.Title, Path: c.File, Aliases: c.Aliases}, legacy}})
+		data: contractDrafted{event.ContractDrafted{Title: c.Title, Path: c.File, Aliases: c.Aliases,
+			BlockedBy: b.refs(rec, c.BlockedBy)}, legacy}})
 	if c.Status == "frozen" {
 		if c.File == "" {
 			b.note(rec, "malformed", "frozen but has no file; not frozen")
@@ -314,18 +308,10 @@ func (b *builder) task(t *legacyTask) error {
 	td := taskDrafted{TaskDrafted: event.TaskDrafted{
 		Title: t.Title, Kind: t.Kind, Brief: brief, Repo: t.Repo, BaseBranch: t.BaseBranch,
 		Branch: t.Branch, Worktree: t.Worktree, BlockedBy: b.refs(rec, orEmpty(t.BlockedBy)),
-		TierGrants: orEmpty(t.TierGrants), Aliases: aliasesOut,
-	}, Session: t.Session, Legacy: legacy}
+		TierGrants: orEmpty(t.TierGrants), Aliases: aliasesOut, Session: t.Session,
+	}, Legacy: legacy}
 	orch := event.Actor{Role: event.RoleOrchestrator, ID: orchestratorID}
 	b.add(planned{typ: event.TaskDraftedType, at: at, subject: sub, actor: orch, data: td, source: "registry.yaml"})
-	if t.Session != "" {
-		// Today's core reads a session's own task only from
-		// TaskSessionAttached (loop lane), so the attachment is also
-		// written as its own event.
-		b.add(planned{typ: event.TaskSessionAttachedType, at: at, subject: sub, source: "registry.yaml",
-			actor: event.Actor{Role: event.RoleLoop, ID: loopID},
-			data:  event.TaskSessionAttached{Session: t.Session, Adapter: ""}})
-	}
 	if t.Approved != nil {
 		if br == nil {
 			b.note(rec, "malformed", "approved but has no brief; TaskApproved has no text to hash")
