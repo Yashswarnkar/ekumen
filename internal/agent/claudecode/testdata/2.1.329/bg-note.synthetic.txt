@@ -1,0 +1,2 @@
+note: session {short} is already running; started a copy as {copy}
+  claude attach {copy}

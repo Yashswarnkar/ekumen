@@ -1,0 +1,2 @@
+Continuing session {short} in the background
+  claude attach {short}
