@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path"
 	"reflect"
 	"strings"
+	"unicode"
 )
 
 // Payloads: one struct per event type (C-event-log v4 §6). Field names
@@ -105,19 +107,78 @@ func (u TaskUpdated) Fields() map[string]string {
 	return out
 }
 
-// Check refuses an update that sets no field or sets one to "".
+// Check refuses an update that sets no field, sets one to "", or gives a
+// value of the wrong form (see CheckTaskField).
 func (u TaskUpdated) Check() error {
 	n := 0
 	for _, f := range TaskUpdateFields {
 		if v := u.Field(f); v != nil {
-			if *v == "" {
-				return fmt.Errorf("%s: empty value", f)
+			if err := CheckTaskField(f, *v); err != nil {
+				return &FieldError{Field: f, Err: err}
 			}
 			n++
 		}
 	}
 	if n == 0 {
 		return errors.New("no field to update")
+	}
+	return nil
+}
+
+// FieldError names the payload field a check refused.
+type FieldError struct {
+	Field string
+	Err   error
+}
+
+func (e *FieldError) Error() string { return e.Field + ": " + e.Err.Error() }
+func (e *FieldError) Unwrap() error { return e.Err }
+
+// CheckTaskField checks one TaskUpdated value: none may be blank; branch
+// and base_branch are git branch names; worktree is a relative path inside
+// the repository; brief is a relative path inside .ekumen/ (it may start
+// with ".ekumen/"); repo has no whitespace.
+func CheckTaskField(field, v string) error {
+	if strings.TrimSpace(v) == "" {
+		return errors.New("must not be empty")
+	}
+	switch field {
+	case "branch", "base_branch":
+		return CheckBranch(v)
+	case "worktree", "brief":
+		return checkRelPath(v)
+	case "repo":
+		if strings.ContainsFunc(v, unicode.IsSpace) {
+			return errors.New("must not contain spaces")
+		}
+	}
+	return nil
+}
+
+// CheckBranch applies git's branch-name rules (git check-ref-format).
+func CheckBranch(b string) error {
+	bad := b == "HEAD" || b == "@" || strings.ContainsAny(b, " ~^:?*[\\") ||
+		strings.ContainsFunc(b, func(r rune) bool { return r < 0x20 || r == 0x7f }) ||
+		strings.Contains(b, "..") || strings.Contains(b, "@{") ||
+		strings.HasPrefix(b, "-") || strings.HasSuffix(b, ".")
+	for _, c := range strings.Split(b, "/") {
+		if c == "" || strings.HasPrefix(c, ".") || strings.HasSuffix(c, ".lock") {
+			bad = true
+		}
+	}
+	if bad {
+		return fmt.Errorf("not a valid branch name: %q", b)
+	}
+	return nil
+}
+
+func checkRelPath(p string) error {
+	clean := path.Clean(p)
+	switch {
+	case strings.HasPrefix(p, "/"), strings.ContainsAny(p, "\\\n"), len(p) > 1 && p[1] == ':':
+		return errors.New("must be a relative, slash-separated path")
+	case clean == ".." || strings.HasPrefix(clean, "../") || clean == "." || clean == ".ekumen":
+		return errors.New("must name a file or folder inside the repository")
 	}
 	return nil
 }

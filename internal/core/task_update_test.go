@@ -128,23 +128,77 @@ func TestTaskUpdatedAfterCloseIsReported(t *testing.T) {
 	b.draftTask("T-a")
 	b.add(event.TaskDeferredType, event.RoleOrchestrator, "orch", event.KindTask, "T-a", event.TaskDeferred{Reason: "later"})
 	late := b.update("T-a", map[string]string{"title": "New"}, "rename")
-	b.draftTask("T-b")
-	b.approve("T-b", "h")
-	pend := b.update("T-b", map[string]string{"title": "New"}, "rename")
 	s := b.state()
 	if s.Tasks["T-a"].Title == "New" {
 		t.Error("update applied to a deferred task")
 	}
-	obs := Observed{Tasks: map[string]TaskObservation{"T-b": {PR: PRMerged}}}
-	got := UpdateAfterCloseConflicts(&s, obs)
-	if len(got) != 2 || got[0].Events[0] != late.ID || got[1].Events[0] != pend.ID {
+	got := UpdateAfterCloseConflicts(&s)
+	if len(got) != 1 || got[0].Events[0] != late.ID {
 		t.Errorf("conflicts = %+v", got)
 	}
-	if acts := LeadActions(&s, obs, t0, nil); len(acts) != 0 {
-		t.Errorf("done task still offered: %+v", acts)
+}
+
+func TestTaskUpdatedBeforeDeferIsNotReported(t *testing.T) {
+	b := newLog(t)
+	b.draftTask("T-a")
+	b.update("T-a", map[string]string{"title": "New"}, "rename")
+	b.add(event.TaskDeferredType, event.RoleOrchestrator, "orch", event.KindTask, "T-a", event.TaskDeferred{Reason: "later"})
+	s := b.state()
+	if got := UpdateAfterCloseConflicts(&s); len(got) != 0 {
+		t.Errorf("conflicts = %+v", got)
 	}
-	if got := UpdateAfterCloseConflicts(&s, Observed{}); len(got) != 1 {
-		t.Errorf("pending on an open task reported: %+v", got)
+}
+
+func TestTaskUpdatedOnDoneTaskIsHistoryNotConflict(t *testing.T) {
+	b := newLog(t)
+	b.draftTask("T-b")
+	b.approve("T-b", "h")
+	b.update("T-b", map[string]string{"title": "New"}, "proposed while running")
+	placeholder(b, "T-c")
+	b.update("T-c", map[string]string{"title": "Renamed"}, "merged in after its PR merged")
+	s := b.state()
+	obs := Observed{Tasks: map[string]TaskObservation{"T-b": {PR: PRMerged}, "T-c": {PR: PRMerged}}}
+	if got := Conflicts(&s, b.events, ConflictInputs{}); len(got) != 0 {
+		t.Errorf("conflicts = %+v", got)
+	}
+	for _, a := range LeadActions(&s, obs, t0, nil) {
+		if a.Update != nil {
+			t.Errorf("done task's update still offered: %+v", a)
+		}
+	}
+	if s.Tasks["T-c"].Title != "Renamed" || DeriveTaskStatus(&s, obs, "T-c") != TaskDone {
+		t.Errorf("unapproved done task: %+v", s.Tasks["T-c"])
+	}
+}
+
+func TestTaskUpdatedPlaceholderBriefIsNotAMove(t *testing.T) {
+	b := newLog(t)
+	placeholder(b, "T-a")
+	first := b.approve("T-a", "h1")
+	b.update("T-a", map[string]string{"brief": ".ekumen/briefs/T-a/brief.md", "branch": "build/t-a"}, "fill")
+	b.approve("T-a", "h2")
+	s := b.state()
+	ta := s.Tasks["T-a"]
+	if ta.Brief != ".ekumen/briefs/T-a/brief.md" || ta.ApprovedSHA256 != "h1" || ta.ApprovedEvent != first.ID {
+		t.Errorf("task = %+v", ta)
+	}
+	for in, want := range map[string]string{"": "briefs/T-a/brief.md", "briefs/T-a/brief.md": "briefs/T-a/brief.md",
+		".ekumen/briefs/T-a/./brief.md": "briefs/T-a/brief.md", "briefs/T-a/v2.md": "briefs/T-a/v2.md"} {
+		if got := BriefFile("T-a", in); got != want {
+			t.Errorf("BriefFile(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestTaskUpdatedTimeOrder(t *testing.T) {
+	b := newLog(t)
+	placeholder(b, "T-a")
+	u := b.update("T-a", map[string]string{"branch": "build/t-a"}, "skewed")
+	b.approve("T-a", "h1")
+	b.events[1], b.events[2] = b.events[2], b.events[1]
+	s := b.state()
+	if s.Tasks["T-a"].Branch != "build/t-a" || s.Tasks["T-a"].PendingUpdate != nil {
+		t.Errorf("update %s stamped before the approval should apply at once: %+v", u.ID, s.Tasks["T-a"])
 	}
 }
 

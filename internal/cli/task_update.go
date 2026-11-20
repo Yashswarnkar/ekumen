@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"path"
 	"strings"
 
 	"github.com/Yashswarnkar/ekumen/internal/core"
@@ -120,48 +119,12 @@ func setUpdateField(d *event.TaskUpdated, field, v string) {
 }
 
 func checkUpdateField(s *project.Snapshot, field, v string) error {
-	if strings.TrimSpace(v) == "" {
-		return errString("must not be empty")
+	if err := event.CheckTaskField(field, v); err != nil {
+		return err
 	}
-	switch field {
-	case "branch", "base_branch":
-		return checkBranch(v)
-	case "worktree":
-		return checkRelPath(v)
-	case "brief":
-		if _, err := s.ResolvePath(v); err != nil {
-			return err
-		}
-	case "repo":
-		if strings.ContainsAny(v, " \t\n") {
-			return errString("must not contain spaces")
-		}
-	}
-	return nil
-}
-
-type errString string
-
-func (e errString) Error() string { return string(e) }
-
-func checkBranch(b string) error {
-	switch {
-	case strings.ContainsAny(b, " \t\n~^:?*[\\"),
-		strings.Contains(b, ".."), strings.Contains(b, "//"), strings.Contains(b, "@{"),
-		strings.HasPrefix(b, "-"), strings.HasPrefix(b, "/"), strings.HasSuffix(b, "/"),
-		strings.HasSuffix(b, "."), strings.HasSuffix(b, ".lock"):
-		return errString("not a valid branch name: " + b)
-	}
-	return nil
-}
-
-func checkRelPath(p string) error {
-	clean := path.Clean(p)
-	switch {
-	case strings.HasPrefix(p, "/"), strings.ContainsAny(p, "\\\n"):
-		return errString("must be a relative, slash-separated path")
-	case clean == ".." || strings.HasPrefix(clean, "../"):
-		return errString("must stay inside the repository")
+	if field == "brief" {
+		_, err := s.ResolvePath(v)
+		return err
 	}
 	return nil
 }

@@ -579,24 +579,35 @@ func (r *run) taskApprove(args []string) error {
 	if t.Approved && t.PendingUpdate == nil {
 		return fieldErr(CodeValidation, "id", "%s was approved on %s; §A is frozen (amend it instead)", id, t.ApprovedOn)
 	}
-	brief, err := s.BriefPath(id)
-	moved := false
-	if u := t.PendingUpdate; u != nil && err == nil {
-		if nb, ok := u.Fields["brief"]; ok {
-			var p string
-			p, err = s.ResolvePath(nb)
-			moved, brief = p != brief, p
+	updating := t.Approved
+	if updating {
+		if st := s.TaskStatus(id); st == core.TaskDone {
+			return fieldErr(CodeValidation, "id", "%s is done; its pending update can no longer be approved", id)
 		}
 	}
-	if err != nil {
-		return fieldErr(CodeValidation, "brief", "%s: %v", id, err)
+	moved := false
+	if nb, ok := pendingBrief(t); updating && ok {
+		moved = core.BriefFile(id, nb) != core.BriefFile(id, t.Brief)
 	}
-	sum, err := files.HashFile(brief)
-	if err != nil {
-		return fieldErr(CodeNotFound, "brief", "%s: cannot hash the brief: %v", id, err)
-	}
-	if t.Approved && !moved && sum != t.ApprovedSHA256 {
-		return fieldErr(CodeValidation, "brief", "%s: §A changed since approval (frozen-text-changed); approving its update does not re-approve §A", id)
+	var sum string
+	if updating && !moved {
+		sum = t.ApprovedSHA256
+		if p, err := s.BriefPath(id); err == nil {
+			if cur, err := files.HashFile(p); err == nil && cur != sum {
+				r.warn("%s: §A changed since approval; this accepts the update only, and check still reports frozen-text-changed", id)
+			}
+		}
+	} else {
+		brief, err := s.ResolvePath(core.BriefFile(id, t.Brief))
+		if nb, ok := pendingBrief(t); ok && err == nil {
+			brief, err = s.ResolvePath(nb)
+		}
+		if err != nil {
+			return fieldErr(CodeValidation, "brief", "%s: %v", id, err)
+		}
+		if sum, err = files.HashFile(brief); err != nil {
+			return fieldErr(CodeNotFound, "brief", "%s: cannot hash the brief: %v", id, err)
+		}
 	}
 	final := t.TierGrants
 	if flagSet(fs, "grants") {
@@ -612,6 +623,14 @@ func (r *run) taskApprove(args []string) error {
 		human = "approved the update to " + id + ": " + project.FormatUpdate(t.PendingUpdate.Fields)
 	}
 	return r.commit(s, []event.Event{e}, nil, human)
+}
+
+func pendingBrief(t *core.Task) (string, bool) {
+	if t.PendingUpdate == nil {
+		return "", false
+	}
+	b, ok := t.PendingUpdate.Fields["brief"]
+	return b, ok
 }
 
 func flagSet(fs *flag.FlagSet, name string) bool {

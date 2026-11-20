@@ -278,7 +278,7 @@ func (s *Snapshot) FrozenHashes() map[string]string {
 
 // Conflicts runs the C-event-log §5 rules.
 func (s *Snapshot) Conflicts() []core.Conflict {
-	return core.Conflicts(&s.State, s.Events, core.ConflictInputs{TextSHA256: s.FrozenHashes(), Observed: s.Observed})
+	return core.Conflicts(&s.State, s.Events, core.ConflictInputs{TextSHA256: s.FrozenHashes()})
 }
 
 // ErrNotFound is wrapped when an id names nothing.

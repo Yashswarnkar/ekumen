@@ -11,6 +11,7 @@ import (
 	"cmp"
 	"encoding/json"
 	"maps"
+	"path"
 	"slices"
 	"strings"
 	"time"
@@ -1082,17 +1083,27 @@ func (s *State) apply(e event.Event) {
 }
 
 // acceptUpdate applies a task's pending update on the lead's TaskApproved.
-// The approval's grants are taken; its hash only when the brief path
-// changes, so a re-approval never re-baselines an unchanged §A
-// (frozen-text-changed still reports edits to it).
+// The approval's grants are taken; its hash only when the update moves the
+// brief (BriefFile differs), so a re-approval never re-baselines an
+// unchanged §A (frozen-text-changed still reports edits to it).
 func (s *State) acceptUpdate(t *Task, e event.Event, d *event.TaskApproved) {
-	briefBefore := t.Brief
+	before := BriefFile(t.ID, t.Brief)
 	t.setFields(t.PendingUpdate.Fields)
 	t.PendingUpdate = nil
 	t.TierGrants = orEmpty(d.TierGrants)
-	if t.Brief != briefBefore {
+	if BriefFile(t.ID, t.Brief) != before {
 		t.ApprovedEvent, t.ApprovedSHA256 = e.ID, d.TextSHA256
 	}
+}
+
+// BriefFile is the file a task's brief names, relative to .ekumen/ and
+// cleaned: a leading ".ekumen/" is dropped, and an empty brief is
+// briefs/<id>/brief.md.
+func BriefFile(id, brief string) string {
+	if brief == "" {
+		return "briefs/" + id + "/brief.md"
+	}
+	return strings.TrimPrefix(path.Clean(brief), ".ekumen/")
 }
 
 func (t *Task) setFields(f map[string]string) {

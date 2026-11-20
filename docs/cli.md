@@ -134,7 +134,7 @@ Validates event and brief files (layout, envelope, payload), checks that files r
 - `frozen-text-changed` against the current text of approved briefs and frozen contracts (a contract's text may also match a newer version recorded by `contract version` and not yet frozen);
 - `orphan-step`: a lifecycle step whose prerequisite is nowhere in the log, e.g. a `DecisionApplied` with no `DecisionDecided`. Steps whose prerequisite exists are never dropped for being stamped earlier than it: within one item the log keeps time order, except that an event stamped before its own prerequisite (an apply before its decide, an answer before its question, anything before the item's creating event) is moved to right after it (D-imported-event-time-order);
 - `spine-unapproved`: `.ekumen/spine.md` does not match the latest `ekumen spine approve`. Nothing is reported before the first approval.
-- `update-after-close`: a `TaskUpdated` written after the task was deferred, or a pending update on a task that is done (its PR merged), which no approval can take any more. `task update` refuses both, so they arrive through a merge.
+- `update-after-close`: a `TaskUpdated` that comes after the task's `TaskDeferred` in the log. `task update` refuses it, so it arrives through a merge. A done task is not checked: done is observed and has no place in the log, so an update proposed before the PR merged is ordinary history; it stays pending, the inbox does not offer it, and `task approve` refuses it.
 
 Exit `4` with conflicts, `2` with invalid files only.
 
@@ -226,7 +226,7 @@ $ ekumen --as lead:yash task approve T-skills --grants push_own_branch,open_draf
 
 Records the sha256 of `brief.md`. Editing §A afterwards is reported by `check` as `frozen-text-changed`.
 
-An approved task is refused, unless it has a pending `task update`: then approving again accepts every pending update (D-placeholder-task-fields), with the grants given (or the current ones). The brief is hashed at its new path when the update moves it; otherwise §A must still match the hash recorded at the first approval, or approval is refused (`frozen-text-changed` is not something a re-approval clears).
+An approved task is refused, unless it has a pending `task update` and is not done: then approving again accepts every pending update (D-placeholder-task-fields), with the grants given (or the current ones). When the update moves the brief to another file (compared after dropping a leading `.ekumen/`, with an empty brief meaning `briefs/<id>/brief.md`), the new file is hashed and becomes the frozen §A. Otherwise the event records the hash from the first approval, which stays in force: if §A was edited since, the update is still accepted, a warning says so, and `check` keeps reporting `frozen-text-changed`.
 
 ### `ekumen task update <id> [--repo r] [--base-branch b] [--branch b] [--worktree w] [--brief p] [--title t] --reason t` (orchestrator, with the claim)
 
@@ -239,7 +239,7 @@ proposed an update to T-skills; it takes effect when the lead runs `ekumen task 
 
 Records `TaskUpdated {<the fields that change>, reason}`. Before approval the update takes effect at once; the lead's later approval covers it. After approval it is **pending**: reads show the current values plus `pending_update`, the lead's inbox gets an `approve` action, and nothing changes (status included) until the lead runs `ekumen task approve <id>`. Several pending updates merge field by field, newest wins; one approval accepts them all.
 
-- At least one field besides `--reason`; an empty value is refused, naming the field. Branches must be valid git branch names; `--worktree` is relative and stays inside the repository; `--brief` is relative to `.ekumen/` and stays inside it.
+- At least one field besides `--reason`; an empty value is refused, naming the field. Branches must be valid git branch names (no `HEAD`, no `..`, no component starting with `.` or ending in `.lock`); `--worktree` is relative and stays inside the repository; `--brief` is relative to `.ekumen/` and stays inside it. The same checks apply to a `TaskUpdated` that arrives by merge: `check` lists it as invalid and the reducer ignores it.
 - Giving only values the task already has (or already has pending) prints a no-op result and writes nothing.
 - A done or deferred task is refused.
 - `kind`, `blocked_by`, `tier_grants`, `session` and `aliases` are not updated here: use `task block`, `task approve --grants` and `task attach`.

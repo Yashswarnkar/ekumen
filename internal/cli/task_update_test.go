@@ -83,14 +83,35 @@ func TestTaskUpdatePendingUntilApproved(t *testing.T) {
 	}
 }
 
-func TestTaskUpdateApproveRefusesChangedBrief(t *testing.T) {
+func TestTaskUpdateApproveWithDriftedBrief(t *testing.T) {
 	h := newHarness(t)
 	buildFixture(h)
 	h.must("--as", "orchestrator:main", "task", "update", "T-cli", "--repo", "ekumen", "--reason", "fill")
 	h.write(".ekumen/briefs/T-cli/brief.md", "# T-cli\n\nEdited after approval.\n")
-	code, out, _ := h.run("--as", "lead:yash", "--json", "task", "approve", "T-cli")
-	if code != ExitRefused || !strings.Contains(out, "frozen-text-changed") {
-		t.Errorf("exit %d: %s", code, out)
+	code, out, errOut := h.run("--as", "lead:yash", "--json", "task", "approve", "T-cli")
+	if code != ExitOK || !strings.Contains(errOut, "frozen-text-changed") {
+		t.Fatalf("exit %d: %s %s", code, out, errOut)
+	}
+	h.tick()
+	code, m := checkJSON(t, h)
+	if code != ExitConflict || !strings.Contains(strings.Join(rulesOf(m), ","), "frozen-text-changed") {
+		t.Errorf("check after accepting: exit %d, rules %v", code, rulesOf(m))
+	}
+}
+
+func TestTaskUpdatePendingOnDoneTask(t *testing.T) {
+	h := newHarness(t)
+	buildFixture(h)
+	h.raw("TaskUpdated", "orchestrator", "main", "task", "T-core", map[string]any{"title": "Core", "reason": "proposed before the merge"})
+	code, out, _ := h.run("--as", "lead:yash", "--json", "task", "approve", "T-core")
+	if code != ExitRefused || !strings.Contains(out, "done") {
+		t.Errorf("approve on a done task: exit %d, %s", code, out)
+	}
+	if inbox := h.must("--json", "inbox", "--for", "lead"); strings.Contains(inbox, "Approve update to T-core") {
+		t.Errorf("done task offered:\n%s", inbox)
+	}
+	if _, m := checkJSON(t, h); strings.Contains(strings.Join(rulesOf(m), ","), "update-after-close") {
+		t.Errorf("legit history reported: %v", rulesOf(m))
 	}
 }
 
@@ -106,5 +127,20 @@ func TestTaskUpdateDeferredRefusedAndChecked(t *testing.T) {
 	code, m := checkJSON(t, h)
 	if code != ExitConflict || !strings.Contains(strings.Join(rulesOf(m), ","), "update-after-close") {
 		t.Errorf("check: exit %d, rules %v", code, rulesOf(m))
+	}
+}
+
+func TestTaskUpdateMergedInvalidEvent(t *testing.T) {
+	h := newHarness(t)
+	buildFixture(h)
+	h.raw("TaskUpdated", "orchestrator", "main", "task", "T-skills", map[string]any{"worktree": "/etc", "reason": "merged in"})
+	code, m := checkJSON(t, h)
+	inv, _ := m["invalid"].([]any)
+	if code == ExitOK || len(inv) != 1 || !strings.Contains(inv[0].(map[string]any)["error"].(string), "worktree") {
+		t.Errorf("check: exit %d, invalid %v", code, inv)
+	}
+	show := decodeJSON(t, h.must("--json", "task", "show", "T-skills"))["task"].(map[string]any)
+	if show["pending_update"] != nil {
+		t.Errorf("invalid update used: %v", show)
 	}
 }

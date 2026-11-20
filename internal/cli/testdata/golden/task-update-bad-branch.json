@@ -2,6 +2,6 @@
   "error": {
     "code": "validation",
     "field": "branch",
-    "message": "--branch: not a valid branch name: build/../x"
+    "message": "--branch: not a valid branch name: \"build/../x\""
   }
 }

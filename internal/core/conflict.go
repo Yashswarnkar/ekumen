@@ -22,8 +22,8 @@ const (
 	// RuleSpineUnapproved: spine.md does not match the latest SpineApproved
 	// (C-event-log v5, D-post-switch-hand-edits).
 	RuleSpineUnapproved = "spine-unapproved"
-	// RuleUpdateAfterClose: a TaskUpdated on a deferred task, or still
-	// pending on a done one (C-event-log v5, D-placeholder-task-fields).
+	// RuleUpdateAfterClose: a TaskUpdated after the task's TaskDeferred
+	// (C-event-log v5, D-placeholder-task-fields).
 	RuleUpdateAfterClose = "update-after-close"
 )
 
@@ -53,9 +53,6 @@ type ConflictInputs struct {
 	// AliveSessions says which sessions are alive. Nil means "unknown":
 	// every claim counts as live.
 	AliveSessions map[string]bool
-	// Observed is this pass's PR state, for update-after-close on done
-	// tasks.
-	Observed Observed
 }
 
 // Conflicts runs every rule of C-event-log §5 and returns the conflicts not
@@ -73,7 +70,7 @@ func Conflicts(s *State, events []event.Event, in ConflictInputs) []Conflict {
 	all = append(all, IDCollisionConflicts(s)...)
 	all = append(all, OrphanStepConflicts(s, events)...)
 	all = append(all, SpineUnapprovedConflicts(s, in.TextSHA256)...)
-	all = append(all, UpdateAfterCloseConflicts(s, in.Observed)...)
+	all = append(all, UpdateAfterCloseConflicts(s)...)
 
 	seen := map[string]bool{}
 	for _, r := range s.Conflicts {
@@ -353,19 +350,16 @@ func SpineUnapprovedConflicts(s *State, current map[string]string) []Conflict {
 }
 
 // UpdateAfterCloseConflicts is rule `update-after-close` (C-event-log v5,
-// D-placeholder-task-fields): a TaskUpdated written after the task was
-// deferred, or a pending update on a task whose PR is merged (done), which
-// no approval can take any more. The CLI refuses both; they arrive by merge.
-func UpdateAfterCloseConflicts(s *State, obs Observed) []Conflict {
+// D-placeholder-task-fields): a TaskUpdated that comes after the task's
+// TaskDeferred in log order. The CLI refuses it; it arrives by merge. A
+// done task is not checked: done is observed and has no time in the log,
+// so an update proposed before the merge is legitimate history (`task
+// approve` refuses it and the inbox does not offer it).
+func UpdateAfterCloseConflicts(s *State) []Conflict {
 	var out []Conflict
 	for _, id := range sortedKeys(s.Tasks) {
-		t := s.Tasks[id]
-		for _, ev := range t.RefusedUpdates {
+		for _, ev := range s.Tasks[id].RefusedUpdates {
 			out = append(out, newConflict(RuleUpdateAfterClose, fmt.Sprintf("task %s: TaskUpdated %s after it was deferred", id, ev), ev))
-		}
-		if t.PendingUpdate != nil && obs.task(id).PR == PRMerged {
-			out = append(out, newConflict(RuleUpdateAfterClose,
-				fmt.Sprintf("task %s is done; its pending update can no longer be approved", id), t.PendingUpdate.Events...))
 		}
 	}
 	return out
