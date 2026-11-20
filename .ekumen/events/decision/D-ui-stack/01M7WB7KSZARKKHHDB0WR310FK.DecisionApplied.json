@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WB7KSZARKKHHDB0WR310FK","type":"DecisionApplied","at":"2026-11-20T11:24:55.999939Z","actor":{"role":"loop","id":"main"},"subject":{"kind":"decision","id":"D-ui-stack"},"data":{"amended_tasks":[],"unblocked_tasks":[],"notified_sessions":[]}}

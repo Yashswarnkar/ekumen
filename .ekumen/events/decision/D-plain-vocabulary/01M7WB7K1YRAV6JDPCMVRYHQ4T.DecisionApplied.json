@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WB7K1YRAV6JDPCMVRYHQ4T","type":"DecisionApplied","at":"2026-11-20T11:24:55.230512Z","actor":{"role":"loop","id":"main"},"subject":{"kind":"decision","id":"D-plain-vocabulary"},"data":{"amended_tasks":[],"unblocked_tasks":[],"notified_sessions":[]}}

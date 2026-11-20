@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WB7KPXT9K32B9VYZBSF7A2","type":"DecisionApplied","at":"2026-11-20T11:24:55.901657Z","actor":{"role":"loop","id":"main"},"subject":{"kind":"decision","id":"D-task-status-approved"},"data":{"amended_tasks":[],"unblocked_tasks":[],"notified_sessions":[]}}

@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WB7JKXYD50SZ6YVJ60CJRM","type":"DecisionApplied","at":"2026-11-20T11:24:54.781549Z","actor":{"role":"loop","id":"main"},"subject":{"kind":"decision","id":"D-control-loop"},"data":{"amended_tasks":[],"unblocked_tasks":[],"notified_sessions":[]}}

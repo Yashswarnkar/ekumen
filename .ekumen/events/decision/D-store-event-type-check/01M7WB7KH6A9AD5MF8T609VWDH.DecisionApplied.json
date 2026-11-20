@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WB7KH6A9AD5MF8T609VWDH","type":"DecisionApplied","at":"2026-11-20T11:24:55.718526Z","actor":{"role":"loop","id":"main"},"subject":{"kind":"decision","id":"D-store-event-type-check"},"data":{"amended_tasks":[],"unblocked_tasks":[],"notified_sessions":[]}}

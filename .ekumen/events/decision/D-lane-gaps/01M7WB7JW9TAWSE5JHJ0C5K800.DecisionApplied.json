@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WB7JW9TAWSE5JHJ0C5K800","type":"DecisionApplied","at":"2026-11-20T11:24:55.049407Z","actor":{"role":"loop","id":"main"},"subject":{"kind":"decision","id":"D-lane-gaps"},"data":{"amended_tasks":[],"unblocked_tasks":[],"notified_sessions":[]}}

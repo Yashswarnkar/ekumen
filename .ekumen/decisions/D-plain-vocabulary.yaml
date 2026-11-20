@@ -22,3 +22,5 @@ answer: plain
 answer_note: Skip the themed terms for now; plain words (task, decision, session, lead) everywhere.
 decided_by: Yashswarnkar
 decided_on: 2026-11-19
+applied_on: 2026-11-20
+applied: {amended_tasks: [], unblocked_tasks: [], notified_sessions: []}

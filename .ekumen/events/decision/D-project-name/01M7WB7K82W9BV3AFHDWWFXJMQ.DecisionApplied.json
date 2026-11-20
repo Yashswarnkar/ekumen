@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WB7K82W9BV3AFHDWWFXJMQ","type":"DecisionApplied","at":"2026-11-20T11:24:55.426444Z","actor":{"role":"loop","id":"main"},"subject":{"kind":"decision","id":"D-project-name"},"data":{"amended_tasks":[],"unblocked_tasks":[],"notified_sessions":[]}}

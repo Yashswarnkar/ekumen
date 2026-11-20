@@ -22,3 +22,5 @@ answer: code-first
 answer_note: Agents only for judgment; everything deterministic is software exposed via ekumen CLI --json.
 decided_by: Yashswarnkar
 decided_on: 2026-11-19
+applied_on: 2026-11-20
+applied: {amended_tasks: [], unblocked_tasks: [], notified_sessions: []}

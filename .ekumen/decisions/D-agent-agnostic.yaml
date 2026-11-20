@@ -22,3 +22,5 @@ answer: agnostic
 answer_note: Adapter per agent tool; support order Claude Code + Codex, then Gemini CLI + OpenCode, then Cursor + Copilot.
 decided_by: Yashswarnkar
 decided_on: 2026-11-19
+applied_on: 2026-11-20
+applied: {amended_tasks: [], unblocked_tasks: [], notified_sessions: []}
