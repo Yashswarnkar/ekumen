@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WK5ND5E9DMG44VWYMJ5PRY","type":"RoutedToOwner","at":"2026-11-20T13:43:40.709486Z","actor":{"role":"loop","id":"claude-pkg-7e"},"subject":{"kind":"task","id":"T-skills"},"data":{"route_id":"route-01M7WA1Z8T4C4JSME4G925NY6F","to":"orchestrator","from_event":"01M7WA1Z8T4C4JSME4G925NY6F","reason":"handoff has follow-ups, decisions raised or deviations"}}

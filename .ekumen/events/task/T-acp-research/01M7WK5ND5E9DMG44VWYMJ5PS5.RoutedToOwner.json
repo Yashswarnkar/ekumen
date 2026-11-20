@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WK5ND5E9DMG44VWYMJ5PS5","type":"RoutedToOwner","at":"2026-11-20T13:43:40.709486Z","actor":{"role":"loop","id":"claude-pkg-7e"},"subject":{"kind":"task","id":"T-acp-research"},"data":{"route_id":"route-01M7WD7TG00YXVRABQN6QN52ZS","to":"orchestrator","from_event":"01M7WD7TG00YXVRABQN6QN52ZS","reason":"handoff has follow-ups, decisions raised or deviations"}}
