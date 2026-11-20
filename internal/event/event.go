@@ -19,7 +19,7 @@ const SchemaVersion = 1
 // Type is an event type (C-event-log §6).
 type Type string
 
-// Event types (C-event-log v4 §6).
+// Event types (C-event-log v5 §6).
 const (
 	TaskDraftedType         Type = "TaskDrafted"
 	TaskApprovedType        Type = "TaskApproved"
@@ -52,9 +52,13 @@ const (
 	RoleClaimedType      Type = "RoleClaimed"
 	RoleReleasedType     Type = "RoleReleased"
 	ConflictDetectedType Type = "ConflictDetected"
+
+	// SpineApprovedType records the lead's approval of the spine's text
+	// (C-event-log v5, D-post-switch-hand-edits).
+	SpineApprovedType Type = "SpineApproved"
 )
 
-// Types lists every event type in the order of C-event-log v4 §6.
+// Types lists every event type in the order of C-event-log v5 §6.
 var Types = []Type{
 	TaskDraftedType, TaskApprovedType, TaskAmendedType, TaskBlockersChangedType,
 	TaskSessionAttachedType, TaskHandoffType, TaskDeferredType,
@@ -64,7 +68,7 @@ var Types = []Type{
 	ContractDraftedType, ContractBlockersChangedType, ContractFrozenType, ContractVersionedType,
 	ExternalAddedType, ExternalUpdatedType, ExternalResolvedType,
 	RoutedToOwnerType, RouteResolvedType, RoleClaimedType, RoleReleasedType,
-	ConflictDetectedType,
+	ConflictDetectedType, SpineApprovedType,
 }
 
 // Known reports whether t is a v1 event type. Readers ignore unknown types

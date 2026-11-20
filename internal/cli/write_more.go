@@ -38,11 +38,10 @@ func (r *run) noop(human string) error {
 // `blocks` (C-decision-record §3, D-apply-before-loop). Applying twice
 // writes nothing.
 //
-// DecisionApplied is in the loop's lane, TaskAmended in the
-// orchestrator's (C-event-log v4 §3). Until the loop exists the
-// orchestrator runs this as loop:<its session>; the amendments are
-// recorded as orchestrator:<the same session>, which must hold the
-// orchestrator claim (raised as D-apply-amend-lane).
+// Both are written by the loop (C-event-log v5 §3, D-apply-amend-lane):
+// TaskAmended with data.by_decision set is in the loop's lane, so no
+// orchestrator claim is needed. Until the loop exists the orchestrator
+// runs this as loop:<its session> (D-apply-before-loop).
 func (r *run) decisionApply(args []string) error {
 	fs := r.newFlags("decision apply")
 	textFile := fs.String("amend-text-file", "", "§B amendment text for each blocked task, - for stdin (default: a generated line)")
@@ -96,11 +95,6 @@ func (r *run) decisionApply(args []string) error {
 			tasks = append(tasks, tid)
 		}
 	}
-	orch := event.Actor{Role: event.RoleOrchestrator, ID: a.ID}
-	if len(tasks) > 0 && !s.HasClaim(event.RoleOrchestrator, a.ID) {
-		return errf(CodeLane, "applying %s amends %s, and TaskAmended is in the orchestrator's lane: %s must hold the orchestrator claim (run as loop:<the orchestrator's session>)",
-			id, strings.Join(tasks, ", "), a.ID)
-	}
 
 	var (
 		evs     []event.Event
@@ -132,8 +126,8 @@ func (r *run) decisionApply(args []string) error {
 		}
 		written = append(written, p)
 		rel, _ := s.Store.Rel(p)
-		e, err := r.mkEvent(orch, event.TaskAmendedType, event.Subject{Kind: event.KindTask, ID: tid},
-			event.TaskAmended{File: rel, TextSHA256: sum, Note: "applies " + id})
+		e, err := r.mkEvent(a, event.TaskAmendedType, event.Subject{Kind: event.KindTask, ID: tid},
+			event.TaskAmended{File: rel, TextSHA256: sum, Note: "applies " + id, ByDecision: id})
 		if err != nil {
 			cleanup()
 			return err
@@ -148,6 +142,12 @@ func (r *run) decisionApply(args []string) error {
 	}
 	// Unblocked: tasks blocked before and not after.
 	after := core.Reduce(append(slices.Clone(s.Events), append(slices.Clone(evs), applied)...))
+	// The apply must take effect (T-audit F-2026-11-20-1): refuse rather
+	// than record an event the reducer would ignore.
+	if after.Decisions[id].AppliedOn == "" {
+		cleanup()
+		return errf(CodeInternal, "applying %s would not take effect in the log; nothing recorded", id)
+	}
 	var unblocked []string
 	for _, tid := range s.TaskIDs() {
 		if s.TaskStatus(tid) == core.TaskBlocked && core.DeriveTaskStatus(&after, s.Observed, tid) != core.TaskBlocked {

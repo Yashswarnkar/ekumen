@@ -108,7 +108,10 @@ func TestReduceContractsExternalsRolesRoutes(t *testing.T) {
 	b.add(event.RoutedToOwnerType, event.RoleLoop, "loop", event.KindProject, "project", event.RoutedToOwner{RouteID: "r1", To: "lead"})
 	b.add(event.ConflictDetectedType, event.RoleLoop, "loop", event.KindProject, "project", event.ConflictDetected{Rule: "role", Events: []string{"b", "a"}})
 	s := b.state()
-	if c := s.Contracts["C-a"]; c.Status != ContractFrozen || c.Version != 2 || c.TextSHA256 != "h2" {
+	// A ContractVersioned does not freeze by itself: it waits for a
+	// ContractFrozen of that version (C-event-log v5, D-contract-version-recording).
+	if c := s.Contracts["C-a"]; c.Status != ContractFrozen || c.Version != 1 || c.TextSHA256 != "h1" ||
+		c.Pending == nil || c.Pending.Version != 2 || c.Pending.ByDecision != "D-x" {
 		t.Errorf("C-a = %+v", c)
 	}
 	if s.Contracts["C-b"].Status != ContractDraft {

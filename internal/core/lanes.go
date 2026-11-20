@@ -27,6 +27,11 @@ type Lane struct {
 	// ClaimingSession: data.session must be the actor's id (RoleClaimed,
 	// RoleReleased, D-claim-lane).
 	ClaimingSession bool
+	// ByDecision are roles that may write the type only when its
+	// data.by_decision is set (TaskAmended by the loop when it applies a
+	// decision; C-event-log v5 §3, D-apply-amend-lane). They must also be
+	// listed in Roles.
+	ByDecision []event.Role
 	// Subjects are the subject kinds the type may be about. Empty means any.
 	Subjects []event.SubjectKind
 }
@@ -49,7 +54,7 @@ var (
 	raisers      = []event.Role{event.RoleLead, event.RoleOrchestrator, event.RoleSession, event.RoleIntegrator, event.RoleLoop}
 )
 
-// Lanes is the lane table of C-event-log v4 §3, as data. The subject kinds
+// Lanes is the lane table of C-event-log v5 §3, as data. The subject kinds
 // follow from §6 (task events are about tasks, and so on; questions may be
 // about a task, decision or contract). Role events are project-wide.
 var Lanes = map[event.Type]Lane{
@@ -57,9 +62,10 @@ var Lanes = map[event.Type]Lane{
 	event.DecisionDecidedType:    {Roles: lead, Subjects: decisionOnly},
 	event.DecisionSupersededType: {Roles: lead, Subjects: decisionOnly},
 	event.ContractFrozenType:     {Roles: lead, Subjects: contractOnly},
+	event.SpineApprovedType:      {Roles: lead, Subjects: projectOnly},
 
 	event.TaskDraftedType:             {Roles: orchestrator, Subjects: taskOnly},
-	event.TaskAmendedType:             {Roles: orchestrator, Subjects: taskOnly},
+	event.TaskAmendedType:             {Roles: orchOrLoop, ByDecision: loop, Subjects: taskOnly},
 	event.TaskBlockersChangedType:     {Roles: orchestrator, Subjects: taskOnly},
 	event.TaskDeferredType:            {Roles: orchestrator, Subjects: taskOnly},
 	event.ContractDraftedType:         {Roles: orchestrator, Subjects: contractOnly},
@@ -104,6 +110,17 @@ func CheckLane(e event.Event) error {
 	}
 	if !lane.Anyone && !slices.Contains(lane.Roles, e.Actor.Role) {
 		return laneErr(e, "role %q may not write it (lane: %v)", e.Actor.Role, lane.Roles)
+	}
+	if slices.Contains(lane.ByDecision, e.Actor.Role) {
+		var d struct {
+			ByDecision string `json:"by_decision"`
+		}
+		if err := json.Unmarshal(orEmptyJSON(e.Data), &d); err != nil {
+			return laneErr(e, "%v", err)
+		}
+		if d.ByDecision == "" {
+			return laneErr(e, "role %q may write it only when applying a decision (data.by_decision)", e.Actor.Role)
+		}
 	}
 	if len(lane.Subjects) > 0 && !slices.Contains(lane.Subjects, e.Subject.Kind) {
 		return laneErr(e, "subject kind %q not allowed (want %v)", e.Subject.Kind, lane.Subjects)
@@ -182,6 +199,11 @@ func CheckLaneIn(s *State, e event.Event) error {
 			return laneErr(e, "task %q is not the session's own task (own: %v)", task, own)
 		}
 	}
+	if slices.Contains(lane.ByDecision, e.Actor.Role) {
+		if err := checkApplyAmendment(s, e, p.(*event.TaskAmended)); err != nil {
+			return err
+		}
+	}
 	if lane.Addressee {
 		d := p.(*event.QuestionAnswered)
 		q, ok := s.FindQuestion(e.Subject, d.QuestionID)
@@ -202,6 +224,31 @@ func CheckLaneIn(s *State, e event.Event) error {
 		if !ActorIs(e.Actor, to) {
 			return laneErr(e, "route %q is routed to %q", d.RouteID, to)
 		}
+	}
+	return nil
+}
+
+// checkApplyAmendment is the state part of the loop's TaskAmended lane
+// (C-event-log v5 §3, D-apply-amend-lane): by_decision must name a decided
+// or defaulted decision that gates the amended task, i.e. lists it in
+// `blocks`, or is listed in the task's blocked_by. A loop actor cannot
+// amend an unrelated task.
+func checkApplyAmendment(s *State, e event.Event, d *event.TaskAmended) error {
+	did := s.Resolve(d.ByDecision)
+	dec, ok := s.Decisions[did]
+	if !ok || len(dec.Raises) == 0 {
+		return laneErr(e, "by_decision %q names no decision", d.ByDecision)
+	}
+	if dec.DecidedEvent == "" {
+		return laneErr(e, "by_decision %s is %s; only a decided or defaulted decision is applied", did, dec.Status)
+	}
+	task := s.Resolve(e.Subject.ID)
+	gates := slices.ContainsFunc(dec.Blocks, func(b string) bool { return s.Resolve(b) == task })
+	if t, ok := s.Tasks[task]; ok && !gates {
+		gates = slices.ContainsFunc(t.BlockedBy, func(b string) bool { return s.Resolve(b) == did })
+	}
+	if !gates {
+		return laneErr(e, "by_decision %s does not block task %s", did, task)
 	}
 	return nil
 }

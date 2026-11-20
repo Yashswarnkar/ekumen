@@ -76,10 +76,14 @@ func TestSameTimestampLifecycleOrder_EventLog2(t *testing.T) {
 	}
 
 	// Different milliseconds still order by time first.
-	later := event.Event{ID: mustULID(t, t0.Add(time.Millisecond), 0), Type: event.TaskDraftedType}
-	earlier := event.Event{ID: mustULID(t, t0, 0xff), Type: event.DecisionAppliedType}
+	// Different milliseconds on different subjects still order by time
+	// first (D-imported-event-time-order: across subjects, time order).
+	later := event.Event{ID: mustULID(t, t0.Add(time.Millisecond), 0), Type: event.TaskDraftedType,
+		Subject: event.Subject{Kind: event.KindTask, ID: "T-b"}}
+	earlier := event.Event{ID: mustULID(t, t0, 0xff), Type: event.DecisionAppliedType,
+		Subject: event.Subject{Kind: event.KindDecision, ID: "D-y"}}
 	if got := SortEvents([]event.Event{later, earlier}); got[0].ID != earlier.ID {
-		t.Error("rank overrode time order")
+		t.Error("rank overrode time order across subjects")
 	}
 	for _, typ := range event.Types {
 		if LifecycleRank(typ) > 3 {

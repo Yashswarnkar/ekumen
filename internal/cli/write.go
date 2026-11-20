@@ -512,13 +512,6 @@ func orEmpty(s []string) []string {
 	return s
 }
 
-func (r *run) briefPath(s *project.Snapshot, id string) string {
-	if b := s.State.Tasks[id].Brief; b != "" {
-		return s.ResolvePath(b)
-	}
-	return filepath.Join(s.EkumenDir(), "briefs", id, "brief.md")
-}
-
 func (r *run) taskApprove(args []string) error {
 	fs := r.newFlags("task approve")
 	var grants strList
@@ -546,7 +539,7 @@ func (r *run) taskApprove(args []string) error {
 	if t.Approved {
 		return fieldErr(CodeValidation, "id", "%s was approved on %s; §A is frozen (amend it instead)", id, t.ApprovedOn)
 	}
-	sum, err := files.HashFile(r.briefPath(s, id))
+	sum, err := files.HashFile(s.BriefPath(id))
 	if err != nil {
 		return fieldErr(CodeNotFound, "brief", "%s: cannot hash the brief: %v", id, err)
 	}
@@ -772,12 +765,15 @@ func (r *run) contractFreeze(args []string) error {
 	if err != nil {
 		return fieldErr(CodeNotFound, "path", "read %s: %v", c.Path, err)
 	}
-	sum, _ := files.HashFile(s.ResolvePath(c.Path))
+	sum := files.HashBytes(text)
 	version := frontMatterVersion(text)
 	if version == 0 {
+		if c.Status == core.ContractFrozen {
+			return fieldErr(CodeValidation, "version", "%s has no `version:` in its front matter: add `version: %d` (frozen is %d), then record it with `ekumen contract version %s --by <decision>`", s.RootPath(c.Path), c.Version+1, c.Version, id)
+		}
 		version = c.Version + 1
 	}
-	for _, f := range append(slices.Clone(c.Freezes), c.Versions...) {
+	for _, f := range c.Freezes {
 		if f.Version != version {
 			continue
 		}
@@ -786,12 +782,137 @@ func (r *run) contractFreeze(args []string) error {
 		}
 		return fieldErr(CodeConflict, "version", "%s version %d was frozen with different text; bump `version` in the front matter (a change needs a tier-2 decision)", id, version)
 	}
+	// A frozen contract's new version must first be recorded against its
+	// decision (D-contract-version-recording).
+	if c.Status == core.ContractFrozen {
+		if version < c.Version {
+			return fieldErr(CodeValidation, "version", "%s is frozen at version %d, but its front matter says `version: %d`: set it to %d or higher", id, c.Version, version, c.Version+1)
+		}
+		recorded := slices.ContainsFunc(c.Versions, func(f core.Freeze) bool { return f.Version == version && f.TextSHA256 == sum })
+		if !recorded {
+			return fieldErr(CodeValidation, "version", "%s version %d is not recorded for this text: the orchestrator runs `ekumen contract version %s --by <decision>` first (C-decision-record §3)", id, version, id)
+		}
+	}
 	e, err := r.mkEvent(a, event.ContractFrozenType, event.Subject{Kind: event.KindContract, ID: id},
 		event.ContractFrozen{Version: version, TextSHA256: sum})
 	if err != nil {
 		return err
 	}
 	return r.commit(s, []event.Event{e}, nil, fmt.Sprintf("froze %s version %d", id, version))
+}
+
+// contractVersion is `ekumen contract version <id> --by <decision>`
+// (D-contract-version-recording): it records ContractVersioned {version,
+// by_decision, text_sha256} for a frozen contract whose text was changed by
+// a decided decision. The version is the front matter's; the lead then
+// freezes it with `contract freeze`.
+func (r *run) contractVersion(args []string) error {
+	fs := r.newFlags("contract version")
+	by := fs.String("by", "", "the decided decision that changes the contract")
+	pos, err := r.parse(fs, args, 1, 1, "contract version <id> --by <decision>")
+	if err != nil {
+		return err
+	}
+	a, _, err := r.actor(true)
+	if err != nil {
+		return err
+	}
+	if *by == "" {
+		return fieldErr(CodeUsage, "by", "--by <decision id> is required")
+	}
+	s, err := r.load()
+	if err != nil {
+		return err
+	}
+	id, err := r.findContract(s, pos[0])
+	if err != nil {
+		return err
+	}
+	sub := event.Subject{Kind: event.KindContract, ID: id}
+	if err := r.probe(s, a, event.ContractVersionedType, sub); err != nil {
+		return err
+	}
+	did, err := r.findDecision(s, *by)
+	if err != nil {
+		return err
+	}
+	c, d := s.State.Contracts[id], s.State.Decisions[did]
+	switch {
+	case d.Status != core.StatusDecided && d.Status != core.StatusDefaulted:
+		return fieldErr(CodeValidation, "by", "%s is %s; a contract changes only by a decided decision", did, d.Status)
+	case !slices.ContainsFunc(d.ContractImpact, func(x string) bool { return s.State.Resolve(x) == id }):
+		return fieldErr(CodeValidation, "by", "%s does not name %s in contract_impact", did, id)
+	case c.Status != core.ContractFrozen:
+		return fieldErr(CodeValidation, "id", "%s is a draft; edit it and freeze it (`contract version` is for frozen contracts)", id)
+	case c.Path == "":
+		return fieldErr(CodeValidation, "path", "contract %s has no file", id)
+	}
+	text, err := os.ReadFile(s.ResolvePath(c.Path))
+	if err != nil {
+		return fieldErr(CodeNotFound, "path", "read %s: %v", c.Path, err)
+	}
+	sum := files.HashBytes(text)
+	version := frontMatterVersion(text)
+	switch {
+	case version == 0:
+		return fieldErr(CodeValidation, "version", "%s has no `version:` in its front matter: add `version: %d`", s.RootPath(c.Path), c.Version+1)
+	case version <= c.Version:
+		return fieldErr(CodeValidation, "version", "%s front matter says `version: %d`; set it to %d or higher (frozen is %d)", id, version, c.Version+1, c.Version)
+	case sum == c.TextSHA256:
+		return fieldErr(CodeValidation, "version", "%s text is unchanged since version %d", id, c.Version)
+	}
+	for _, f := range c.Versions {
+		if f.Version != version {
+			continue
+		}
+		if f.TextSHA256 == sum && f.ByDecision == did {
+			return r.noop(fmt.Sprintf("%s version %d is already recorded by %s", id, version, did))
+		}
+		if f.TextSHA256 == sum {
+			return fieldErr(CodeValidation, "by", "%s version %d with this text is already recorded by %s, not %s; a version names one decision", id, version, f.ByDecision, did)
+		}
+		return fieldErr(CodeValidation, "version", "%s version %d is already recorded (by %s) with other text; bump `version` in the front matter", id, version, f.ByDecision)
+	}
+	e, err := r.mkEvent(a, event.ContractVersionedType, sub, event.ContractVersioned{Version: version, ByDecision: did, TextSHA256: sum})
+	if err != nil {
+		return err
+	}
+	return r.commit(s, []event.Event{e}, nil, fmt.Sprintf("recorded %s version %d by %s; the lead freezes it with `ekumen contract freeze %s`", id, version, did, id))
+}
+
+// spineApprove is `ekumen spine approve` (lead, D-post-switch-hand-edits):
+// it records SpineApproved {text_sha256} for the spine's current text, so
+// `check` reports spine-unapproved when it changes afterwards.
+func (r *run) spineApprove(args []string) error {
+	fs := r.newFlags("spine approve")
+	if _, err := r.parse(fs, args, 0, 0, "spine approve"); err != nil {
+		return err
+	}
+	a, _, err := r.actor(true)
+	if err != nil {
+		return err
+	}
+	s, err := r.load()
+	if err != nil {
+		return err
+	}
+	sub := event.Subject{Kind: event.KindProject, ID: event.ProjectSubjectID}
+	if err := r.probe(s, a, event.SpineApprovedType, sub); err != nil {
+		return err
+	}
+	p := filepath.Join(s.EkumenDir(), core.SpineFile)
+	sum, err := files.HashFile(p)
+	if err != nil {
+		return fieldErr(CodeNotFound, "spine", "%s: %v", s.Rel(p), err)
+	}
+	if n := len(s.State.SpineApprovals); n > 0 && s.State.SpineApprovals[n-1].TextSHA256 == sum {
+		return r.noop("the spine is already approved with this text")
+	}
+	e, err := r.mkEvent(a, event.SpineApprovedType, sub, event.SpineApproved{TextSHA256: sum})
+	if err != nil {
+		return err
+	}
+	return r.commit(s, []event.Event{e}, nil, "approved "+s.Rel(p))
 }
 
 func (r *run) routeResolve(args []string) error {

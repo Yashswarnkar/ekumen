@@ -21,14 +21,14 @@
     "amendments": [
       {
         "path": ".ekumen/briefs/T-gated/amendments/<STAMP>-main.md",
-        "author": "orchestrator:main",
+        "author": "loop:main",
         "at": "2026-11-20T09:28:00Z",
         "sha256": "8736c8214b8064eac5d86a689a9a14fac8c9f012549c441b8815a5d181400352",
         "text": "---\ntask: T-gated\nauthor: main\ndate: 2026-11-20\n---\n\nApplied D-gate (Gate for T-gated): `go`, decided on 2026-11-20. Note: As recommended. See .ekumen/decisions/D-gate.yaml.\n"
       },
       {
         "path": ".ekumen/briefs/T-gated/amendments/<STAMP>-main.md",
-        "author": "orchestrator:main",
+        "author": "loop:main",
         "at": "2026-11-20T09:31:00Z",
         "sha256": "89e199084a89455f6bc7f51628a893567263c72afcfded288b1aa0b8ba256479",
         "text": "---\ntask: T-gated\nauthor: main\ndate: 2026-11-20\n---\n\nD-gate-two: go, with the details from the thread.\n"

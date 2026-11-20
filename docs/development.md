@@ -12,7 +12,8 @@
 |---|---|
 | `cmd/ekumen` | The `ekumen` binary (see [cli.md](cli.md)) |
 | `internal/cli`, `internal/project`, `internal/core`, `internal/event`, `internal/store/files` | Commands, views and projections, domain rules, events, the file store |
-| `scripts/ci-check.sh` | The CI `ekumen check` step |
+| `internal/mapview` | `ekumen map`: the static build map page and its links to the git host |
+| `scripts/ci-check.sh` | The CI `ekumen check` and `ekumen project --check` step |
 | `internal/server` | HTTP server: `GET /api/health` and the UI at `/` |
 | `internal/buildinfo` | Version, commit and build date, set with `-ldflags` |
 | `web/` | Vite + React + TypeScript UI, plus the Go package that embeds it |
@@ -36,7 +37,7 @@ go build -o bin/ekumen ./cmd/ekumen
 scripts/ci-check.sh .
 ```
 
-`scripts/ci-check.sh [root]` runs `ekumen check --json` at the root (binary from `$EKUMEN_BIN`, default `bin/ekumen`, with `EKUMEN_OBSERVE=off`), prints the JSON so a failure is readable in the log, and exits with its status. So nothing merges with invalid records, lane violations or conflicts in `.ekumen/` (exit 2 or 4). An `.ekumen/events/` folder with no events fails the step; a repository without that folder skips it with a notice. Run it locally the same way before pushing. `cmd/ekumen/cicheck_test.go` checks the script against fixtures, including one with a lane violation.
+`scripts/ci-check.sh [root]` runs `ekumen check --json` and then `ekumen project --check --json` at the root (binary from `$EKUMEN_BIN`, default `bin/ekumen`, with `EKUMEN_OBSERVE=off`), prints the JSON so a failure is readable in the log, and fails if either fails. So nothing merges with invalid records, lane violations or conflicts in `.ekumen/` (exit 2 or 4), or with a committed `.ekumen/decisions/<id>.yaml` that doesn't match the events (exit 2: run `ekumen project` and commit). `.ekumen/registry.yaml` and `.ekumen/state.json` are git-ignored and regenerated locally by every `ekumen` write (D-projections-in-git); a fresh clone needs neither. An `.ekumen/events/` folder with no events fails the step; a repository without that folder skips it with a notice. Run it locally the same way before pushing. `cmd/ekumen/cicheck_test.go` checks the script against fixtures, including one with a lane violation and one with a stale decision file.
 
 Make targets that need Node run `npm ci` in `web/` when `node_modules` is missing or older than the lockfile.
 

@@ -152,6 +152,9 @@ func syncDir(dir string) {
 	}
 }
 
+// HashBytes is the hex sha256 that events record for a text (as HashFile).
+func HashBytes(data []byte) string { return sha256Hex(data) }
+
 func sha256Hex(data []byte) string {
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
