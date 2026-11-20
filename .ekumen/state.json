@@ -2688,7 +2688,20 @@
         "created_at": "2026-11-20T07:20:58Z"
       }
     ],
-    "orchestrator": []
+    "orchestrator": [
+      {
+        "kind": "route",
+        "id": "route-01M7VX58XKH77SJ0CNKQHDDM75",
+        "title": "T-cli-gaps handoff: Done, in review (draft PR #10). Every command in the brief, as amended, is implemented with golden `--json` tests and lane tests. `ekumen check` runs in CI. `go test -race ./...`, `go vet ./...` and `gofmt -l .` are clean, and `bin/ekumen check` is clean on the branch.",
+        "priority": 0,
+        "reason": "handoff has follow-ups, decisions raised or deviations",
+        "created_at": "2026-11-20T07:18:59Z",
+        "subject": {
+          "kind": "task",
+          "id": "T-cli-gaps"
+        }
+      }
+    ]
   },
   "conflicts": [],
   "counts": {
@@ -2698,7 +2711,7 @@
       "ready": 5
     },
     "decisions_open": 4,
-    "routes_open": 0,
+    "routes_open": 1,
     "conflicts": 0
   }
 }
