@@ -34,13 +34,15 @@
       "id": "D-claim-lane",
       "kind": "decision",
       "title": "Who writes RoleClaimed",
-      "status": "pending"
+      "status": "pending",
+      "waiting_on": "lead"
     },
     {
       "id": "D-new-choice",
       "kind": "decision",
       "title": "Which YAML library the CLI uses",
-      "status": "pending"
+      "status": "pending",
+      "waiting_on": "lead"
     }
   ],
   "edges": [

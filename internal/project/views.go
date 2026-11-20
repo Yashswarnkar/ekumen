@@ -159,7 +159,16 @@ type Node struct {
 	Kind   string `json:"kind"`
 	Title  string `json:"title"`
 	Status string `json:"status"`
+	// WaitingOn is set on decision nodes: "lead" for a pending decision,
+	// "loop" for one decided or defaulted and not applied yet.
+	WaitingOn string `json:"waiting_on,omitempty"`
 }
+
+// Who a gating decision waits on (graph Node.WaitingOn).
+const (
+	WaitingOnLead = "lead"
+	WaitingOnLoop = "loop"
+)
 
 // Edge says From is needed by To.
 type Edge struct {
@@ -651,7 +660,11 @@ func (s *Snapshot) Graph() ([]Node, []Edge) {
 		d := s.State.Decisions[id]
 		if d.AppliedOn == "" && d.Status != core.StatusSuperseded {
 			gating = append(gating, id)
-			addNode(Node{ID: id, Kind: "decision", Title: d.Title, Status: d.Status})
+			waiting := WaitingOnLoop
+			if d.Status == core.StatusPending {
+				waiting = WaitingOnLead
+			}
+			addNode(Node{ID: id, Kind: "decision", Title: d.Title, Status: d.Status, WaitingOn: waiting})
 		}
 	}
 	for _, id := range sortedKeys(s.State.Externals) {

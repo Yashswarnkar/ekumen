@@ -210,7 +210,7 @@ func (r *run) taskShow(args []string) error {
 	}
 	id, err := r.findTask(s, pos[0])
 	if err != nil {
-		return err
+		return withKindHint(s, err, pos[0], event.KindTask)
 	}
 	brief := briefView{Amendments: []project.Entry{}, Handoffs: []project.Entry{}}
 	b, warns, err := s.Store.ReadBrief(id)
@@ -294,7 +294,7 @@ func (r *run) decisionShow(args []string) error {
 	}
 	id, err := r.findDecision(s, pos[0])
 	if err != nil {
-		return err
+		return withKindHint(s, err, pos[0], event.KindDecision)
 	}
 	d := s.DecisionView(id)
 	r.out(map[string]any{"decision": d}, func(w io.Writer) {

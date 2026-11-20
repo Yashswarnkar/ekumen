@@ -1,0 +1,7 @@
+C-cli-json · CLI commands and JSON output
+status: draft, version 0
+path: .ekumen/contracts/C-cli-json.md
+consumers: none
+producers: none
+
+# CLI

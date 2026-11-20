@@ -1,0 +1,9 @@
+C-event-log · Event log
+aliases: C1
+status: frozen, version 3, frozen on 2026-11-20
+path: .ekumen/contracts/C-event-log.md
+consumers: none
+producers: none
+frozen   v3 2026-11-20T09:03:00Z sha256 f7f9a0db46a5a8d1de2d3acd65285e952cd55080344b8b062ebfe019ca43aa5b
+
+# Event log
