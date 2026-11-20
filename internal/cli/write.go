@@ -119,7 +119,8 @@ func (r *run) commit(s *project.Snapshot, evs []event.Event, written []string, h
 			res.Paths = append(res.Paths, ps...)
 		}
 		if err != nil {
-			r.warn("events recorded, but projections were not regenerated: %v (run `ekumen project`)", err)
+			r.warn("%v", err)
+			return errf(CodeInternal, "events recorded (%s), projections not regenerated; run `ekumen project`", strings.Join(res.Events, ", "))
 		}
 	}
 	r.out(res, func(w io.Writer) {
