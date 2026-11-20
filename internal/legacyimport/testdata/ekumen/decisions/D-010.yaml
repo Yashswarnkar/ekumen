@@ -1,0 +1,14 @@
+id: D-010
+title: Le Guin vocabulary in the product
+tier: 2
+raised_by: {task: public-repo, session: orchestrator, on: 2026-11-19}
+question: Should parts of the system use Ekumen's own terms (Mobiles, Stabiles, ansible)?
+options:
+  - {id: plain, tradeoff: Clear to everyone, in schema and docs alike}
+  - {id: themed, tradeoff: Flavor; a learning curve}
+recommendation: plain
+status: decided
+answer: plain
+answer_note: Skip the themed terms for now; plain words (task, decision, session, lead) everywhere.
+decided_by: lead
+decided_on: 2026-11-19

@@ -1,0 +1,41 @@
+id: D-014
+title: How Ekumen raises decisions from, and delivers answers to, a live Claude Code session
+tier: 2
+raised_by: {task: R2, session: r2-landscape, on: 2026-11-20}
+question: >
+  What channel carries a decision from a session to Ekumen, and the applied answer back, and where do
+  side questions run?
+options:
+  - id: mcp-raise-inbox-deliver-fork-ask
+    tradeoff: >
+      Raise via an Ekumen MCP tool that only acknowledges (or `ekumen decision raise --json` from the
+      skill); deliver via Claude Code's session inbox (CLAUDE_CODE_MESSAGING_SOCKET / relay, as gavel
+      and leggetter), which cannot approve permission prompts (good: answers are guidance); questions in
+      `claude -p --resume <id> --fork-session` read-only (chekrd), satisfying invariant 10. Depends on
+      Claude Code messaging (>= 2.1.295 per leggetter) and needs a queued fallback.
+  - id: tmux-injection
+    tradeoff: Works with any CLI (chekrd, claude-squad). Requires owning the terminal; fragile; risks answering the wrong prompt without the pre-send checks.
+  - id: blocking-tool
+    tradeoff: Session blocks on a tool call until answered. Simple, but holds a turn open for hours and derails the session — contrary to spine §1.
+recommendation: mcp-raise-inbox-deliver-fork-ask
+context:
+  summary: >
+    Delivery is a separate effect from the answer (docket R21): record `decided` once, then deliver with
+    pending/delivered/uncertain state, re-checking the target decision version just before sending
+    (chekrd/quanticstudios first-wins with typed refusals).
+  evidence: [.ekumen/research/R2-landscape.md#4-adopt--avoid]
+blocks: []
+contract_impact: [C1, C4]
+status: decided
+answer: other   # the revised option in orchestrator_note, not the original R2 option
+answer_note: "As recommended, in the revised form from the orchestrator note: raise through the ekumen CLI; deliver to Ekumen-started sessions through their input stream and to lead-started sessions as a queued side question; side questions in a fork."
+decided_by: lead
+decided_on: 2026-11-20
+orchestrator_note: >
+  2026-11-20: R1 conflicts with part of this. Claude Code's in-product session messaging (messaging socket) is
+  undocumented and has no CLI surface (re-checked by the orchestrator on 2.1.328). Suggested revision: raise through the
+  `ekumen` CLI (MCP tool optional); deliver to sessions Ekumen started through stream-json stdin; deliver to sessions the
+  lead started as a queued side question (D-016); keep side questions in a fork (`--resume --fork-session`, verified by R1).
+  The messaging socket can be an experimental path later, behind a capability check.
+applied_on: 2026-11-20
+applied: {amended: [spine §6], unblocked: [C1, C2, C4], notified_sessions: []}
