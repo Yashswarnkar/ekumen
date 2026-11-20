@@ -16,5 +16,10 @@ contract_impact: []
 context:
   summary: C-decision-record §1 allows task null for decisions about the project itself, which these are.
   evidence: [.ekumen/decisions/D-001.yaml, internal/legacyimport/build.go]
-status: pending
-answer: null
+status: decided
+answer: null-plus-legacy
+answer_note: Decided by the lead ahead of the default deadline.
+decided_by: lead
+decided_on: 2026-11-20
+applied_on: 2026-11-20
+applied: {amended: [], unblocked: [], notified_sessions: []}
