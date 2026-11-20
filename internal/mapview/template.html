@@ -113,7 +113,9 @@
 .ekumen-map .n.task.running rect { fill: var(--panel); stroke: var(--review); }
 .ekumen-map .n.external rect { fill: var(--gate-soft); stroke: var(--gate); stroke-dasharray: 2 2; }
 .ekumen-map .n.external.resolved rect { fill: var(--ok-soft); stroke: var(--ok); }
-.ekumen-map .n.decision.decided polygon, .ekumen-map .n.decision.defaulted polygon { fill: var(--plan-soft); stroke: var(--gate); stroke-dasharray: 4 3; }
+.ekumen-map .n.decision.lead polygon { stroke-width: 2.5; }
+.ekumen-map .n.decision.loop polygon { fill: var(--panel); stroke: var(--plan); stroke-dasharray: 4 3; }
+.ekumen-map .n.decision.loop text { opacity: .75; }
 </style>
 <style>/* Page only (not in --fragment): the document around the map. */
 body { margin: 0; background: #f6f7f5; }
@@ -154,7 +156,8 @@ body { margin: 0; background: #f6f7f5; }
   <section>
     <div class="sechead"><h2>Task graph</h2><span class="sub" style="font-size:13px">Arrows point from what is needed to what needs it</span></div>
     <div class="gkey">
-      <span><i style="border-color:var(--gate);background:var(--gate-soft)"></i>Open decision (gate)</span>
+      <span><i style="border-color:var(--gate);background:var(--gate-soft);border-width:2.5px"></i>Decision waiting on you (gate)</span>
+      <span><i style="border-color:var(--plan);border-style:dashed"></i>Decided, apply pending (waits on the loop, not you; after a day it is yours)</span>
       <span><i style="border-color:var(--review);background:var(--review-soft)"></i>In review</span>
       <span><i style="border-color:var(--accent)"></i>Contract frozen / task ready</span>
       <span><i style="border-color:var(--plan);border-style:dashed;background:var(--plan-soft)"></i>Draft or blocked</span>
@@ -270,13 +273,13 @@ $("prs").innerHTML = prs.map(t => {
     <defs><marker id="${UID}-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--plan)"/></marker>
     <marker id="${UID}-arrg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--gate)"/></marker></defs>`;
   g.edges().forEach(e => {
-    const pts = g.edge(e).points; const gate = nodes[e.v].kind === "decision" || nodes[e.v].kind === "external";
+    const pts = g.edge(e).points; const gate = (nodes[e.v].kind === "decision" && nodes[e.v].waiting_on !== "loop") || nodes[e.v].kind === "external";
     const d = "M" + pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" L");
     svg += `<path class="e ${gate ? "fromgate" : ""}" d="${d}" marker-end="url(#${UID}-${gate ? "arrg" : "arr"})"/>`;
   });
   g.nodes().forEach(id => {
     const n = g.node(id), info = nodes[id], x = n.x - n.width / 2, y = n.y - n.height / 2;
-    const cls = info.kind + " " + info.status;
+    const cls = info.kind + " " + info.status + (info.waiting_on ? " " + info.waiting_on : "");
     let shape;
     if (info.kind === "decision") {
       const k = 14;
@@ -285,7 +288,7 @@ $("prs").innerHTML = prs.map(t => {
     const lines = wrap(info.title, 27);
     const t = tasks[id];
     const pr = t && t.observed && t.observed.pr;
-    const sub = info.kind === "task" ? info.status.replace("_", " ") : info.kind === "decision" ? `decision, tier ${decisions[id] ? decisions[id].tier : "?"}` : `${info.kind}, ${info.status}`;
+    const sub = info.kind === "task" ? info.status.replace("_", " ") : info.kind === "decision" ? (info.waiting_on === "loop" ? `${info.status}, apply pending` : info.status !== "pending" ? `${info.status}, apply is yours` : `decision, tier ${decisions[id] ? decisions[id].tier : "?"}, needs you`) : `${info.kind}, ${info.status}`;
     const node = `<g class="n ${esc(cls)}"><title>${esc(label(id))}</title>${shape}
       <text class="nid" x="${x + 12}" y="${y + 16}">${esc(id)} · ${esc(sub)}</text>
       ${lines.map((l, i) => `<text class="ntitle" x="${x + 12}" y="${y + 33 + i * 15}">${esc(l)}</text>`).join("")}</g>`;

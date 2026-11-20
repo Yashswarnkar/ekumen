@@ -361,6 +361,7 @@ Read (every read prints one JSON object with --json):
   inbox [--for lead|orchestrator|<session>]
   task list [--status s] | task show <id>
   decision list [--status s] | decision show <id>
+  contract show <id>                      a contract, its freeze history and its text
   question list [--for x] [--open]
   graph                                   task graph nodes and edges
   map --out <file.html> [--fragment] [--link-base url]
@@ -507,6 +508,8 @@ func (r *run) dispatch(args []string) error {
 	case "contract":
 		s, a := sub()
 		switch s {
+		case "show":
+			return r.contractShow(a)
 		case "freeze":
 			return r.contractFreeze(a)
 		case "draft":

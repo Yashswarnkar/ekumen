@@ -1,0 +1,43 @@
+{
+  "contract": {
+    "id": "C-event-log",
+    "title": "Event log",
+    "aliases": [
+      "C1"
+    ],
+    "status": "frozen",
+    "version": 4,
+    "frozen_on": "2026-11-20",
+    "path": ".ekumen/contracts/C-event-log.md",
+    "consumers": [
+      "T-core",
+      "T-cli"
+    ],
+    "producers": [
+      "T-core"
+    ],
+    "blocked_by": [],
+    "freezes": [
+      {
+        "version": 3,
+        "text_sha256": "f7f9a0db46a5a8d1de2d3acd65285e952cd55080344b8b062ebfe019ca43aa5b",
+        "at": "2026-11-20T09:03:00Z"
+      },
+      {
+        "version": 4,
+        "text_sha256": "1263d42a53d6ef15a1218dda5a8ba0ac72f3dc8b4e869f396d5ce874df86081a",
+        "at": "2026-11-20T09:23:00Z"
+      }
+    ],
+    "versions": [
+      {
+        "version": 4,
+        "by_decision": "D-claim-lane",
+        "text_sha256": "1263d42a53d6ef15a1218dda5a8ba0ac72f3dc8b4e869f396d5ce874df86081a",
+        "at": "2026-11-20T09:22:00Z"
+      }
+    ],
+    "pending": null
+  },
+  "text": "# Event log\n\nRoleClaimed is the claiming session's.\n"
+}

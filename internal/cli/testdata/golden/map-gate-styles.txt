@@ -1,0 +1,3 @@
+decision decided loop | D-claim-lane · decided, apply pending
+decision pending lead | D-new-choice · decision, tier 2, needs you
+gate edges: 1

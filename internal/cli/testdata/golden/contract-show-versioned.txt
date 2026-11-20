@@ -1,0 +1,13 @@
+C-event-log · Event log
+aliases: C1
+status: frozen, version 3, frozen on 2026-11-20
+path: .ekumen/contracts/C-event-log.md
+consumers: T-core, T-cli
+producers: T-core
+frozen   v3 2026-11-20T09:03:00Z sha256 f7f9a0db46a5a8d1de2d3acd65285e952cd55080344b8b062ebfe019ca43aa5b
+versioned v4 2026-11-20T09:22:00Z by D-claim-lane sha256 1263d42a53d6ef15a1218dda5a8ba0ac72f3dc8b4e869f396d5ce874df86081a
+pending: version 4 (D-claim-lane) waits for `ekumen contract freeze C-event-log`
+
+# Event log
+
+RoleClaimed is the claiming session's.

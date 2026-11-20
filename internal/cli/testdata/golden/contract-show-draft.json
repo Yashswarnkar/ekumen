@@ -1,0 +1,18 @@
+{
+  "contract": {
+    "id": "C-cli-json",
+    "title": "CLI commands and JSON output",
+    "aliases": [],
+    "status": "draft",
+    "version": 0,
+    "frozen_on": null,
+    "path": ".ekumen/contracts/C-cli-json.md",
+    "consumers": [],
+    "producers": [],
+    "blocked_by": [],
+    "freezes": [],
+    "versions": [],
+    "pending": null
+  },
+  "text": "# CLI\n"
+}

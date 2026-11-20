@@ -1,0 +1,74 @@
+{
+  "nodes": [
+    {
+      "id": "T-cli",
+      "kind": "task",
+      "title": "ekumen CLI",
+      "status": "running"
+    },
+    {
+      "id": "T-core",
+      "kind": "task",
+      "title": "Core domain",
+      "status": "done"
+    },
+    {
+      "id": "T-skills",
+      "kind": "task",
+      "title": "Skills",
+      "status": "draft"
+    },
+    {
+      "id": "C-cli-json",
+      "kind": "contract",
+      "title": "CLI commands and JSON output",
+      "status": "draft"
+    },
+    {
+      "id": "C-event-log",
+      "kind": "contract",
+      "title": "Event log",
+      "status": "frozen"
+    },
+    {
+      "id": "D-claim-lane",
+      "kind": "decision",
+      "title": "Who writes RoleClaimed",
+      "status": "decided",
+      "waiting_on": "loop"
+    },
+    {
+      "id": "D-new-choice",
+      "kind": "decision",
+      "title": "Which YAML library the CLI uses",
+      "status": "pending",
+      "waiting_on": "lead"
+    }
+  ],
+  "edges": [
+    {
+      "from": "C-cli-json",
+      "to": "T-cli"
+    },
+    {
+      "from": "C-event-log",
+      "to": "T-core"
+    },
+    {
+      "from": "D-claim-lane",
+      "to": "C-event-log"
+    },
+    {
+      "from": "D-new-choice",
+      "to": "T-skills"
+    },
+    {
+      "from": "T-cli",
+      "to": "T-skills"
+    },
+    {
+      "from": "T-core",
+      "to": "T-cli"
+    }
+  ]
+}
