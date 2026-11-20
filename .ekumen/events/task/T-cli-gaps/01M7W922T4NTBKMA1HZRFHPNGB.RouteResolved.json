@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7W922T4NTBKMA1HZRFHPNGB","type":"RouteResolved","at":"2026-11-20T10:46:57.604563Z","actor":{"role":"orchestrator","id":"main"},"subject":{"kind":"task","id":"T-cli-gaps"},"data":{"route_id":"route-01M7VX58XKH77SJ0CNKQHDDM75","note":"PR #10 merged. Its follow-ups were carried by T-core-align, T-log-fixes (#11) and the review fixes (#16)."}}

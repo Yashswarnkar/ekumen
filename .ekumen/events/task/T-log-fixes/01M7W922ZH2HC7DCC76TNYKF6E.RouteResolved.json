@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7W922ZH2HC7DCC76TNYKF6E","type":"RouteResolved","at":"2026-11-20T10:46:57.777837Z","actor":{"role":"orchestrator","id":"main"},"subject":{"kind":"task","id":"T-log-fixes"},"data":{"route_id":"route-01M7W22M4GN39GPV34VX0ZX9NY","note":"PR #11 squash-merged to main as 268dc65; review fixes on top in #16."}}

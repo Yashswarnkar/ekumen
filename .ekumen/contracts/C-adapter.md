@@ -2,9 +2,9 @@
 id: C-adapter
 aliases: [C4]
 title: Agent adapter interface
-status: draft          # draft | frozen
-frozen_on: null
-version: 0
+status: frozen         # draft | frozen
+frozen_on: 2026-11-20
+version: 1
 consumers: [T-reconcile, T-server, T-skills]
 producers: [T-claude-adapter]
 ---
