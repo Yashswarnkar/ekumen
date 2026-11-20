@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WACAB9ZTQPJ6S2Y1NTHPPD","type":"DecisionDecided","at":"2026-11-20T11:10:01.57719Z","actor":{"role":"lead","id":"Yashswarnkar"},"subject":{"kind":"decision","id":"D-cli-json-v3"},"data":{"answer":"v3-after-merge","note":"As recommended (lead, in chat 2026-11-20)."}}

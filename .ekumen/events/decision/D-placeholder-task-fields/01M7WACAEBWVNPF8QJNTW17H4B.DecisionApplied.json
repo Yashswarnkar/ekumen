@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WACAEBWVNPF8QJNTW17H4B","type":"DecisionApplied","at":"2026-11-20T11:10:01.675828Z","actor":{"role":"loop","id":"main"},"subject":{"kind":"decision","id":"D-placeholder-task-fields"},"data":{"amended_tasks":[],"unblocked_tasks":[],"notified_sessions":[]}}

@@ -19,5 +19,11 @@ context:
     Found while drafting the T-skills and T-reconcile briefs. Both are next in spine §8 step 3 and have no open blockers, but their TaskDrafted events (imported 2026-11-19) carry empty repo/branch/worktree, so status stays `approved` instead of `ready`, and a dispatcher could never start them. Work can proceed meanwhile: the briefs name the branch and worktree in prose. Until decided, the registry shows the fields empty.
   evidence: [.ekumen/events/task/T-skills/01M7STV3G00A6Z4KGCHGH0KAQ3.TaskDrafted.json, docs/cli.md, .ekumen/contracts/C-event-log.md]
   prior_decisions: [D-legacy-pseudo-tasks, D-task-status-approved]
-status: pending
+status: decided
 questions: []
+answer: task-update
+answer_note: As recommended (lead, in chat 2026-11-20).
+decided_by: Yashswarnkar
+decided_on: 2026-11-20
+applied_on: 2026-11-20
+applied: {amended_tasks: [], unblocked_tasks: [], notified_sessions: []}

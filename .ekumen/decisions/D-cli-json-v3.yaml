@@ -17,5 +17,11 @@ context:
   summary: |
     The lead approved both briefs on 2026-11-20 with "raise the contract decision, don't block" for T-reconcile and "approve + install command" for T-skills. One decision covers both additions to keep the contract change to a single version.
   evidence: [.ekumen/briefs/T-reconcile/brief.md, .ekumen/briefs/T-skills/brief.md, .ekumen/contracts/C-cli-json.md]
-status: pending
+status: decided
 questions: []
+answer: v3-after-merge
+answer_note: As recommended (lead, in chat 2026-11-20).
+decided_by: Yashswarnkar
+decided_on: 2026-11-20
+applied_on: 2026-11-20
+applied: {amended_tasks: [], unblocked_tasks: [], notified_sessions: []}

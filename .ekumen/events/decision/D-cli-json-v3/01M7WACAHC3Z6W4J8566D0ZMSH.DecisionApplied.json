@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WACAHC3Z6W4J8566D0ZMSH","type":"DecisionApplied","at":"2026-11-20T11:10:01.772136Z","actor":{"role":"loop","id":"main"},"subject":{"kind":"decision","id":"D-cli-json-v3"},"data":{"amended_tasks":[],"unblocked_tasks":[],"notified_sessions":[]}}
