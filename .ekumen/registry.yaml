@@ -107,6 +107,19 @@ tasks:
     session: t-cli-gaps
     tier_grants: [push_own_branch, open_draft_pr, restack]
     status: draft
+  T-audit:
+    title: Recurring read-only audit
+    kind: research
+    brief: briefs/T-audit/brief.md
+    approved: 2026-11-20
+    blocked_by: [T-core-align]
+    repo: ekumen
+    base_branch: main
+    branch: audit/run
+    worktree: .worktrees/t-audit
+    session: null
+    tier_grants: [push_own_branch, open_draft_pr]
+    status: draft
   T-skills:
     title: /blocked and /decide skills
     kind: build
