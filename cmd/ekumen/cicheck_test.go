@@ -157,3 +157,19 @@ func TestCICheckScript(t *testing.T) {
 		})
 	}
 }
+
+func TestEkumenFilesCheckOutLF(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not found")
+	}
+	out, err := exec.Command("git", "-C", "../..", "check-attr", "text", "eol", "--",
+		".ekumen/events/task/T-x/01M.TaskAmended.json", ".ekumen/briefs/T-x/brief.md").Output()
+	if err != nil {
+		t.Skipf("not a git checkout: %v", err)
+	}
+	for _, l := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if !strings.HasSuffix(l, ": text: set") && !strings.HasSuffix(l, ": eol: lf") {
+			t.Errorf("%s; .ekumen/ must check out with LF so text_sha256 hashes match", l)
+		}
+	}
+}
