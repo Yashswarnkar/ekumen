@@ -45,7 +45,7 @@
         "branch": "build/t-core",
         "worktree": ".worktrees/t-core",
         "blocked_by": [
-          "C1",
+          "C-event-log",
           "C-decision-record"
         ],
         "tier_grants": [

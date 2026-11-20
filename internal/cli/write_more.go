@@ -96,6 +96,18 @@ func (r *run) decisionApply(args []string) error {
 		}
 	}
 
+	done := amendedBy(s.Events, id)
+	var todo []string
+	for _, tid := range tasks {
+		if !done[tid] {
+			todo = append(todo, tid)
+		}
+	}
+	if text != nil && len(todo) > 1 {
+		if f, err := ParseEntryFront(string(text)); err == nil && f.Present {
+			return fieldErr(CodeValidation, "front_matter", "--amend-text-file has front matter, but %s amends %d tasks (%s); drop it and each amendment gets its own", id, len(todo), strings.Join(todo, ", "))
+		}
+	}
 	var (
 		evs     []event.Event
 		written []string
@@ -105,19 +117,15 @@ func (r *run) decisionApply(args []string) error {
 			os.Remove(p)
 		}
 	}
-	today := r.now().Format(time.DateOnly)
-	for _, tid := range tasks {
+	for _, tid := range todo {
 		body := text
 		if body == nil {
 			body = []byte(applyLine(d) + "\n")
 		}
-		f, err := ParseEntryFront(string(body))
+		body, err := r.entryBody(s, a, tid, body)
 		if err != nil {
 			cleanup()
-			return fieldErr(CodeValidation, "front_matter", "%v", err)
-		}
-		if !f.Present {
-			body = withEntryFront(body, tid, a.ID, today)
+			return err
 		}
 		p, sum, err := s.Store.WriteEntryAt(tid, files.Amendments, authorSlug(a.ID), r.now(), body)
 		if err != nil {
@@ -159,6 +167,20 @@ func (r *run) decisionApply(args []string) error {
 		r.warn("no session messaging exists yet; tell the sessions of %s yourself", strings.Join(tasks, ", "))
 	}
 	return r.commit(s, append(evs, applied), written, fmt.Sprintf("applied %s: amended %d task(s), unblocked %d", id, len(tasks), len(unblocked)))
+}
+
+func amendedBy(evs []event.Event, id string) map[string]bool {
+	done := map[string]bool{}
+	for _, e := range evs {
+		if e.Type != event.TaskAmendedType || e.Subject.Kind != event.KindTask {
+			continue
+		}
+		var d event.TaskAmended
+		if json.Unmarshal(e.Data, &d) == nil && (d.ByDecision == id || d.Note == "applies "+id) {
+			done[e.Subject.ID] = true
+		}
+	}
+	return done
 }
 
 // applyLine is the generated §B amendment for an applied decision.

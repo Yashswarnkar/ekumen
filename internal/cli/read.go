@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -366,6 +367,11 @@ func (r *run) mapCmd(args []string) error {
 	if *outPath == "" {
 		return fieldErr(CodeUsage, "out", "map: --out <file.html> is required")
 	}
+	if *linkBase != "" {
+		if u, err := url.Parse(*linkBase); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			return fieldErr(CodeUsage, "link-base", "map: --link-base must be an http or https URL, got %q", *linkBase)
+		}
+	}
 	s, err := r.load()
 	if err != nil {
 		return err
@@ -404,7 +410,7 @@ func (r *run) mapCmd(args []string) error {
 	if !filepath.IsAbs(p) {
 		p = filepath.Join(r.env.Dir, p)
 	}
-	if err := os.WriteFile(p, page, 0o644); err != nil {
+	if err := writeFileAtomic(p, page); err != nil {
 		return errf(CodeInternal, "write map: %v", err)
 	}
 	r.out(struct {
@@ -414,6 +420,28 @@ func (r *run) mapCmd(args []string) error {
 		fmt.Fprintf(w, "wrote %s: %d nodes, %d edges, %d inbox items\n", s.Rel(p), len(nodes), len(edges), len(s.Inbox(string(event.RoleLead))))
 	})
 	return nil
+}
+
+func writeFileAtomic(p string, data []byte) error {
+	f, err := os.CreateTemp(filepath.Dir(p), "."+filepath.Base(p)+".*.tmp")
+	if err != nil {
+		return err
+	}
+	tmp := f.Name()
+	_, err = f.Write(data)
+	if err == nil {
+		err = f.Chmod(0o644)
+	}
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Rename(tmp, p)
+	}
+	if err != nil {
+		os.Remove(tmp)
+	}
+	return err
 }
 
 // mapLinks builds the map's links to source files under base (paths
@@ -430,7 +458,10 @@ func mapLinks(s *project.Snapshot, base string) map[string]mapview.Link {
 	}
 	for _, id := range s.TaskIDs() {
 		t := s.State.Tasks[id]
-		l := mapview.Link{Source: url(s.Rel(s.BriefPath(id)))}
+		var l mapview.Link
+		if p, err := s.BriefPath(id); err == nil {
+			l.Source = url(s.Rel(p))
+		}
 		if n := len(t.Handoffs); n > 0 {
 			l.Handoff = url(s.RootPath(t.Handoffs[n-1].File))
 		}
@@ -474,7 +505,9 @@ func (r *run) check(args []string) error {
 		t := s.State.Tasks[id]
 		for _, f := range append(entryFiles(t.Amendments), handoffFiles(t.Handoffs)...) {
 			recorded[s.RootPath(f)] = true
-			if _, err := os.Stat(s.ResolvePath(f)); err != nil {
+			if p, err := s.ResolvePath(f); err != nil {
+				invalid = append(invalid, project.Invalid{Path: f, Error: err.Error()})
+			} else if _, err := os.Stat(p); err != nil {
 				invalid = append(invalid, project.Invalid{Path: s.RootPath(f), Error: "recorded by an event but missing"})
 			}
 		}

@@ -58,6 +58,8 @@ func TestValidateDecision_DecisionRecord2(t *testing.T) {
 		{"rule 7: id in use", func(r *event.DecisionRaised) { r.ID = "D-taken" }, "id", 7},
 		{"rule 7: alias in use", func(r *event.DecisionRaised) { r.Aliases = []string{"T1"} }, "aliases[0]", 7},
 		{"rule 7: alias is an id in use", func(r *event.DecisionRaised) { r.Aliases = []string{"D-taken"} }, "aliases[0]", 7},
+		{"rule 7: alias is the record's own id", func(r *event.DecisionRaised) { r.Aliases = []string{r.ID} }, "aliases[0]", 7},
+		{"rule 7: alias listed twice", func(r *event.DecisionRaised) { r.Aliases = []string{"D-012", "D-012"} }, "aliases[1]", 7},
 		{"C-event-log §1: alias with a slash", func(r *event.DecisionRaised) { r.Aliases = []string{"D/012"} }, "aliases[0]", 0},
 
 		{"§1 title required", func(r *event.DecisionRaised) { r.Title = "" }, "title", 0},
@@ -66,6 +68,8 @@ func TestValidateDecision_DecisionRecord2(t *testing.T) {
 		{"§1 raised_by.session", func(r *event.DecisionRaised) { r.RaisedBy.Session = "" }, "raised_by.session", 0},
 		{"§1 raised_by.on is a date", func(r *event.DecisionRaised) { r.RaisedBy.On = "yesterday" }, "raised_by.on", 0},
 		{"§1 raised_by.task is a task", func(r *event.DecisionRaised) { r.RaisedBy.Task = ptr("C-event-log") }, "raised_by.task", 0},
+		{"§1 raised_by.task exists", func(r *event.DecisionRaised) { r.RaisedBy.Task = ptr("T-nope") }, "raised_by.task", 0},
+		{"§1 raised_by.task by alias", func(r *event.DecisionRaised) { r.RaisedBy.Task = ptr("T1") }, "", 0},
 		{"§1 question", func(r *event.DecisionRaised) { r.Question = " " }, "question", 0},
 		{"§1 at least 2 options", func(r *event.DecisionRaised) { r.Options = r.Options[:1] }, "options", 0},
 		{"§1 option id slug", func(r *event.DecisionRaised) { r.Options[1].ID = "Big B" }, "options[1].id", 0},

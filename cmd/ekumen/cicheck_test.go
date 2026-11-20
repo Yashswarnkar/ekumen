@@ -58,24 +58,67 @@ func TestCICheckScript(t *testing.T) {
 			event.RoleClaimed{Role: event.RoleOrchestrator, Session: "main"})
 	}
 
+	gitVars := []string{"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1",
+		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.com", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.com"}
+	git := func(t *testing.T, root string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", root}, args...)...)
+		cmd.Env = append(os.Environ(), gitVars...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	firstEvent := func(t *testing.T, root string) string {
+		t.Helper()
+		fs, _ := filepath.Glob(filepath.Join(root, ".ekumen/events/*/*/*.json"))
+		if len(fs) == 0 {
+			t.Fatal("no events")
+		}
+		return fs[0]
+	}
+
 	cases := []struct {
-		name    string
-		setup   func(t *testing.T, root string)
+		name  string
+		setup func(t *testing.T, root string)
+		// after, when set, runs once setup is committed as the base.
+		after   func(t *testing.T, root string)
 		fail    bool
 		wantOut string
 	}{
-		{"no events folder", func(t *testing.T, root string) {}, false, "skipped"},
+		{"no events folder", func(t *testing.T, root string) {}, nil, false, "skipped"},
 		{"empty events folder", func(t *testing.T, root string) {
 			os.MkdirAll(filepath.Join(root, ".ekumen/events"), 0o755)
-		}, true, "holds no events"},
-		{"clean log", claim, false, `"ok": true`},
+		}, nil, true, "holds no events"},
+		{"clean log", claim, nil, false, `"ok": true`},
+		{"no events folder on the base or now", func(t *testing.T, root string) {
+			os.WriteFile(filepath.Join(root, "README"), []byte("x\n"), 0o644)
+		}, func(t *testing.T, root string) {}, false, "skipped"},
+		{"events folder removed since the base", claim, func(t *testing.T, root string) {
+			os.RemoveAll(filepath.Join(root, ".ekumen/events"))
+		}, true, "exists on the base"},
+		{"event edited since the base", claim, func(t *testing.T, root string) {
+			p := firstEvent(t, root)
+			b, _ := os.ReadFile(p)
+			os.WriteFile(p, append(b, '\n'), 0o644)
+		}, true, "append-only"},
+		{"event deleted since the base", func(t *testing.T, root string) {
+			claim(t, root)
+			appendEvent(t, root, event.RoleReleasedType, event.Actor{Role: event.RoleOrchestrator, ID: "main"}, project,
+				event.RoleReleased{Role: event.RoleOrchestrator, Session: "main"})
+		}, func(t *testing.T, root string) {
+			os.Remove(firstEvent(t, root))
+		}, true, "append-only"},
+		{"event appended since the base", claim, func(t *testing.T, root string) {
+			appendEvent(t, root, event.RoleReleasedType, event.Actor{Role: event.RoleOrchestrator, ID: "main"}, project,
+				event.RoleReleased{Role: event.RoleOrchestrator, Session: "main"})
+		}, false, `"ok": true`},
 		{"lane violation", func(t *testing.T, root string) {
 			claim(t, root)
 			// A session approving a task: the lead's lane (C-event-log §3),
 			// as it could arrive through a git merge.
 			appendEvent(t, root, event.TaskApprovedType, event.Actor{Role: event.RoleSession, ID: "t-x"},
 				event.Subject{Kind: event.KindTask, ID: "T-x"}, event.TaskApproved{TierGrants: []string{}, TextSHA256: strings.Repeat("0", 64)})
-		}, true, `"rule": "lane"`},
+		}, nil, true, `"rule": "lane"`},
 		{"stale decision file", func(t *testing.T, root string) {
 			claim(t, root)
 			appendEvent(t, root, event.DecisionRaisedType, event.Actor{Role: event.RoleOrchestrator, ID: "main"},
@@ -85,7 +128,7 @@ func TestCICheckScript(t *testing.T) {
 					Blocks:  []string{}, ContractImpact: []string{}, Context: event.DecisionContext{Summary: "x"}})
 			os.MkdirAll(filepath.Join(root, ".ekumen/decisions"), 0o755)
 			os.WriteFile(filepath.Join(root, ".ekumen/decisions/D-x.yaml"), []byte("id: D-x\n"), 0o644)
-		}, true, "does not match the events"},
+		}, nil, true, "does not match the events"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -94,8 +137,16 @@ func TestCICheckScript(t *testing.T) {
 				t.Fatal(err)
 			}
 			c.setup(t, root)
+			env := append(os.Environ(), "EKUMEN_BIN="+bin, "EKUMEN_CI_BASE=", "GITHUB_BASE_REF=", "GITHUB_EVENT_NAME=")
+			if c.after != nil {
+				git(t, root, "init", "-q")
+				git(t, root, "add", "-A")
+				git(t, root, "commit", "-q", "-m", "base")
+				c.after(t, root)
+				env = append(env, "EKUMEN_CI_BASE=HEAD")
+			}
 			cmd := exec.Command("bash", script, root)
-			cmd.Env = append(os.Environ(), "EKUMEN_BIN="+bin)
+			cmd.Env = append(env, gitVars...)
 			out, err := cmd.CombinedOutput()
 			if failed := err != nil; failed != c.fail {
 				t.Fatalf("failed %v, want %v: %v\n%s", failed, c.fail, err, out)
@@ -104,5 +155,21 @@ func TestCICheckScript(t *testing.T) {
 				t.Errorf("output lacks %q:\n%s", c.wantOut, out)
 			}
 		})
+	}
+}
+
+func TestEkumenFilesCheckOutLF(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not found")
+	}
+	out, err := exec.Command("git", "-C", "../..", "check-attr", "text", "eol", "--",
+		".ekumen/events/task/T-x/01M.TaskAmended.json", ".ekumen/briefs/T-x/brief.md").Output()
+	if err != nil {
+		t.Skipf("not a git checkout: %v", err)
+	}
+	for _, l := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if !strings.HasSuffix(l, ": text: set") && !strings.HasSuffix(l, ": eol: lf") {
+			t.Errorf("%s; .ekumen/ must check out with LF so text_sha256 hashes match", l)
+		}
 	}
 }

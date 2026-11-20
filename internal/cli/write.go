@@ -119,7 +119,8 @@ func (r *run) commit(s *project.Snapshot, evs []event.Event, written []string, h
 			res.Paths = append(res.Paths, ps...)
 		}
 		if err != nil {
-			r.warn("events recorded, but projections were not regenerated: %v (run `ekumen project`)", err)
+			r.warn("%v", err)
+			return errf(CodeInternal, "events recorded (%s), projections not regenerated; run `ekumen project`", strings.Join(res.Events, ", "))
 		}
 	}
 	r.out(res, func(w io.Writer) {
@@ -221,6 +222,20 @@ func (r *run) decisionRaise(args []string) error {
 		}
 		if _, ok := rb["task"]; !ok {
 			rb["task"] = nil
+		}
+	}
+	if rb != nil {
+		if t, ok := rb["task"].(string); ok {
+			rb["task"] = s.State.Resolve(t)
+		}
+	}
+	for _, k := range []string{"blocks", "contract_impact"} {
+		if l, ok := m[k].([]any); ok {
+			for i, v := range l {
+				if id, ok := v.(string); ok {
+					l[i] = s.State.Resolve(id)
+				}
+			}
 		}
 	}
 	id, _ := m["id"].(string)
@@ -539,7 +554,11 @@ func (r *run) taskApprove(args []string) error {
 	if t.Approved {
 		return fieldErr(CodeValidation, "id", "%s was approved on %s; §A is frozen (amend it instead)", id, t.ApprovedOn)
 	}
-	sum, err := files.HashFile(s.BriefPath(id))
+	brief, err := s.BriefPath(id)
+	if err != nil {
+		return fieldErr(CodeValidation, "brief", "%s: %v", id, err)
+	}
+	sum, err := files.HashFile(brief)
 	if err != nil {
 		return fieldErr(CodeNotFound, "brief", "%s: cannot hash the brief: %v", id, err)
 	}
@@ -761,7 +780,11 @@ func (r *run) contractFreeze(args []string) error {
 	if c.Path == "" {
 		return fieldErr(CodeValidation, "path", "contract %s has no file to freeze", id)
 	}
-	text, err := os.ReadFile(s.ResolvePath(c.Path))
+	path, err := s.ResolvePath(c.Path)
+	if err != nil {
+		return fieldErr(CodeValidation, "path", "contract %s: %v", id, err)
+	}
+	text, err := os.ReadFile(path)
 	if err != nil {
 		return fieldErr(CodeNotFound, "path", "read %s: %v", c.Path, err)
 	}
@@ -847,7 +870,11 @@ func (r *run) contractVersion(args []string) error {
 	case c.Path == "":
 		return fieldErr(CodeValidation, "path", "contract %s has no file", id)
 	}
-	text, err := os.ReadFile(s.ResolvePath(c.Path))
+	path, err := s.ResolvePath(c.Path)
+	if err != nil {
+		return fieldErr(CodeValidation, "path", "contract %s: %v", id, err)
+	}
+	text, err := os.ReadFile(path)
 	if err != nil {
 		return fieldErr(CodeNotFound, "path", "read %s: %v", c.Path, err)
 	}

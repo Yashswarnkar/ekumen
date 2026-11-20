@@ -208,7 +208,7 @@ func TestReadBrief(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(warns) != 3 {
+	if len(warns) != 2 {
 		t.Fatalf("warnings = %v", warns)
 	}
 	if !bytes.Equal(b.Text, sectionA) || b.SHA256 != sum(sectionA) || b.Rel != "briefs/T-a/brief.md" {

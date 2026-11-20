@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -142,7 +143,8 @@ func (s *Store) WriteBrief(task string, text []byte) (string, string, error) {
 // and the unsuffixed name comes first.
 //
 // Files in amendments/ and handoffs/ that don't match the layout are
-// skipped and reported as warnings (.gitkeep is ignored silently). A
+// skipped and reported as warnings (.gitkeep, temp files of writes in
+// flight and files removed while reading are skipped silently). A
 // missing brief.md is an error wrapping fs.ErrNotExist.
 func (s *Store) ReadBrief(task string) (*Brief, []Warning, error) {
 	if err := validTask(task); err != nil {
@@ -188,7 +190,7 @@ func (s *Store) readEntries(dir string, kind EntryKind) ([]Entry, []Warning, err
 	for _, de := range des {
 		name := de.Name()
 		p := filepath.Join(dir, name)
-		if ignoredNames[name] {
+		if ignoredNames[name] || strings.HasPrefix(name, tempPrefix) {
 			continue
 		}
 		if !de.Type().IsRegular() {
@@ -204,7 +206,10 @@ func (s *Store) readEntries(dir string, kind EntryKind) ([]Entry, []Warning, err
 			warns = append(warns, Warning{p, "timestamp is not a valid UTC time"})
 			continue
 		}
-		body, err := os.ReadFile(p)
+		body, err := readFile(p)
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
 		if err != nil {
 			return nil, nil, err
 		}

@@ -88,9 +88,14 @@ func ValidateDecision(rec event.DecisionRaised, ids IDLookup) error {
 	}
 	for i, a := range rec.Aliases {
 		f := fmt.Sprintf("aliases[%d]", i)
-		if err := event.ValidateAlias(a); err != nil {
+		switch err := event.ValidateAlias(a); {
+		case err != nil:
 			add(f, 0, "%v", err)
-		} else if ids.Has(a) {
+		case a == rec.ID:
+			add(f, 7, "%q is the record's own id", a)
+		case slices.Contains(rec.Aliases[:i], a):
+			add(f, 7, "%q is listed twice", a)
+		case ids.Has(a):
 			add(f, 7, "%q is already in use", a)
 		}
 	}
@@ -105,8 +110,8 @@ func ValidateDecision(rec event.DecisionRaised, ids IDLookup) error {
 	}
 
 	if rec.RaisedBy.Task != nil {
-		if t := *rec.RaisedBy.Task; event.ValidateIDOfKind(t, event.KindTask) != nil && ids.Resolve(t) == t {
-			add("raised_by.task", 0, "%q is not a task id or alias", t)
+		if t := *rec.RaisedBy.Task; event.KindOf(ids.Resolve(t)) != event.KindTask || !ids.Has(t) {
+			add("raised_by.task", 0, "no task %q", t)
 		}
 	}
 	if strings.TrimSpace(rec.RaisedBy.Session) == "" {

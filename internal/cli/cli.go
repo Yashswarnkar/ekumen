@@ -245,6 +245,13 @@ func (r *run) out(v any, human func(w io.Writer)) {
 	human(r.env.Stdout)
 }
 
+func (r *run) helpOut() io.Writer {
+	if r.g.json {
+		return r.env.Stderr
+	}
+	return r.env.Stdout
+}
+
 func (r *run) newFlags(name string) *flag.FlagSet {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -258,7 +265,7 @@ func (r *run) parse(fs *flag.FlagSet, args []string, minPos, maxPos int, usage s
 	for {
 		if err := fs.Parse(args); err != nil {
 			if errors.Is(err, flag.ErrHelp) {
-				fmt.Fprintf(r.env.Stdout, "Usage: ekumen %s\n", usage)
+				fmt.Fprintf(r.helpOut(), "Usage: ekumen %s\n", usage)
 				return nil, &Error{Code: CodeUsage, Silent: true}
 			}
 			return nil, errf(CodeUsage, "%s: %v (usage: ekumen %s)", fs.Name(), err, usage)
@@ -387,7 +394,7 @@ func (r *run) dispatch(args []string) error {
 	fs := r.newFlags("ekumen")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
-			fmt.Fprint(r.env.Stdout, usageText)
+			fmt.Fprint(r.helpOut(), usageText)
 			return nil
 		}
 		return errf(CodeUsage, "%v", err)
@@ -395,6 +402,9 @@ func (r *run) dispatch(args []string) error {
 	args = fs.Args()
 	if len(args) == 0 {
 		fmt.Fprint(r.env.Stderr, usageText)
+		if r.g.json {
+			return errf(CodeUsage, "no command given")
+		}
 		return &Error{Code: CodeUsage, Silent: true}
 	}
 	cmd, rest := args[0], args[1:]
@@ -406,7 +416,7 @@ func (r *run) dispatch(args []string) error {
 	}
 	switch cmd {
 	case "help":
-		fmt.Fprint(r.env.Stdout, usageText)
+		fmt.Fprint(r.helpOut(), usageText)
 		return nil
 	case "status":
 		return r.status(rest)
