@@ -1,0 +1,36 @@
+id: D-alias-field
+title: Carry aliases as an optional field on creating events
+tier: 2
+raised_by:
+  task: T-core
+  session: t-core
+  true: 2026-11-20
+question: 'C-event-log §1 says readers resolve aliases everywhere, but only DecisionRaised
+  (through the record) has an aliases field. Where do task, contract and external
+  aliases live?
+
+'
+options:
+- id: optional-field
+  tradeoff: Add optional aliases[] to TaskDrafted, ContractDrafted and ExternalAdded.
+    This is a minor change under §9. Implemented for reading only.
+- id: alias-event
+  tradeoff: A new AliasAssigned event (orchestrator lane). Aliases can then be added
+    after creation, at the cost of one more type.
+recommendation: optional-field
+default_if_no_answer: 
+deadline: 
+blocks: []
+contract_impact:
+- C-event-log
+context:
+  summary: T-import needs somewhere to write R1, T0 and C1. Until this is decided,
+    the reducer accepts the optional field.
+  evidence:
+  - ".ekumen/contracts/C-event-log.md#1-ids"
+  - internal/event/data.go
+status: decided
+answer: optional-field
+answer_note: As recommended.
+decided_by: lead
+decided_on: '2026-11-20'

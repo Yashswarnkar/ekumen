@@ -1,0 +1,30 @@
+id: D-012
+title: Make a reconcile control loop the core of the engine
+tier: 2
+raised_by: {task: spine, session: lead, on: 2026-11-20}
+question: >
+  Should Ekumen's engine be one level-triggered control loop (observe actual state, compare with
+  desired state, act), in place of separate reconcile, dispatcher, defaults and audit steps?
+options:
+  - id: control-loop
+    tradeoff: >
+      One idempotent loop with pluggable observers (git, PRs, sessions) and actuators (apply decision,
+      start session, send message, open decision). Restart-safe; the same model as Kubernetes controllers.
+      Audit = the loop in dry-run mode. Pure code, no tokens. Needs care to keep actions idempotent.
+  - id: separate-commands
+    tradeoff: Simpler to start; the logic gets duplicated and drifts across commands.
+recommendation: control-loop
+context:
+  summary: >
+    Desired state = spine, frozen contracts, approved briefs, decided decisions. Observed state =
+    remote default branch, PR state, session status. Each pass derives the difference and takes only
+    pre-authorized actions; anything else becomes a decision. v0.1 can ship the loop with one pass
+    run on demand (`ekumen reconcile`), and v0.3 just runs it on a timer (the dispatcher).
+  evidence: [.ekumen/spine.md]
+blocks: []
+contract_impact: []
+status: decided
+answer: control-loop
+answer_note: Adopted. Spine §6 and §7 amended.
+decided_by: lead
+decided_on: 2026-11-20

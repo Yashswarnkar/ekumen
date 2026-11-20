@@ -1,0 +1,14 @@
+id: D-009
+title: License
+tier: 2
+raised_by: {task: public-repo, session: orchestrator, on: 2026-11-19}
+question: Which open-source license?
+options:
+  - {id: apache-2.0, tradeoff: Includes a patent grant; safer if it ever becomes a product}
+  - {id: mit, tradeoff: Simplest}
+recommendation: apache-2.0
+default_if_no_answer: apache-2.0
+status: defaulted
+answer: apache-2.0
+answer_note: Lead approved creating the repo without picking; the recommended default was applied. Easy to change before outside contributions arrive.
+decided_on: 2026-11-19

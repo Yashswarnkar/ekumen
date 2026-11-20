@@ -1,0 +1,37 @@
+id: D-entry-name-same-author-branches
+title: Accept that one author writing entries on two branches in the same second can
+  collide?
+tier: 2
+raised_by:
+  task: T-file-store
+  session: t-file-store
+  true: 2026-11-20
+question: C-event-log §8 says two writers never pick the same entry name. The -N suffix
+  only works within one checkout. If the same author (e.g. orchestrator) writes an
+  entry for the same task on two branches in the same second, both get the same name
+  with different text, and git reports a merge conflict. Accept and document, or change
+  the name format?
+options:
+- id: accept-document
+  tradeoff: No contract change. Relies on one live holder per role (§3) usually working
+    on one branch at a time. The case is rare, and git surfaces it loudly.
+- id: random-suffix
+  tradeoff: Add a short random or ULID suffix to entry names. Collisions become impossible,
+    but names are less readable and the contract changes.
+recommendation: accept-document
+default_if_no_answer: 
+deadline: 
+blocks: []
+contract_impact:
+- C-event-log
+context:
+  summary: Found while writing the branch-merge test. Event files can't collide (ULIDs).
+    Entry names are <timestamp>-<author>, so different authors never collide, but
+    one author on two branches in one second can.
+  evidence:
+  - internal/store/files/events_test.go#TestBranchesMergeByCopy
+status: decided
+answer: accept-document
+answer_note: As recommended.
+decided_by: lead
+decided_on: '2026-11-20'

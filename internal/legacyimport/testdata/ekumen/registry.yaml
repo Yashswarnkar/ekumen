@@ -1,0 +1,145 @@
+# Task list. Maintained by hand by the orchestrator until the ekumen CLI exists (spine §8).
+# `status` is derived; once the CLI exists it will be computed, never hand-edited.
+project: ekumen
+lead: Yashswarnkar
+tasks:
+  R1:
+    title: Agent Client Protocol (ACP) as the agent adapter base
+    kind: research
+    brief: briefs/R1-acp.md
+    approved: 2026-11-20
+    blocked_by: []
+    repo: ekumen
+    base_branch: main
+    branch: research/r1-acp
+    worktree: .worktrees/r1-acp
+    session: r1-acp
+    status: done
+    tier_grants: [read_web, clone_public_repos_to_scratch, write_own_output, push_own_branch, open_draft_pr]
+  R2:
+    title: Landscape of agent-supervisor tools
+    kind: research
+    brief: briefs/R2-landscape.md
+    approved: 2026-11-20
+    blocked_by: []
+    repo: ekumen
+    base_branch: main
+    branch: research/r2-landscape
+    worktree: .worktrees/r2-landscape
+    session: r2-landscape
+    status: done
+    tier_grants: [read_web, clone_public_repos_to_scratch, write_own_output, push_own_branch, open_draft_pr]
+  T0:
+    title: Repo scaffold
+    kind: build
+    brief: briefs/T0-scaffold.md
+    approved: 2026-11-20
+    blocked_by: []
+    repo: ekumen
+    base_branch: main
+    branch: build/t0-scaffold
+    worktree: .worktrees/t0-scaffold
+    session: t0-scaffold
+    status: done
+    tier_grants: [push_own_branch, open_draft_pr, restack, add_listed_dependencies]
+  T-core:
+    title: "Core domain: events, lanes, reducer, conflicts"
+    kind: build
+    brief: briefs/T-core/brief.md
+    approved: 2026-11-20
+    blocked_by: [C-event-log, C-decision-record]
+    repo: ekumen
+    base_branch: main
+    branch: build/t-core
+    worktree: .worktrees/t-core
+    session: t-core
+    tier_grants: [push_own_branch, open_draft_pr, restack]
+    status: done
+  T-file-store:
+    title: File store for events and entries
+    kind: build
+    brief: briefs/T-file-store/brief.md
+    approved: 2026-11-20
+    blocked_by: [C-event-log]
+    repo: ekumen
+    base_branch: main
+    branch: build/t-file-store
+    worktree: .worktrees/t-file-store
+    session: t-file-store
+    tier_grants: [push_own_branch, open_draft_pr, restack]
+    status: done
+  T-cli:
+    title: "ekumen CLI with --json, incl. ekumen map"
+    kind: build
+    brief: briefs/T-cli/brief.md
+    approved: 2026-11-20
+    blocked_by: [C-cli-json, T-core, T-file-store, D-yaml-library]
+    repo: ekumen
+    base_branch: main
+    branch: build/t-cli
+    worktree: .worktrees/t-cli
+    session: t-cli
+    tier_grants: [push_own_branch, open_draft_pr, restack]
+    status: running
+  T-skills:
+    title: /blocked and /decide skills
+    kind: build
+    brief: null   # not written yet
+    approved: null
+    blocked_by: [T-cli]
+    status: draft
+  T-server:
+    title: HTTP server and live updates
+    kind: build
+    brief: null   # not written yet
+    approved: null
+    blocked_by: [C-http-api, T-core, T-file-store]
+    status: draft
+  T-graph-view:
+    title: Task graph view
+    kind: build
+    brief: null   # not written yet
+    approved: null
+    blocked_by: [T-server]
+    status: draft
+  T-decision-views:
+    title: Decision inbox and decision screen
+    kind: build
+    brief: null   # not written yet
+    approved: null
+    blocked_by: [T-server]
+    status: draft
+  T-claude-adapter:
+    title: Claude Code adapter
+    kind: build
+    brief: null   # not written yet
+    approved: null
+    blocked_by: [C-adapter, T-core]
+    status: draft
+  T-import:
+    title: Import hand-written records into events
+    kind: build
+    brief: briefs/T-import/brief.md
+    approved: 2026-11-20
+    blocked_by: [T-core, T-file-store]
+    repo: ekumen
+    base_branch: main
+    branch: build/t-import
+    worktree: .worktrees/t-import
+    session: t-import
+    tier_grants: [push_own_branch, open_draft_pr, restack]
+    status: running
+  T-reconcile:
+    title: Control loop, one pass (ekumen reconcile)
+    kind: build
+    brief: null   # not written yet
+    approved: null
+    blocked_by: [T-core, T-file-store, T-cli]
+    status: draft
+external: {}
+contracts:                # until contracts carry their own blockers (FRICTION)
+  C-event-log: {title: Event log, aliases: [C1], path: contracts/C-event-log.md, status: frozen, blocked_by: []}
+  C-decision-record: {title: Decision record, aliases: [C2], path: contracts/C-decision-record.md, status: frozen, blocked_by: []}
+  C-cli-json: {title: CLI commands and JSON output, aliases: [C3], path: contracts/C-cli-json.md, status: frozen, blocked_by: [C-event-log, C-decision-record]}
+  C-adapter: {title: Agent adapter interface, aliases: [C4], path: contracts/C-adapter.md, status: draft, blocked_by: [D-013, D-014, D-015, D-016, D-017]}
+  C-http-api: {title: HTTP API for the UI, aliases: [C5], path: contracts/C-http-api.md, status: draft, blocked_by: [C-event-log, C-decision-record]}

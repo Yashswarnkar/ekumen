@@ -1,0 +1,37 @@
+id: D-019
+title: How Ekumen ids are formed
+tier: 2
+raised_by: {task: null, session: orchestrator, on: 2026-11-20}
+question: >
+  Ids like D-012 or R1 are opaque to read, and sequential numbers collide when two branches each
+  create "the next" one. What should decision and task ids look like?
+options:
+  - id: slug
+    tradeoff: >
+      Readable kebab-case slug with a kind prefix, e.g. D-control-loop, T-event-store, C-event-log.
+      Self-explaining anywhere it appears. The CLI refuses a slug already in use; two branches choosing
+      the same slug is rare and caught by the id-collision rule. Longer to type.
+  - id: task-prefixed-number
+    tradeoff: >
+      Decisions raised by a task are numbered within it (D-R1-1); the lead's on main stay D-013.
+      Unique without coordination, but just as opaque as today.
+  - id: ulid-plus-number
+    tradeoff: >
+      A hidden ULID is the real id; a short number is assigned when the item reaches main. Robust, but
+      an item has no stable readable name until it is merged.
+recommendation: slug
+context:
+  summary: >
+    The lead found bare ids unreadable, and R1 and R2 both had to invent placeholder ids because no
+    owner hands them out. Existing ids (D-001..D-019, R1, R2, T0..T10, C1..C5) would be migrated by
+    the one-off import (T9), keeping old ids as aliases so links keep working.
+  evidence: [.ekumen/contracts/C1-event-log.md, .ekumen/research/R1-acp.md, .ekumen/research/R2-landscape.md]
+blocks: []
+contract_impact: [C1, C2]
+status: decided
+answer: slug
+answer_note: "As recommended."
+decided_by: lead
+decided_on: 2026-11-20
+applied_on: 2026-11-20
+applied: {amended: [C1, C2 pending id migration], unblocked: [C1, C2], notified_sessions: []}

@@ -1,0 +1,32 @@
+id: D-store-event-type-check
+title: Store checks event type shape only, not membership in the §6 list
+tier: 1
+raised_by:
+  task: T-file-store
+  session: t-file-store
+  true: 2026-11-20
+question: Should Append refuse event types not listed in C-event-log §6, or check
+  only that the type is a safe PascalCase name?
+options:
+- id: shape-only
+  tradeoff: The store stays opaque and new types (a minor change, §9) need no store
+    change. T-core/CLI enforce the list.
+- id: known-list
+  tradeoff: Fails earlier, but duplicates T-core's list, and the store must change
+    with every new type.
+recommendation: shape-only
+default_if_no_answer: shape-only
+deadline: 2026-11-24
+blocks: []
+contract_impact: []
+context:
+  summary: The brief asks for validation of id, ULID and subject kind, and treats
+    payloads as opaque. Type is part of the file name, so the store checks only that
+    it is ^[A-Z][A-Za-z0-9]{0,63}$ (path safe).
+  evidence:
+  - internal/store/files/validate.go
+status: decided
+answer: shape-only
+answer_note: As recommended.
+decided_by: lead
+decided_on: '2026-11-20'
