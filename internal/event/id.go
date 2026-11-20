@@ -5,8 +5,10 @@ import (
 	"encoding/binary"
 	"fmt"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
+	"unicode"
 )
 
 // Item kinds named by the first letter of a slug id (C-event-log §1).
@@ -73,22 +75,17 @@ func KindOf(id string) SubjectKind {
 	return ""
 }
 
-var aliasPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*(-[A-Za-z0-9]+)*$`)
-
-// ValidateAlias checks an alias: an id from before C-event-log v1, such as
-// `R1`, `T0`, `D-012` or `C1` (C-event-log §1, "Aliases"). The contract gives
-// no format for aliases; this accepts letters, digits and single hyphens,
-// starting with a letter, at most 42 characters, and refuses anything that is
-// itself a valid slug id (an alias must not shadow an id).
+// ValidateAlias checks the form of an alias: an id from before C-event-log
+// v1, such as `R1`, `T0`, `D-012` or `C1` (C-event-log v3 §1, "Aliases").
+// An alias is any non-empty string without "/" or whitespace. It may look
+// like a slug id (`D-012` does); that it is not already an id in use needs
+// the log, so callers check it against state (core.ValidateDecision does).
 func ValidateAlias(alias string) error {
-	if len(alias) == 0 || len(alias) > MaxIDLength {
-		return fmt.Errorf("alias %q: must be 1 to %d characters", alias, MaxIDLength)
+	if alias == "" {
+		return fmt.Errorf("alias: must not be empty")
 	}
-	if !aliasPattern.MatchString(alias) {
-		return fmt.Errorf("alias %q: must be letters, digits and single hyphens, starting with a letter", alias)
-	}
-	if ValidateID(alias) == nil {
-		return fmt.Errorf("alias %q: is a slug id, not an alias", alias)
+	if i := strings.IndexFunc(alias, func(r rune) bool { return r == '/' || unicode.IsSpace(r) }); i >= 0 {
+		return fmt.Errorf("alias %q: must not contain %q", alias, alias[i:i+1])
 	}
 	return nil
 }

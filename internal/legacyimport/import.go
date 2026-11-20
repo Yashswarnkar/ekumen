@@ -47,15 +47,10 @@ type Plan struct {
 	Aliases    map[string]string `json:"aliases"`
 	Mismatches []Mismatch        `json:"mismatches"`
 	Problems   []RecordProblem   `json:"record_problems"`
-	// CoreLagProblems are validation failures caused by internal/core
-	// lagging the contracts, not by the records.
-	CoreLagProblems []RecordProblem `json:"core_lag_record_problems"`
-	Notes           []Note          `json:"notes"`
+	Notes      []Note            `json:"notes"`
 	// Conflicts are C-event-log §5 conflicts the core finds in the log
-	// after the import. CoreLagConflicts are lane conflicts that C-event-log
-	// v3 allows but internal/core, built on v1, still reports.
-	Conflicts        []core.Conflict `json:"conflicts"`
-	CoreLagConflicts []core.Conflict `json:"core_lag_conflicts"`
+	// after the import, lane conflicts included.
+	Conflicts []core.Conflict `json:"conflicts"`
 
 	writes []newFile
 	root   string
@@ -71,7 +66,7 @@ type Counts struct {
 }
 
 // OK reports whether the plan may be applied: no mismatches and no
-// conflicts beyond the known core lag.
+// conflicts.
 func (p *Plan) OK() bool { return len(p.Mismatches) == 0 && len(p.Conflicts) == 0 }
 
 // Prepare reads the .ekumen/ folder at root and plans the import. It writes
@@ -148,8 +143,8 @@ func prepare(fsys fs.FS, st *files.Store, root string) (*Plan, error) {
 		return nil, err
 	}
 	p := &Plan{Events: evs, root: root, ByType: map[string]int{}, Aliases: map[string]string{},
-		Mismatches: []Mismatch{}, Problems: []RecordProblem{}, CoreLagProblems: []RecordProblem{}, Drift: []string{},
-		Conflicts: []core.Conflict{}, CoreLagConflicts: []core.Conflict{}}
+		Mismatches: []Mismatch{}, Problems: []RecordProblem{}, Drift: []string{},
+		Conflicts: []core.Conflict{}}
 
 	// Merge with what is already in the log.
 	existing, err := existingLog(st)
@@ -213,16 +208,7 @@ func prepare(fsys fs.FS, st *files.Store, root string) (*Plan, error) {
 	}
 
 	p.Mismatches = append(p.Mismatches, verify(b, &state)...)
-	for _, rp := range checkRecords(&state, evs, sources) {
-		if strings.HasPrefix(rp.Field, "aliases[") && strings.Contains(rp.Text, "is a slug id, not an alias") {
-			// D-001…D-019 match the slug regex; internal/core's
-			// ValidateAlias refuses them although C-event-log §1 names
-			// D-012 as an alias.
-			p.CoreLagProblems = append(p.CoreLagProblems, rp)
-			continue
-		}
-		p.Problems = append(p.Problems, rp)
-	}
+	p.Problems = append(p.Problems, checkRecords(&state, evs, sources)...)
 	p.Notes = b.notes
 
 	// Conflicts, with the current text of every brief and contract so that
@@ -236,17 +222,7 @@ func prepare(fsys fs.FS, st *files.Store, root string) (*Plan, error) {
 			texts[c.File] = c.TextSHA256
 		}
 	}
-	byID := map[string]event.Event{}
-	for _, e := range all {
-		byID[e.ID] = e
-	}
-	for _, c := range core.Conflicts(&state, all, core.ConflictInputs{TextSHA256: texts, AliveSessions: map[string]bool{}}) {
-		if lanesAllowedByV3(&state, c, byID) {
-			p.CoreLagConflicts = append(p.CoreLagConflicts, c)
-		} else {
-			p.Conflicts = append(p.Conflicts, c)
-		}
-	}
+	p.Conflicts = append(p.Conflicts, core.Conflicts(&state, all, core.ConflictInputs{TextSHA256: texts, AliveSessions: map[string]bool{}})...)
 	return p, nil
 }
 
@@ -267,11 +243,26 @@ func Apply(p *Plan) (*Written, error) {
 	st := files.New(p.root)
 	w := &Written{Events: []string{}, Files: []string{}, Removed: []string{}}
 	for _, f := range p.writes {
-		full := filepath.Join(p.root, filepath.FromSlash(f.Rel))
-		if err := writeNewFile(full, f.Text); err != nil {
+		var path string
+		var err error
+		if f.Kind == "" {
+			path, _, err = st.WriteBrief(f.Task, f.Text)
+		} else {
+			path, _, err = st.WriteEntryAt(f.Task, f.Kind, f.Author, f.At, f.Text)
+		}
+		if err != nil {
 			return w, err
 		}
-		w.Files = append(w.Files, f.Rel)
+		rel, err := st.Rel(path)
+		if err != nil {
+			return w, err
+		}
+		w.Files = append(w.Files, rel)
+		if rel != f.Rel {
+			// The store chose another clash suffix than the plan, so
+			// the events would name the wrong file.
+			return w, errorf("wrote %s, planned %s", rel, f.Rel)
+		}
 	}
 	for _, e := range p.New {
 		raw, err := event.Encode(e)
@@ -294,33 +285,6 @@ func Apply(p *Plan) (*Written, error) {
 		w.Removed = append(w.Removed, r)
 	}
 	return w, nil
-}
-
-// writeNewFile creates a file that must not exist yet, or that already
-// holds exactly this text.
-func writeNewFile(path string, text []byte) error {
-	if have, err := os.ReadFile(path); err == nil {
-		if bytes.Equal(have, text) {
-			return nil
-		}
-		return errorf("%s exists with other content", path)
-	}
-	if err := os.MkdirAll(filepath.Dir(path), files.DirMode); err != nil {
-		return err
-	}
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, files.FileMode)
-	if err != nil {
-		return err
-	}
-	if _, err := f.Write(text); err != nil {
-		f.Close()
-		return err
-	}
-	if err := f.Sync(); err != nil {
-		f.Close()
-		return err
-	}
-	return f.Close()
 }
 
 // Report writes a human-readable summary of a plan.
@@ -365,20 +329,10 @@ func (p *Plan) Report(sb *strings.Builder) {
 	}
 	section("conflicts", ls)
 	ls = nil
-	for _, c := range p.CoreLagConflicts {
-		ls = append(ls, fmt.Sprintf("%s %v: %s", c.Rule, c.Events, c.Detail))
-	}
-	section("lane conflicts allowed by C-event-log v3 but not yet by internal/core", ls)
-	ls = nil
 	for _, r := range p.Problems {
 		ls = append(ls, fmt.Sprintf("%s: %s (rule %d): %s", r.Record, r.Field, r.Rule, r.Text))
 	}
 	section("hand-written records breaking C-decision-record §2 (reported, not fixed)", ls)
-	ls = nil
-	for _, r := range p.CoreLagProblems {
-		ls = append(ls, fmt.Sprintf("%s: %s: %s", r.Record, r.Field, r.Text))
-	}
-	section("validation failures caused by internal/core, not by the records", ls)
 	ls = nil
 	for _, n := range p.Notes {
 		ls = append(ls, fmt.Sprintf("[%s] %s: %s", n.Kind, n.Record, n.Text))

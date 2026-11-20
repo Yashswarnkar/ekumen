@@ -263,6 +263,7 @@
         "title": "Decision record",
         "path": ".ekumen/contracts/C-decision-record.md",
         "drafted_event": "01JD8Z3K6Q4M2V7X9T1B5N0R02",
+        "blocked_by": [],
         "status": "frozen",
         "version": 1,
         "text_sha256": "bbb1",
@@ -284,6 +285,7 @@
         "title": "Event log",
         "path": ".ekumen/contracts/C-event-log.md",
         "drafted_event": "01JD8Z3K6Q4M2V7X9T1B5N0R01",
+        "blocked_by": [],
         "status": "frozen",
         "version": 1,
         "text_sha256": "aaa1",
@@ -348,6 +350,7 @@
         "event": "01JD8Z3K6Q4M2V7X9T1B5N0R12"
       }
     ],
+    "early_resolutions": {},
     "conflicts": [],
     "aliases": {
       "C1": "C-event-log",

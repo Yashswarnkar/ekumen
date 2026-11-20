@@ -31,6 +31,7 @@ func TestValidateDecision_DecisionRecord2(t *testing.T) {
 		{"valid tier 1", func(r *event.DecisionRaised) {
 			r.Tier, r.DefaultIfNoAnswer, r.Deadline = 1, ptr("a"), ptr("2026-11-27")
 		}, "", 0},
+		{"C-event-log v3 §1: pre-contract alias like D-012", func(r *event.DecisionRaised) { r.Aliases = []string{"D-012"} }, "", 0},
 		{"valid with alias block and contract impact", func(r *event.DecisionRaised) {
 			r.Blocks, r.ContractImpact = []string{"T1"}, []string{"C-event-log"}
 		}, "", 0},
@@ -56,6 +57,8 @@ func TestValidateDecision_DecisionRecord2(t *testing.T) {
 		{"rule 7: not a decision id", func(r *event.DecisionRaised) { r.ID = "T-core-two" }, "id", 7},
 		{"rule 7: id in use", func(r *event.DecisionRaised) { r.ID = "D-taken" }, "id", 7},
 		{"rule 7: alias in use", func(r *event.DecisionRaised) { r.Aliases = []string{"T1"} }, "aliases[0]", 7},
+		{"rule 7: alias is an id in use", func(r *event.DecisionRaised) { r.Aliases = []string{"D-taken"} }, "aliases[0]", 7},
+		{"C-event-log §1: alias with a slash", func(r *event.DecisionRaised) { r.Aliases = []string{"D/012"} }, "aliases[0]", 0},
 
 		{"§1 title required", func(r *event.DecisionRaised) { r.Title = "" }, "title", 0},
 		{"§1 title ≤ 100", func(r *event.DecisionRaised) { r.Title = strings.Repeat("é", 101) }, "title", 0},

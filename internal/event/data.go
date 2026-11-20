@@ -6,9 +6,9 @@ import (
 	"strings"
 )
 
-// Payloads: one struct per v1 event type (C-event-log §6). Field names follow
-// the contract. Fields marked "not in C-event-log v1" are optional additions
-// readers may ignore (C-event-log §9); see the T-core handoff.
+// Payloads: one struct per event type (C-event-log v4 §6). Field names
+// follow the contract. Optional fields are omitted when empty; readers ignore
+// what they don't know (C-event-log §9).
 
 // TaskDrafted creates a task.
 type TaskDrafted struct {
@@ -21,9 +21,11 @@ type TaskDrafted struct {
 	Worktree   string   `json:"worktree"`
 	BlockedBy  []string `json:"blocked_by"`
 	TierGrants []string `json:"tier_grants"`
-	// Aliases are older ids for this task. Not in C-event-log v1 (see
-	// decision draft D-alias-field); optional.
+	// Aliases are older ids for this task (C-event-log v3 §1, D-alias-field).
 	Aliases []string `json:"aliases,omitempty"`
+	// Session is the session that owns the task, so it can write in its
+	// lane before any TaskSessionAttached (C-event-log v3 §3, D-lane-gaps).
+	Session string `json:"session,omitempty"`
 }
 
 // Task kinds (spine §3).
@@ -168,8 +170,19 @@ type QuestionAnswered struct {
 type ContractDrafted struct {
 	Title string `json:"title"`
 	Path  string `json:"path"`
-	// Aliases: not in C-event-log v1 (see D-alias-field); optional.
+	// Aliases are older ids (C-event-log v3 §1, D-alias-field).
 	Aliases []string `json:"aliases,omitempty"`
+	// BlockedBy are ids the contract waits on (C-event-log v4 §6,
+	// D-contract-blockers).
+	BlockedBy []string `json:"blocked_by,omitempty"`
+}
+
+// ContractBlockersChanged adds and removes ids from a contract's
+// blocked_by (C-event-log v4 §6, D-contract-blockers).
+type ContractBlockersChanged struct {
+	Added   []string `json:"added"`
+	Removed []string `json:"removed"`
+	Reason  string   `json:"reason"`
 }
 
 // ContractFrozen freezes a contract version.
@@ -192,7 +205,7 @@ type ExternalAdded struct {
 	AskedOn   string   `json:"asked_on"`
 	NeededBy  string   `json:"needed_by"`
 	Blocks    []string `json:"blocks"`
-	// Aliases: not in C-event-log v1 (see D-alias-field); optional.
+	// Aliases are older ids (C-event-log v3 §1, D-alias-field).
 	Aliases []string `json:"aliases,omitempty"`
 }
 
@@ -273,6 +286,8 @@ func NewPayload(t Type) any {
 		return new(QuestionAnswered)
 	case ContractDraftedType:
 		return new(ContractDrafted)
+	case ContractBlockersChangedType:
+		return new(ContractBlockersChanged)
 	case ContractFrozenType:
 		return new(ContractFrozen)
 	case ContractVersionedType:

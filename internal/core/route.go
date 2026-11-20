@@ -1,6 +1,8 @@
 package core
 
 import (
+	"strings"
+
 	"github.com/Yashswarnkar/ekumen/internal/event"
 )
 
@@ -62,14 +64,7 @@ func Route(s *State, newEvents []event.Event) []RoutedToOwner {
 			if !ok || q.Event != e.ID || q.Answered() {
 				continue
 			}
-			switch {
-			case d.To != "":
-				to, reason = d.To, ReasonQuestion
-			case s.DefaultAddressee(e.Subject) != "":
-				to, reason = s.DefaultAddressee(e.Subject), ReasonQuestionDefault
-			default:
-				to, reason = string(event.RoleOrchestrator), ReasonQuestionNoOwner
-			}
+			to, reason = s.questionRoute(e.Subject, d.To)
 		default:
 			continue
 		}
@@ -79,4 +74,42 @@ func Route(s *State, newEvents []event.Event) []RoutedToOwner {
 		})
 	}
 	return out
+}
+
+// RouteOwner returns who a route belongs to: the `to` of its RoutedToOwner,
+// or, for a route the loop has not written yet, the owner Route would give
+// it (C-event-log §4). A route id names a handoff with follow-ups,
+// decisions raised or deviations, or a question. ok is false when the id
+// names nothing routable.
+func (s *State) RouteOwner(routeID string) (to string, ok bool) {
+	if r, ok := s.Routes[routeID]; ok {
+		return r.To, true
+	}
+	from, found := strings.CutPrefix(routeID, "route-")
+	if !found {
+		return "", false
+	}
+	for _, id := range sortedKeys(s.Tasks) {
+		for _, h := range s.Tasks[id].Handoffs {
+			if h.Event == from && (h.HasFollowups || h.HasDecisions || h.HasDeviations) {
+				return string(event.RoleOrchestrator), true
+			}
+		}
+	}
+	if sub, q, ok := s.questionByEvent(from); ok {
+		to, _ := s.questionRoute(sub, q.To)
+		return to, true
+	}
+	return "", false
+}
+
+// questionRoute is where a question is routed (C-event-log §4).
+func (s *State) questionRoute(sub event.Subject, to string) (string, string) {
+	switch {
+	case to != "":
+		return to, ReasonQuestion
+	case s.DefaultAddressee(sub) != "":
+		return s.DefaultAddressee(sub), ReasonQuestionDefault
+	}
+	return string(event.RoleOrchestrator), ReasonQuestionNoOwner
 }

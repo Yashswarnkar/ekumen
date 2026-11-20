@@ -117,7 +117,8 @@ func TaskStatuses(s *State, obs Observed) map[string]TaskStatus {
 // OpenBlockers lists, sorted, the ids still blocking a task:
 //   - each id in blocked_by that is not cleared: a task that is not done,
 //     a decision that is neither applied nor superseded, a contract that is
-//     not frozen, an external dependency that is not resolved, or an id that
+//     not frozen or still has open blockers of its own (C-event-log v4,
+//     D-contract-blockers; see ContractOpenBlockers), an external dependency that is not resolved, or an id that
 //     names nothing (it can never clear);
 //   - each decision whose `blocks` names the task and that is neither applied
 //     nor superseded (C-decision-record §1, §3);
@@ -182,10 +183,42 @@ func blockerCleared(s *State, obs Observed, id string, visiting map[string]bool)
 		return ok && len(d.Raises) > 0 && !decisionGates(d)
 	case event.KindContract:
 		c, ok := s.Contracts[id]
-		return ok && c.Status == ContractFrozen
+		if !ok || c.Status != ContractFrozen || visiting[id] {
+			return false
+		}
+		return len(contractOpenBlockers(s, obs, id, visiting)) == 0
 	case event.KindExternal:
 		x, ok := s.Externals[id]
 		return ok && x.Resolved
 	}
 	return false
+}
+
+// ContractOpenBlockers lists, sorted, the ids in a contract's blocked_by
+// that are not cleared (same rules as OpenBlockers). A task blocked by the
+// contract stays blocked while this is non-empty, even once the contract is
+// frozen (C-event-log v4 §6, D-contract-blockers). A cycle counts as open.
+func ContractOpenBlockers(s *State, obs Observed, id string) []string {
+	return contractOpenBlockers(s, obs, s.Resolve(id), map[string]bool{})
+}
+
+func contractOpenBlockers(s *State, obs Observed, id string, visiting map[string]bool) []string {
+	c, ok := s.Contracts[id]
+	if !ok {
+		return nil
+	}
+	if visiting[id] {
+		return []string{id}
+	}
+	visiting[id] = true
+	defer delete(visiting, id)
+	var open []string
+	for _, raw := range c.BlockedBy {
+		b := s.Resolve(raw)
+		if !blockerCleared(s, obs, b, visiting) {
+			open = appendUnique(open, b)
+		}
+	}
+	slices.Sort(open)
+	return open
 }

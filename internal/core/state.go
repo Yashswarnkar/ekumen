@@ -42,6 +42,10 @@ type State struct {
 	Routes map[string]*RouteRecord `json:"routes"`
 	// Claims are the role claims not yet released, in event order.
 	Claims []Claim `json:"claims"`
+	// EarlyResolutions are RouteResolved events whose route has no
+	// RoutedToOwner yet, by route id. When the RoutedToOwner arrives, the
+	// route is closed by the resolution and it leaves this map.
+	EarlyResolutions map[string]Resolution `json:"early_resolutions"`
 	// Conflicts are the ConflictDetected events already written.
 	Conflicts []RecordedConflict `json:"conflicts"`
 	// Aliases maps an older id to its slug id (C-event-log §1).
@@ -122,8 +126,11 @@ type Task struct {
 	Amendments []Entry   `json:"amendments"`
 	Handoffs   []Handoff `json:"handoffs"`
 
-	Session string `json:"session,omitempty"`
-	Adapter string `json:"adapter,omitempty"`
+	// Session is the session from the latest TaskSessionAttached, or else
+	// from TaskDrafted.session. DraftSession is TaskDrafted.session.
+	Session      string `json:"session,omitempty"`
+	DraftSession string `json:"draft_session,omitempty"`
+	Adapter      string `json:"adapter,omitempty"`
 
 	Deferred       bool   `json:"deferred"`
 	DeferredReason string `json:"deferred_reason,omitempty"`
@@ -187,6 +194,9 @@ type Contract struct {
 	Title        string   `json:"title"`
 	Path         string   `json:"path"`
 	DraftedEvent string   `json:"drafted_event,omitempty"`
+	// BlockedBy are the ids the contract waits on (C-event-log v4,
+	// D-contract-blockers).
+	BlockedBy []string `json:"blocked_by"`
 	// Status is draft until the first ContractFrozen or ContractVersioned.
 	Status string `json:"status"`
 	// Version and TextSHA256 are those of the highest frozen version.
@@ -233,6 +243,12 @@ type Claim struct {
 	Event   string     `json:"event"`
 }
 
+// Resolution is one RouteResolved.
+type Resolution struct {
+	Event string `json:"event"`
+	Note  string `json:"note,omitempty"`
+}
+
 // RecordedConflict is a ConflictDetected already in the log.
 type RecordedConflict struct {
 	Event  string   `json:"event"`
@@ -256,14 +272,53 @@ func newState() State {
 		Routes:    map[string]*RouteRecord{},
 		Claims:    []Claim{},
 		Conflicts: []RecordedConflict{},
-		Aliases:   map[string]string{},
-		Skipped:   []SkippedEvent{},
+
+		EarlyResolutions: map[string]Resolution{},
+		Aliases:          map[string]string{},
+		Skipped:          []SkippedEvent{},
 	}
 }
 
-// SortEvents returns a copy of events in log order: by id (C-event-log §2),
-// then by type and encoded bytes so the order is total even for malformed
-// logs. Exact duplicates (same encoding) are dropped.
+// LifecycleRank orders event types that share a timestamp (C-event-log v4
+// §2): drafted/raised, then approved/frozen/asked, then
+// amended/answered/decided/defaulted/superseded, then applied. Types the
+// contract does not place sit where their lifecycle puts them (see the
+// table in README.md). Unknown types come last.
+func LifecycleRank(t event.Type) int {
+	switch t {
+	case event.TaskDraftedType, event.DecisionRaisedType, event.ContractDraftedType, event.ExternalAddedType:
+		return 0
+	case event.TaskApprovedType, event.ContractFrozenType, event.QuestionAskedType,
+		event.TaskSessionAttachedType, event.RoleClaimedType:
+		return 1
+	case event.TaskAmendedType, event.QuestionAnsweredType, event.DecisionDecidedType,
+		event.DecisionDefaultedType, event.DecisionSupersededType, event.TaskBlockersChangedType,
+		event.ContractBlockersChangedType, event.ContractVersionedType, event.TaskHandoffType,
+		event.TaskDeferredType, event.ExternalUpdatedType, event.RoutedToOwnerType:
+		return 2
+	case event.DecisionAppliedType, event.ExternalResolvedType, event.RouteResolvedType,
+		event.RoleReleasedType, event.ConflictDetectedType:
+		return 3
+	}
+	return 4
+}
+
+// ulidTime is the millisecond-timestamp part of a ULID (its first 10
+// characters), which sorts as text. Malformed ids use the whole id.
+func ulidTime(id string) string {
+	if len(id) >= 10 {
+		return id[:10]
+	}
+	return id
+}
+
+// SortEvents returns a copy of events in log order (C-event-log v4 §2):
+// by the timestamp in the id, then, for events in the same millisecond, by
+// LifecycleRank, then by id, type and encoded bytes, so the order is total
+// even for malformed logs. The rank is a stable tie-break that does not
+// depend on ULID entropy: an import or replay that writes a draft and its
+// approval at the same instant is still applied draft first. Exact
+// duplicates (same encoding) are dropped.
 func SortEvents(events []event.Event) []event.Event {
 	type keyed struct {
 		e   event.Event
@@ -279,6 +334,8 @@ func SortEvents(events []event.Event) []event.Event {
 	}
 	slices.SortStableFunc(ks, func(a, b keyed) int {
 		return cmp.Or(
+			cmp.Compare(ulidTime(a.e.ID), ulidTime(b.e.ID)),
+			cmp.Compare(LifecycleRank(a.e.Type), LifecycleRank(b.e.Type)),
 			cmp.Compare(a.e.ID, b.e.ID),
 			cmp.Compare(a.e.Type, b.e.Type),
 			cmp.Compare(a.enc, b.enc),
@@ -294,8 +351,8 @@ func SortEvents(events []event.Event) []event.Event {
 	return out
 }
 
-// Reduce folds an event log into State. Events are applied in id order
-// whatever the input order, so any permutation of the same events gives the
+// Reduce folds an event log into State. Events are applied in log order
+// (SortEvents) whatever the input order, so any permutation of the same events gives the
 // same State. Reduce never fails: events it cannot use are listed in
 // State.Skipped, and events outside their lane are applied anyway and left
 // for Conflicts to report (C-event-log §5: detect, never resolve silently).
@@ -384,7 +441,7 @@ func (s *State) contract(id string) *Contract {
 	id = s.Resolve(id)
 	c, ok := s.Contracts[id]
 	if !ok {
-		c = &Contract{ID: id, Status: ContractDraft, Freezes: []Freeze{}, Versions: []Freeze{}, Questions: []Question{}}
+		c = &Contract{ID: id, Status: ContractDraft, BlockedBy: []string{}, Freezes: []Freeze{}, Versions: []Freeze{}, Questions: []Question{}}
 		s.Contracts[id] = c
 	}
 	return c
@@ -494,6 +551,10 @@ func (s *State) apply(e event.Event) {
 		t.BaseBranch, t.Branch, t.Worktree = d.BaseBranch, d.Branch, d.Worktree
 		t.BlockedBy = appendUnique(t.BlockedBy, d.BlockedBy...)
 		t.TierGrants = orEmpty(d.TierGrants)
+		t.DraftSession = d.Session
+		if t.Session == "" {
+			t.Session = d.Session // a TaskSessionAttached still wins
+		}
 	case *event.TaskApproved:
 		t := s.task(e.Subject.ID)
 		if t.Approved {
@@ -512,6 +573,9 @@ func (s *State) apply(e event.Event) {
 	case *event.TaskSessionAttached:
 		t := s.task(e.Subject.ID)
 		t.Session, t.Adapter = d.Session, d.Adapter
+		if t.Session == "" {
+			t.Session = t.DraftSession
+		}
 	case *event.TaskHandoff:
 		t := s.task(e.Subject.ID)
 		t.Handoffs = append(t.Handoffs, Handoff{Event: e.ID, At: stamp(e.At), By: e.Actor.ID, File: d.File,
@@ -598,6 +662,11 @@ func (s *State) apply(e event.Event) {
 			return
 		}
 		c.DraftedEvent, c.Title, c.Path, c.Aliases = e.ID, d.Title, d.Path, d.Aliases
+		c.BlockedBy = appendUnique(c.BlockedBy, d.BlockedBy...)
+	case *event.ContractBlockersChanged:
+		c := s.contract(e.Subject.ID)
+		c.BlockedBy = appendUnique(c.BlockedBy, d.Added...)
+		c.BlockedBy = slices.DeleteFunc(c.BlockedBy, func(b string) bool { return slices.Contains(d.Removed, b) })
 	case *event.ContractFrozen:
 		c := s.contract(e.Subject.ID)
 		c.Freezes = append(c.Freezes, Freeze{Event: e.ID, Version: d.Version, TextSHA256: d.TextSHA256})
@@ -647,10 +716,24 @@ func (s *State) apply(e event.Event) {
 		if _, q, ok := s.questionByEvent(d.FromEvent); ok && q.Answered() {
 			r.Open, r.ClosedBy = false, q.AnswerEvent
 		}
+		if res, ok := s.EarlyResolutions[d.RouteID]; ok {
+			if r.Open {
+				r.Open, r.ClosedBy, r.Note = false, res.Event, res.Note
+			}
+			delete(s.EarlyResolutions, d.RouteID)
+		}
 		s.Routes[d.RouteID] = r
 	case *event.RouteResolved:
-		if r, ok := s.Routes[d.RouteID]; ok && r.Open {
+		r, ok := s.Routes[d.RouteID]
+		switch {
+		case ok && r.Open:
 			r.Open, r.ClosedBy, r.Note = false, e.ID, d.Note
+		case !ok:
+			// Resolved before the loop routed it: keep the first
+			// resolution and close the route when it appears.
+			if _, seen := s.EarlyResolutions[d.RouteID]; !seen {
+				s.EarlyResolutions[d.RouteID] = Resolution{Event: e.ID, Note: d.Note}
+			}
 		}
 	case *event.RoleClaimed:
 		s.Claims = append(s.Claims, Claim{Role: d.Role, Session: d.Session, Event: e.ID})

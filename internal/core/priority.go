@@ -51,50 +51,44 @@ func Urgency(deadline *string, now time.Time) int {
 // BlockedByDecision lists, sorted, the tasks a decision blocks directly or
 // through contracts, transitively (spine §3, C-decision-record §1):
 //
-//  1. the tasks in its `blocks`, and tasks whose blocked_by names it;
-//  2. tasks whose blocked_by names a contract in its `contract_impact`;
-//  3. then, repeatedly, tasks whose blocked_by names a task already counted.
+//  1. the tasks in its `blocks`, and the contracts in its `contract_impact`;
+//  2. then, repeatedly, every task or contract whose blocked_by names the
+//     decision or anything already reached (contract blockers count,
+//     C-event-log v4, D-contract-blockers).
 //
-// Deferred tasks are left out. Done tasks cannot be told apart without
-// observations and are counted. The reach through contracts is this
-// package's reading, raised in decision draft D-blocker-semantics.
+// Only tasks are returned. Deferred tasks are left out. Done tasks cannot be
+// told apart without observations and are counted.
 func BlockedByDecision(s *State, decisionID string) []string {
 	id := s.Resolve(decisionID)
 	d, ok := s.Decisions[id]
 	if !ok {
 		return nil
 	}
-	set := map[string]bool{}
+	reached := map[string]bool{id: true}
 	for _, b := range d.Blocks {
-		set[s.Resolve(b)] = true
+		reached[s.Resolve(b)] = true
 	}
-	contracts := map[string]bool{}
 	for _, c := range d.ContractImpact {
-		contracts[s.Resolve(c)] = true
+		reached[s.Resolve(c)] = true
 	}
-	for tid, t := range s.Tasks {
-		for _, b := range t.BlockedBy {
-			if r := s.Resolve(b); r == id || contracts[r] {
-				set[tid] = true
-			}
-		}
+	names := func(blockedBy []string) bool {
+		return slices.ContainsFunc(blockedBy, func(b string) bool { return reached[s.Resolve(b)] })
 	}
 	for changed := true; changed; {
 		changed = false
 		for tid, t := range s.Tasks {
-			if set[tid] {
-				continue
+			if !reached[tid] && names(t.BlockedBy) {
+				reached[tid], changed = true, true
 			}
-			for _, b := range t.BlockedBy {
-				if set[s.Resolve(b)] {
-					set[tid], changed = true, true
-					break
-				}
+		}
+		for cid, c := range s.Contracts {
+			if !reached[cid] && names(c.BlockedBy) {
+				reached[cid], changed = true, true
 			}
 		}
 	}
 	var out []string
-	for tid := range set {
+	for tid := range reached {
 		if t, ok := s.Tasks[tid]; ok && t.Drafted() && !t.Deferred {
 			out = append(out, tid)
 		}

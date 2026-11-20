@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -8,19 +9,24 @@ import (
 	"github.com/Yashswarnkar/ekumen/internal/event"
 )
 
-// Lane says who may write an event type (C-event-log §3).
+// Lane says who may write an event type (C-event-log v4 §3).
 type Lane struct {
-	// Roles may write the type. Empty with Anyone set means every role.
+	// Roles may write the type. Ignored when Anyone is set.
 	Roles []event.Role
-	// Anyone: any role may write it (QuestionAsked, QuestionAnswered).
+	// Anyone: any role may write it, subject to the checks below.
 	Anyone bool
 	// OwnTask: a session or integrator may write it only for its own task.
+	// Other roles in Roles are not limited this way (DecisionRaised by the
+	// lead, orchestrator or loop may have raised_by.task null; D-lane-gaps).
 	OwnTask bool
 	// Addressee: only the question's addressee may write it (QuestionAnswered).
 	Addressee bool
-	// RoutedToOrchestrator: only for routes whose owner is the orchestrator
-	// (RouteResolved, "items routed to it").
-	RoutedToOrchestrator bool
+	// RouteOwner: only the owner the route is (or would be) routed to may
+	// write it (RouteResolved, D-lane-gaps).
+	RouteOwner bool
+	// ClaimingSession: data.session must be the actor's id (RoleClaimed,
+	// RoleReleased, D-claim-lane).
+	ClaimingSession bool
 	// Subjects are the subject kinds the type may be about. Empty means any.
 	Subjects []event.SubjectKind
 }
@@ -38,10 +44,12 @@ var (
 	lead         = []event.Role{event.RoleLead}
 	orchestrator = []event.Role{event.RoleOrchestrator}
 	loop         = []event.Role{event.RoleLoop}
+	orchOrLoop   = []event.Role{event.RoleOrchestrator, event.RoleLoop}
 	taskSessions = []event.Role{event.RoleSession, event.RoleIntegrator}
+	raisers      = []event.Role{event.RoleLead, event.RoleOrchestrator, event.RoleSession, event.RoleIntegrator, event.RoleLoop}
 )
 
-// Lanes is the lane table of C-event-log §3, as data. The subject kinds
+// Lanes is the lane table of C-event-log v4 §3, as data. The subject kinds
 // follow from §6 (task events are about tasks, and so on; questions may be
 // about a task, decision or contract). Role events are project-wide.
 var Lanes = map[event.Type]Lane{
@@ -50,30 +58,31 @@ var Lanes = map[event.Type]Lane{
 	event.DecisionSupersededType: {Roles: lead, Subjects: decisionOnly},
 	event.ContractFrozenType:     {Roles: lead, Subjects: contractOnly},
 
-	event.TaskDraftedType:         {Roles: orchestrator, Subjects: taskOnly},
-	event.TaskAmendedType:         {Roles: orchestrator, Subjects: taskOnly},
-	event.TaskBlockersChangedType: {Roles: orchestrator, Subjects: taskOnly},
-	event.TaskDeferredType:        {Roles: orchestrator, Subjects: taskOnly},
-	event.ContractDraftedType:     {Roles: orchestrator, Subjects: contractOnly},
-	event.ContractVersionedType:   {Roles: orchestrator, Subjects: contractOnly},
-	event.ExternalAddedType:       {Roles: orchestrator, Subjects: externalOnly},
-	event.ExternalUpdatedType:     {Roles: orchestrator, Subjects: externalOnly},
-	event.ExternalResolvedType:    {Roles: orchestrator, Subjects: externalOnly},
-	event.RouteResolvedType:       {Roles: orchestrator, RoutedToOrchestrator: true},
+	event.TaskDraftedType:             {Roles: orchestrator, Subjects: taskOnly},
+	event.TaskAmendedType:             {Roles: orchestrator, Subjects: taskOnly},
+	event.TaskBlockersChangedType:     {Roles: orchestrator, Subjects: taskOnly},
+	event.TaskDeferredType:            {Roles: orchestrator, Subjects: taskOnly},
+	event.ContractDraftedType:         {Roles: orchestrator, Subjects: contractOnly},
+	event.ContractBlockersChangedType: {Roles: orchestrator, Subjects: contractOnly},
+	event.ContractVersionedType:       {Roles: orchestrator, Subjects: contractOnly},
+	event.ExternalAddedType:           {Roles: orchestrator, Subjects: externalOnly},
+	event.ExternalUpdatedType:         {Roles: orchestrator, Subjects: externalOnly},
+	event.ExternalResolvedType:        {Roles: orchestrator, Subjects: externalOnly},
 
 	event.TaskHandoffType:    {Roles: taskSessions, OwnTask: true, Subjects: taskOnly},
-	event.DecisionRaisedType: {Roles: taskSessions, OwnTask: true, Subjects: decisionOnly},
+	event.DecisionRaisedType: {Roles: raisers, OwnTask: true, Subjects: decisionOnly},
 
 	event.QuestionAskedType:    {Anyone: true, Subjects: questionable},
 	event.QuestionAnsweredType: {Anyone: true, Addressee: true, Subjects: questionable},
+	event.RouteResolvedType:    {Anyone: true, RouteOwner: true},
+	event.RoleClaimedType:      {Anyone: true, ClaimingSession: true, Subjects: projectOnly},
+	event.RoleReleasedType:     {Anyone: true, ClaimingSession: true, Subjects: projectOnly},
 
 	event.DecisionDefaultedType:   {Roles: loop, Subjects: decisionOnly},
 	event.DecisionAppliedType:     {Roles: loop, Subjects: decisionOnly},
-	event.TaskSessionAttachedType: {Roles: loop, Subjects: taskOnly},
+	event.TaskSessionAttachedType: {Roles: orchOrLoop, Subjects: taskOnly},
 	event.RoutedToOwnerType:       {Roles: loop},
 	event.ConflictDetectedType:    {Roles: loop},
-	event.RoleClaimedType:         {Roles: loop, Subjects: projectOnly},
-	event.RoleReleasedType:        {Roles: loop, Subjects: projectOnly},
 }
 
 // ErrLane is wrapped by every lane error.
@@ -84,9 +93,10 @@ func laneErr(e event.Event, format string, args ...any) error {
 }
 
 // CheckLane checks the parts of C-event-log §3 that need only the event:
-// the type has a lane, the actor's role may write it, and the subject kind
-// fits the type. The parts that need state (own task, addressee, routed to
-// the orchestrator) are in CheckLaneIn.
+// the type has a lane, the actor's role may write it, the subject kind fits
+// the type, and a role claim or release names the actor's own session. The
+// parts that need state (own task, addressee, route owner) are in
+// CheckLaneIn.
 func CheckLane(e event.Event) error {
 	lane, ok := Lanes[e.Type]
 	if !ok {
@@ -98,29 +108,52 @@ func CheckLane(e event.Event) error {
 	if len(lane.Subjects) > 0 && !slices.Contains(lane.Subjects, e.Subject.Kind) {
 		return laneErr(e, "subject kind %q not allowed (want %v)", e.Subject.Kind, lane.Subjects)
 	}
+	if lane.ClaimingSession {
+		var d event.RoleClaimed // RoleReleased has the same fields
+		if err := json.Unmarshal(orEmptyJSON(e.Data), &d); err != nil {
+			return laneErr(e, "%v", err)
+		}
+		if d.Session != e.Actor.ID {
+			return laneErr(e, "a session claims or releases a role only for itself (data.session %q)", d.Session)
+		}
+	}
 	return nil
 }
 
-// SessionTasks returns the ids of tasks whose attached session is this one
-// (the latest TaskSessionAttached names it). A session's "own task"
-// (C-event-log §3) is one of these.
+func orEmptyJSON(b []byte) []byte {
+	if len(b) == 0 || string(b) == "null" {
+		return []byte("{}")
+	}
+	return b
+}
+
+// SessionTasks returns the ids of the session's own tasks (C-event-log v3
+// §3): tasks whose TaskDrafted.session names it, and tasks whose latest
+// TaskSessionAttached names it.
 func (s *State) SessionTasks(session string) []string {
 	var out []string
+	if session == "" {
+		return out
+	}
 	for _, id := range sortedKeys(s.Tasks) {
-		if s.Tasks[id].Session == session {
+		t := s.Tasks[id]
+		if t.Session == session || t.DraftSession == session {
 			out = append(out, id)
 		}
 	}
 	return out
 }
 
-// CheckLaneIn is CheckLane plus the rules that need state (C-event-log §3):
+// CheckLaneIn is CheckLane plus the rules that need state (C-event-log v4 §3):
 //   - TaskHandoff and DecisionRaised by a session or integrator: the subject
-//     task (for a handoff) or raised_by.task (for a decision) must be a task
-//     the actor's session is attached to, and raised_by.session must be the
-//     actor. A decision with raised_by.task null cannot be raised by a session.
+//     task (for a handoff) or raised_by.task (for a decision) must be the
+//     actor's own task (SessionTasks), and raised_by.session must be the
+//     actor. Such a decision cannot have raised_by.task null. The lead,
+//     orchestrator and loop may raise with any raised_by (D-lane-gaps).
 //   - QuestionAnswered: only by the question's addressee (see Addressee).
-//   - RouteResolved: only for a route whose owner is the orchestrator.
+//   - RouteResolved: only by the route's owner (see RouteOwner), matched by
+//     role name or session name. A route the loop has not written yet
+//     counts, so an owner can resolve it early.
 func CheckLaneIn(s *State, e event.Event) error {
 	if err := CheckLane(e); err != nil {
 		return err
@@ -130,7 +163,7 @@ func CheckLaneIn(s *State, e event.Event) error {
 	if err != nil {
 		return laneErr(e, "%v", err)
 	}
-	if lane.OwnTask {
+	if lane.OwnTask && slices.Contains(taskSessions, e.Actor.Role) {
 		own := s.SessionTasks(e.Actor.ID)
 		var task string
 		switch d := p.(type) {
@@ -146,7 +179,7 @@ func CheckLaneIn(s *State, e event.Event) error {
 			task = s.Resolve(*d.RaisedBy.Task)
 		}
 		if !slices.Contains(own, task) {
-			return laneErr(e, "task %q is not the session's own task (attached: %v)", task, own)
+			return laneErr(e, "task %q is not the session's own task (own: %v)", task, own)
 		}
 	}
 	if lane.Addressee {
@@ -156,21 +189,27 @@ func CheckLaneIn(s *State, e event.Event) error {
 			return laneErr(e, "no question %q on %s %s", d.QuestionID, e.Subject.Kind, e.Subject.ID)
 		}
 		to := s.Addressee(e.Subject, q)
-		if to == "" || (string(e.Actor.Role) != to && e.Actor.ID != to) {
+		if !ActorIs(e.Actor, to) {
 			return laneErr(e, "only the addressee %q may answer question %q", to, d.QuestionID)
 		}
 	}
-	if lane.RoutedToOrchestrator {
+	if lane.RouteOwner {
 		d := p.(*event.RouteResolved)
-		r, ok := s.Routes[d.RouteID]
+		to, ok := s.RouteOwner(d.RouteID)
 		if !ok {
 			return laneErr(e, "no route %q", d.RouteID)
 		}
-		if r.To != string(event.RoleOrchestrator) {
-			return laneErr(e, "route %q is routed to %q, not the orchestrator", d.RouteID, r.To)
+		if !ActorIs(e.Actor, to) {
+			return laneErr(e, "route %q is routed to %q", d.RouteID, to)
 		}
 	}
 	return nil
+}
+
+// ActorIs reports whether an actor is the owner named by to: a role name or
+// a session name (C-event-log §4). An empty to matches nobody.
+func ActorIs(a event.Actor, to string) bool {
+	return to != "" && (string(a.Role) == to || a.ID == to)
 }
 
 // Addressee returns who a question is addressed to: its `to` if set,

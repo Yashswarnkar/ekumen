@@ -19,7 +19,7 @@ const SchemaVersion = 1
 // Type is an event type (C-event-log §6).
 type Type string
 
-// v1 event types (C-event-log §6).
+// Event types (C-event-log v4 §6).
 const (
 	TaskDraftedType         Type = "TaskDrafted"
 	TaskApprovedType        Type = "TaskApproved"
@@ -38,9 +38,10 @@ const (
 	QuestionAskedType    Type = "QuestionAsked"
 	QuestionAnsweredType Type = "QuestionAnswered"
 
-	ContractDraftedType   Type = "ContractDrafted"
-	ContractFrozenType    Type = "ContractFrozen"
-	ContractVersionedType Type = "ContractVersioned"
+	ContractDraftedType         Type = "ContractDrafted"
+	ContractBlockersChangedType Type = "ContractBlockersChanged" // C-event-log v4
+	ContractFrozenType          Type = "ContractFrozen"
+	ContractVersionedType       Type = "ContractVersioned"
 
 	ExternalAddedType    Type = "ExternalAdded"
 	ExternalUpdatedType  Type = "ExternalUpdated"
@@ -53,14 +54,14 @@ const (
 	ConflictDetectedType Type = "ConflictDetected"
 )
 
-// Types lists every v1 event type in the order of C-event-log §6.
+// Types lists every event type in the order of C-event-log v4 §6.
 var Types = []Type{
 	TaskDraftedType, TaskApprovedType, TaskAmendedType, TaskBlockersChangedType,
 	TaskSessionAttachedType, TaskHandoffType, TaskDeferredType,
 	DecisionRaisedType, DecisionDecidedType, DecisionDefaultedType,
 	DecisionSupersededType, DecisionAppliedType,
 	QuestionAskedType, QuestionAnsweredType,
-	ContractDraftedType, ContractFrozenType, ContractVersionedType,
+	ContractDraftedType, ContractBlockersChangedType, ContractFrozenType, ContractVersionedType,
 	ExternalAddedType, ExternalUpdatedType, ExternalResolvedType,
 	RoutedToOwnerType, RouteResolvedType, RoleClaimedType, RoleReleasedType,
 	ConflictDetectedType,
