@@ -62,7 +62,7 @@ func LeadActions(s *State, obs Observed, now time.Time, hasBrief func(taskID str
 		c := s.Contracts[id]
 		sub := event.Subject{Kind: event.KindContract, ID: id}
 		switch {
-		case c.DraftedEvent == "":
+		case c.DraftedEvent == "", c.Path == "": // nothing to freeze
 		case c.Status == ContractDraft && len(ContractOpenBlockers(s, obs, id)) == 0:
 			out = append(out, LeadAction{Action: ActionFreeze, Subject: sub, Event: c.DraftedEvent,
 				Reason: "draft contract with no open blockers", Command: "ekumen contract freeze " + id})

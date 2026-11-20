@@ -425,11 +425,7 @@ func mapLinks(s *project.Snapshot, base string) map[string]mapview.Link {
 	}
 	for _, id := range s.TaskIDs() {
 		t := s.State.Tasks[id]
-		brief := t.Brief
-		if brief == "" {
-			brief = "briefs/" + id + "/brief.md"
-		}
-		l := mapview.Link{Source: url(s.RootPath(brief))}
+		l := mapview.Link{Source: url(s.Rel(s.BriefPath(id)))}
 		if n := len(t.Handoffs); n > 0 {
 			l.Handoff = url(s.RootPath(t.Handoffs[n-1].File))
 		}
@@ -469,7 +465,7 @@ func (r *run) check(args []string) error {
 	}
 	// Recorded entry files must still exist.
 	recorded := map[string]bool{}
-	for _, id := range sortedTaskIDs(s) {
+	for _, id := range s.AllTaskIDs() {
 		t := s.State.Tasks[id]
 		for _, f := range append(entryFiles(t.Amendments), handoffFiles(t.Handoffs)...) {
 			recorded[s.RootPath(f)] = true
@@ -504,17 +500,6 @@ func (r *run) check(args []string) error {
 		return &Error{Code: CodeValidation, Silent: true}
 	}
 	return nil
-}
-
-// sortedTaskIDs lists every task id in the state, drafted or not, so
-// entries recorded on an undrafted task (an orphan step) still count.
-func sortedTaskIDs(s *project.Snapshot) []string {
-	ids := make([]string, 0, len(s.State.Tasks))
-	for id := range s.State.Tasks {
-		ids = append(ids, id)
-	}
-	slices.Sort(ids)
-	return ids
 }
 
 // orphanEntries reports amendment and handoff files that no TaskAmended or

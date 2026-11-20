@@ -200,6 +200,11 @@ func CheckLaneIn(s *State, e event.Event) error {
 			return laneErr(e, "task %q is not the session's own task (own: %v)", task, own)
 		}
 	}
+	if slices.Contains(lane.ByDecision, e.Actor.Role) {
+		if err := checkApplyAmendment(s, e, p.(*event.TaskAmended)); err != nil {
+			return err
+		}
+	}
 	if lane.Addressee {
 		d := p.(*event.QuestionAnswered)
 		q, ok := s.FindQuestion(e.Subject, d.QuestionID)
@@ -220,6 +225,31 @@ func CheckLaneIn(s *State, e event.Event) error {
 		if !ActorIs(e.Actor, to) {
 			return laneErr(e, "route %q is routed to %q", d.RouteID, to)
 		}
+	}
+	return nil
+}
+
+// checkApplyAmendment is the state part of the loop's TaskAmended lane
+// (C-event-log v5 §3, D-apply-amend-lane): by_decision must name a decided
+// or defaulted decision that gates the amended task, i.e. lists it in
+// `blocks`, or is listed in the task's blocked_by. A loop actor cannot
+// amend an unrelated task.
+func checkApplyAmendment(s *State, e event.Event, d *event.TaskAmended) error {
+	did := s.Resolve(d.ByDecision)
+	dec, ok := s.Decisions[did]
+	if !ok || len(dec.Raises) == 0 {
+		return laneErr(e, "by_decision %q names no decision", d.ByDecision)
+	}
+	if dec.DecidedEvent == "" {
+		return laneErr(e, "by_decision %s is %s; only a decided or defaulted decision is applied", did, dec.Status)
+	}
+	task := s.Resolve(e.Subject.ID)
+	gates := slices.ContainsFunc(dec.Blocks, func(b string) bool { return s.Resolve(b) == task })
+	if t, ok := s.Tasks[task]; ok && !gates {
+		gates = slices.ContainsFunc(t.BlockedBy, func(b string) bool { return s.Resolve(b) == did })
+	}
+	if !gates {
+		return laneErr(e, "by_decision %s does not block task %s", did, task)
 	}
 	return nil
 }

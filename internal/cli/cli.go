@@ -14,6 +14,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -94,9 +95,12 @@ type Env struct {
 	Observer func(root string) observe.Observer
 	// Commit returns the short commit of the project root, or "".
 	Commit func(root string) string
-	// Git returns what the CLI reads from git for the project root: the
-	// origin remote (for the project name and map links) and the default
-	// branch. Nil or empty fields mean unknown.
+	// Remote returns the URL of the project root's `origin` remote, or "".
+	// Every command uses it for the project name.
+	Remote func(root string) string
+	// Git returns what `ekumen map` reads from git for its links: the
+	// remote, the default branch and the root's prefix in the repository.
+	// Nil or empty fields mean unknown.
 	Git func(root string) GitInfo
 }
 
@@ -133,6 +137,7 @@ func DefaultEnv() Env {
 			return observe.GH{Dir: root}
 		},
 		Commit: func(root string) string { return gitOut(root, "rev-parse", "--short", "HEAD") },
+		Remote: func(root string) string { return gitOut(root, "remote", "get-url", "origin") },
 		Git: func(root string) GitInfo {
 			return GitInfo{
 				Remote:        gitOut(root, "remote", "get-url", "origin"),
@@ -143,16 +148,25 @@ func DefaultEnv() Env {
 	}
 }
 
-// git returns the GitInfo of the project root, read once per run.
+// git returns the GitInfo of the project root (for `ekumen map`).
 func (r *run) git(root string) GitInfo {
-	if r.gitInfo == nil {
-		g := GitInfo{}
-		if r.env.Git != nil {
-			g = r.env.Git(root)
-		}
-		r.gitInfo = &g
+	if r.env.Git == nil {
+		return GitInfo{}
 	}
-	return *r.gitInfo
+	return r.env.Git(root)
+}
+
+// repoName is the origin remote's repository name when root is the top of
+// a git repository (it holds .git), else "" (ProjectName then falls back
+// to the folder name, which suits a project in a monorepo subfolder).
+func (r *run) repoName(root string) string {
+	if r.env.Remote == nil {
+		return ""
+	}
+	if _, err := os.Stat(filepath.Join(root, ".git")); err != nil {
+		return ""
+	}
+	return mapview.RepoName(r.env.Remote(root))
 }
 
 // globals are the flags every command accepts (C-cli-json §1).
@@ -174,8 +188,6 @@ type run struct {
 	g      globals
 	ctx    context.Context
 	warned map[string]bool
-
-	gitInfo *GitInfo
 }
 
 // Run executes one ekumen command and returns its exit status.
@@ -306,7 +318,7 @@ func (r *run) load() (*project.Snapshot, error) {
 		obs = r.env.Observer(root)
 	}
 	s, err := project.Load(r.ctx, project.Options{Root: root, Now: r.now(), Observer: obs,
-		Name: mapview.RepoName(r.git(root).Remote), Warn: func(m string) { r.warn("%s", m) }})
+		Name: r.repoName(root), Warn: func(m string) { r.warn("%s", m) }})
 	if err != nil {
 		return nil, errf(CodeInternal, "%v", err)
 	}

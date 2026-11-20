@@ -98,6 +98,44 @@ func TestCausalOrderWithinSubject_DImportedEventTimeOrder(t *testing.T) {
 	}
 }
 
+// D-imported-event-time-order (review finding 1): an event addressed to an
+// alias is ordered after the event that creates the item and the alias, so
+// an approval of T-old stamped before T-new (aliases [T-old]) was drafted
+// approves T-new, and leaves no phantom task. An approval of an alias
+// nobody declares is an orphan step.
+func TestAliasCausalOrder_DImportedEventTimeOrder(t *testing.T) {
+	b := newLog(t)
+	draft := b.add(event.TaskDraftedType, event.RoleOrchestrator, "orch", event.KindTask, "T-new",
+		event.TaskDrafted{Title: "new", Kind: event.TaskKindBuild, Aliases: []string{"T-old"}})
+	approve := b.approve("T-old", "h")
+	stray := b.approve("T-nobody", "h")
+	b.events[0] = restamp(t, draft, t0.Add(10*time.Minute))
+	b.events[1] = restamp(t, approve, t0.Add(5*time.Minute))
+	s := b.state()
+	if !s.Tasks["T-new"].Approved {
+		t.Errorf("T-new not approved: %+v", s.Tasks["T-new"])
+	}
+	if _, phantom := s.Tasks["T-old"]; phantom {
+		t.Error("a phantom T-old task was created")
+	}
+	got := OrphanStepConflicts(&s, b.events)
+	if len(got) != 1 || got[0].Events[0] != stray.ID {
+		t.Errorf("orphan steps %v, want only %s", got, stray.ID)
+	}
+}
+
+// Review finding 4: routing and conflict events are never orphan steps.
+func TestOrphanStepExemptions_DImportedEventTimeOrder(t *testing.T) {
+	b := newLog(t)
+	b.add(event.RoutedToOwnerType, event.RoleLoop, "loop", event.KindTask, "T-ghost", event.RoutedToOwner{RouteID: "r1", To: "orchestrator"})
+	b.add(event.RouteResolvedType, event.RoleOrchestrator, "o", event.KindTask, "T-ghost", event.RouteResolved{RouteID: "r1", Note: "x"})
+	b.add(event.ConflictDetectedType, event.RoleLoop, "loop", event.KindDecision, "D-ghost", event.ConflictDetected{Rule: "lane"})
+	s := b.state()
+	if got := OrphanStepConflicts(&s, b.events); len(got) != 0 {
+		t.Errorf("orphan steps: %v", got)
+	}
+}
+
 // D-imported-event-time-order: a step whose prerequisite never exists is
 // reported by rule orphan-step, never silently dropped.
 func TestOrphanStep_DImportedEventTimeOrder(t *testing.T) {
@@ -217,11 +255,36 @@ func TestApplyAmendLane_DApplyAmendLane(t *testing.T) {
 			t.Errorf("TaskAmended by %s with %s: %v, want ok=%v", c.role, c.data, err, c.ok)
 		}
 	}
+	// With state (review finding 2): by_decision must be a decided
+	// decision that gates the amended task.
 	b := newLog(t)
 	b.draftTask("T-a")
-	b.add(event.TaskAmendedType, event.RoleLoop, "main", event.KindTask, "T-a",
-		event.TaskAmended{File: "f", TextSHA256: "h", Note: "applies D-x", ByDecision: "D-x"})
-	if s := b.state(); s.Tasks["T-a"].Amendments[0].ByDecision != "D-x" {
+	b.draftTask("T-b")
+	b.draftTask("T-c", "D-x")
+	rec := record("D-x", "T-a", "s1", 2)
+	rec.Blocks = []string{"T-a"}
+	b.add(event.DecisionRaisedType, event.RoleOrchestrator, "orch", event.KindDecision, "D-x", rec)
+	b.add(event.DecisionRaisedType, event.RoleOrchestrator, "orch", event.KindDecision, "D-y", func() event.DecisionRaised {
+		r := record("D-y", "T-b", "s1", 2)
+		r.Blocks = []string{"T-b"}
+		return r
+	}())
+	b.decide("D-x", "a")
+	amend := func(task, by string) event.Event {
+		return b.add(event.TaskAmendedType, event.RoleLoop, "main", event.KindTask, task,
+			event.TaskAmended{File: "f", TextSHA256: "h", Note: "applies " + by, ByDecision: by})
+	}
+	okA, okC, unrelated, pending, ghost := amend("T-a", "D-x"), amend("T-c", "D-x"), amend("T-b", "D-x"), amend("T-b", "D-y"), amend("T-a", "D-none")
+	s := b.state()
+	for _, c := range []struct {
+		e  event.Event
+		ok bool
+	}{{okA, true}, {okC, true}, {unrelated, false}, {pending, false}, {ghost, false}} {
+		if err := CheckLaneIn(&s, c.e); (err == nil) != c.ok {
+			t.Errorf("TaskAmended on %s by %s: %v, want ok=%v", c.e.Subject.ID, string(c.e.Data), err, c.ok)
+		}
+	}
+	if s.Tasks["T-a"].Amendments[0].ByDecision != "D-x" {
 		t.Errorf("by_decision not kept: %+v", s.Tasks["T-a"].Amendments)
 	}
 }

@@ -106,6 +106,23 @@ func TestDecisionApplyAsLoop_DApplyAmendLane(t *testing.T) {
 	if code, m := checkJSON(t, h); code != 0 {
 		t.Errorf("check: %v", m)
 	}
+
+	// A loop actor cannot amend an unrelated task, even naming a decision:
+	// D-gate blocks T-gated, not T-core; D-claim-lane is not decided.
+	h.raw(event.TaskAmendedType, event.RoleLoop, "x", event.KindTask, "T-core",
+		event.TaskAmended{File: "briefs/T-core/amendments/x.md", TextSHA256: "h", Note: "applies D-gate", ByDecision: "D-gate"})
+	h.raw(event.TaskAmendedType, event.RoleLoop, "x", event.KindTask, "T-gated",
+		event.TaskAmended{File: "briefs/T-gated/amendments/y.md", TextSHA256: "h", Note: "x", ByDecision: "D-claim-lane"})
+	code, m := checkJSON(t, h)
+	lanes := 0
+	for _, c := range m["conflicts"].([]any) {
+		if c.(map[string]any)["rule"] == "lane" {
+			lanes++
+		}
+	}
+	if code != ExitConflict || lanes != 2 {
+		t.Errorf("unrelated loop amendments: exit %d, %d lane conflicts: %v", code, lanes, m["conflicts"])
+	}
 	// The orchestrator still writes other amendments; the loop does not.
 	h.write("plain.md", "A plain amendment.\n")
 	out := mustExit(t, h, ExitRefused, "--as", "loop:loop", "task", "amend", "T-gated", "--text-file", "plain.md")
@@ -153,10 +170,19 @@ func TestProjectCheck_DProjectionsInGit(t *testing.T) {
 	h.must("project")
 	os.Remove(filepath.Join(ek, "decisions/D-stray.yaml"))
 	mustExit(t, h, 0, "project", "--check")
-	// The project name comes from the git remote when there is one.
+	// The project name: the remote's repository at the repository top,
+	// the folder in a subfolder (no .git), config.yaml above both.
 	h.git = GitInfo{Remote: "git@github.com:o/ekumen.git"}
+	if _, out, _ := h.run("status", "--json"); decodeJSON(t, out)["project"] != "demo" {
+		t.Errorf("project name without .git at the root: %s", out)
+	}
+	h.write(".git/HEAD", "ref: refs/heads/main\n")
 	if _, out, _ := h.run("status", "--json"); decodeJSON(t, out)["project"] != "ekumen" {
 		t.Errorf("project name from the remote: %s", out)
+	}
+	h.write(".ekumen/config.yaml", "project: Ekumen\n")
+	if _, out, _ := h.run("status", "--json"); decodeJSON(t, out)["project"] != "Ekumen" {
+		t.Errorf("project name from config.yaml: %s", out)
 	}
 }
 
@@ -198,6 +224,13 @@ func TestContractVersion_DContractVersionRecording(t *testing.T) {
 	}
 	if code, m := checkJSON(t, h); code != 0 {
 		t.Errorf("check with a recorded, unfrozen version: %v", m)
+	}
+	// The same version and text, named by another decision (review finding 8).
+	h.write("d-log2.yaml", strings.ReplaceAll(readFile(t, filepath.Join(h.root, "d-log.yaml")), "D-log-change", "D-log-two"))
+	h.must("--as", "orchestrator:main", "decision", "raise", "--file", "d-log2.yaml")
+	h.must("--as", "lead:yash", "decision", "answer", "D-log-two", "go")
+	if out := mustExit(t, h, ExitRefused, "--as", "orchestrator:main", "contract", "version", "C1", "--by", "D-log-two"); !strings.Contains(out, "already recorded by D-log-change") {
+		t.Errorf("same text, other decision: %s", out)
 	}
 	_, out, _ = h.run("inbox", "--for", "lead", "--json")
 	if !strings.Contains(out, `"command": "ekumen contract freeze C-event-log"`) {
@@ -304,7 +337,7 @@ func TestMapFragment_TLogFixes7(t *testing.T) {
 			t.Errorf("fragment contains %s", bad)
 		}
 	}
-	for _, want := range []string{"<style>", `<div class="ekumen-map">`, `id="graph"`, "Chris Pettitt"} {
+	for _, want := range []string{"<style>", `<div class="ekumen-map">`, `data-ek="graph"`, "Chris Pettitt"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("fragment lacks %s", want)
 		}

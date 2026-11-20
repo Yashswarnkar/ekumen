@@ -3,6 +3,7 @@ package project
 import (
 	"cmp"
 	"fmt"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -495,16 +496,24 @@ func (s *Snapshot) Inbox(owner string) []InboxItem {
 
 // hasBrief reports whether a task's brief file exists.
 func (s *Snapshot) hasBrief(id string) bool {
-	t, ok := s.State.Tasks[id]
-	if !ok {
+	if _, ok := s.State.Tasks[id]; !ok {
 		return false
 	}
-	p := t.Brief
-	if p == "" {
-		p = "briefs/" + id + "/brief.md"
-	}
-	return exists(s.ResolvePath(p))
+	return exists(s.BriefPath(id))
 }
+
+// BriefPath is the file path of a task's §A: the brief recorded by
+// TaskDrafted, else briefs/<id>/brief.md under .ekumen/.
+func (s *Snapshot) BriefPath(id string) string {
+	if t, ok := s.State.Tasks[id]; ok && t.Brief != "" {
+		return s.ResolvePath(t.Brief)
+	}
+	return filepath.Join(s.EkumenDir(), "briefs", id, "brief.md")
+}
+
+// AllTaskIDs lists every task id in the state, sorted, drafted or not
+// (an orphan step can record entries on a task never drafted).
+func (s *Snapshot) AllTaskIDs() []string { return sortedKeys(s.State.Tasks) }
 
 func (s *Snapshot) actionTitle(a core.LeadAction) string {
 	title := ""

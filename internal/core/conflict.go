@@ -271,12 +271,17 @@ func IDCollisionConflicts(s *State) []Conflict {
 //   - ExternalUpdated or ExternalResolved with no ExternalAdded;
 //   - QuestionAnswered for a question never asked on that subject.
 //
-// Routing, role and conflict events have no prerequisite here (a route
-// may be resolved before it is written; see State.EarlyResolutions).
+// Routing, role and conflict events (RoutedToOwner, RouteResolved,
+// ConflictDetected, and the project-wide ones) have no prerequisite here: a
+// route may be resolved before it is written (State.EarlyResolutions).
+// Subject ids are resolved through aliases. Conflicts come out ordered by
+// event id; events need not be sorted.
 func OrphanStepConflicts(s *State, events []event.Event) []Conflict {
 	var out []Conflict
-	for _, e := range SortEvents(events) {
-		if !e.Type.Known() {
+	for _, e := range events {
+		switch {
+		case !e.Type.Known(), e.Type == event.RoutedToOwnerType, e.Type == event.RouteResolvedType,
+			e.Type == event.ConflictDetectedType:
 			continue
 		}
 		id := s.Resolve(e.Subject.ID)
@@ -315,7 +320,8 @@ func OrphanStepConflicts(s *State, events []event.Event) []Conflict {
 				fmt.Sprintf("%s %s on %s %s has no %s", e.Type, e.ID, e.Subject.Kind, e.Subject.ID, missing), e.ID))
 		}
 	}
-	return out
+	slices.SortFunc(out, func(a, b Conflict) int { return strings.Compare(a.Events[0], b.Events[0]) })
+	return slices.CompactFunc(out, func(a, b Conflict) bool { return a.Events[0] == b.Events[0] })
 }
 
 // SpineUnapprovedConflicts is rule `spine-unapproved` (C-event-log v5,

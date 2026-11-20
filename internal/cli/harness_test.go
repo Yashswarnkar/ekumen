@@ -53,6 +53,7 @@ func (h *harness) env(stdin string, stdout, stderr *bytes.Buffer) Env {
 		Observer: func(string) observe.Observer { return h.prs },
 		Commit:   func(string) string { return "abc1234" },
 		Git:      func(string) GitInfo { return h.git },
+		Remote:   func(string) string { return h.git.Remote },
 	}
 }
 

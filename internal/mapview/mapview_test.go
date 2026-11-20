@@ -1,6 +1,7 @@
 package mapview
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -73,7 +74,28 @@ func TestRenderFragment_TLogFixes7(t *testing.T) {
 	if strings.Contains(s, "<!doctype") || strings.Contains(s, "<body") || strings.Contains(s, "<head>") {
 		t.Error("fragment has document wrappers")
 	}
-	if strings.Contains(s, "\nbody {") || !strings.Contains(s, ".ekumen-map {") {
-		t.Error("fragment styles the host page's body")
+	if !strings.HasPrefix(strings.TrimSpace(s[strings.Index(s, `<div class="ekumen-map">`):]), `<div class="ekumen-map">`) {
+		t.Error("no wrapper")
+	}
+	// Every style rule is scoped to the wrapper; no element ids.
+	css := s[strings.Index(s, "<style>")+7 : strings.Index(s, "</style>")]
+	css = regexp.MustCompile(`(?s)/\*.*?\*/`).ReplaceAllString(css, "")
+	heads := regexp.MustCompile(`(?:^|[{};])\s*([^{};]+)\{`).FindAllStringSubmatch(css, -1)
+	if len(heads) < 30 {
+		t.Fatalf("found only %d rules", len(heads))
+	}
+	for _, m := range heads {
+		head := strings.TrimSpace(m[1])
+		if strings.HasPrefix(head, "@") {
+			continue
+		}
+		for _, sel := range strings.Split(head, ",") {
+			if !strings.HasPrefix(strings.TrimSpace(sel), ".ekumen-map") {
+				t.Errorf("unscoped selector %q", sel)
+			}
+		}
+	}
+	if regexp.MustCompile(`\sid="[a-z]`).MatchString(s) || strings.Contains(s, "getElementById") {
+		t.Error("fragment uses fixed element ids")
 	}
 }

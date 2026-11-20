@@ -387,15 +387,29 @@ func SortEvents(events []event.Event) []event.Event {
 		}
 		uniq = append(uniq, k)
 	}
-	// One sequence per subject, in causal order.
+	// One sequence per subject, in causal order. An event addressed to an
+	// alias belongs to the aliased item's sequence, so it is ordered after
+	// the event that creates the item (and the alias).
 	type subjectKey struct {
 		kind event.SubjectKind
 		id   string
 	}
+	aliases := map[string]string{}
+	for _, k := range uniq {
+		for _, a := range creatingAliases(k.e) {
+			if _, taken := aliases[a]; !taken && a != k.e.Subject.ID {
+				aliases[a] = k.e.Subject.ID
+			}
+		}
+	}
 	var order []subjectKey
 	seqs := map[subjectKey][]keyed{}
 	for _, k := range uniq {
-		sk := subjectKey{k.e.Subject.Kind, k.e.Subject.ID}
+		id := k.e.Subject.ID
+		if to, ok := aliases[id]; ok {
+			id = to
+		}
+		sk := subjectKey{k.e.Subject.Kind, id}
 		if _, ok := seqs[sk]; !ok {
 			order = append(order, sk)
 		}
@@ -445,6 +459,31 @@ func SortEvents(events []event.Event) []event.Event {
 		down(h, 0)
 	}
 	return out
+}
+
+// creatingAliases returns the aliases an item-creating event declares
+// (TaskDrafted, DecisionRaised, ContractDrafted, ExternalAdded), or nil.
+func creatingAliases(e event.Event) []string {
+	switch e.Type {
+	case event.TaskDraftedType, event.DecisionRaisedType, event.ContractDraftedType, event.ExternalAddedType:
+	default:
+		return nil
+	}
+	p, err := e.Payload()
+	if err != nil {
+		return nil
+	}
+	switch d := p.(type) {
+	case *event.TaskDrafted:
+		return d.Aliases
+	case *event.DecisionRaised:
+		return d.Aliases
+	case *event.ContractDrafted:
+		return d.Aliases
+	case *event.ExternalAdded:
+		return d.Aliases
+	}
+	return nil
 }
 
 // Reduce folds an event log into State. Events are applied in log order

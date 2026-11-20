@@ -31,7 +31,7 @@ Golden test: `testdata/log.jsonl` reduces to `testdata/state.golden.json` (state
 
 ## Log order
 
-`SortEvents` orders the log causally within each subject (D-imported-event-time-order, C-event-log v5 §2): one subject's events are ordered by `LifecycleRank` first and their ULID time second, so an apply always comes after its decide even when it is stamped earlier (a backdated import, clock skew). The subjects' sequences are then merged by time, always taking the earliest next event. Project-wide events (role claims, spine approvals) are not one item's lifecycle and keep plain time order. Remaining ties break by rank, then id. A step whose prerequisite never exists is reported as `orphan-step`.
+`SortEvents` orders the log causally within each subject (D-imported-event-time-order, C-event-log v5 §2): one subject's events are ordered by `LifecycleRank` first and their ULID time second, so an apply always comes after its decide even when it is stamped earlier (a backdated import, clock skew). The subjects' sequences are then merged by time, always taking the earliest next event. Project-wide events (role claims, spine approvals) are not one item's lifecycle and keep plain time order. An event addressed to an alias joins the sequence of the item whose creating event declares that alias. Remaining ties break by rank, then id. A step whose prerequisite never exists is reported as `orphan-step`.
 
 | Rank | Types |
 |---|---|

@@ -16,7 +16,7 @@ The CLI is how people, agents and scripts read and change Ekumen state. The comm
 | Exit codes | `0` ok · `1` usage · `2` refused (validation, lane, or role claim) · `3` not found · `4` conflict · `5` internal. |
 | Errors | With `--json`: `{"error": {"code": "lane\|validation\|not_found\|conflict\|usage\|internal", "message": "…", "field": "…"}}`. |
 | Writes | Print `{"ok": true, "events": [ids], "paths": [files written]}`. A write records all its events or none. After every write the projections are regenerated, and the changed ones are listed in `paths`. The CLI never commits; `git add` the paths yourself (`registry.yaml` and `state.json` are git-ignored, see [Projections](#projections)). |
-| Project name | The repository name of the `origin` remote, else the folder holding `.ekumen/`. |
+| Project name | `project:` in `.ekumen/config.yaml` if that committed, owner-edited file exists; else, when the project root is the top of a git repository, the `origin` remote's repository name; else the name of the folder holding `.ekumen/` (so a project in a monorepo subfolder is named after its folder). `registry.yaml` is not read. |
 | Observed state | `status`, `task`, `graph`, `map` and the projections read pull requests with `gh pr list` from the project root. Without `gh` (or with `EKUMEN_OBSERVE=off`) a task's `observed` is `null`, a warning goes to stderr, and statuses are derived from events alone. |
 
 ## Read commands
@@ -104,7 +104,7 @@ wrote /tmp/ekumen-map.html: 7 nodes, 6 edges, 2 inbox items
 
 One self-contained HTML file (inbox, pull requests, task graph, decided list) built from the same data as `graph` and `inbox --for lead`. It makes no network requests: dagre 0.8.5 (MIT) is inlined for the layout.
 
-- `--fragment` writes the page without `<!doctype>`, `<html>`, `<head>` and `<body>`, for embedding in another page. The styles are scoped to a wrapping `<div class="ekumen-map">`.
+- `--fragment` writes the page without `<!doctype>`, `<html>`, `<head>` and `<body>`, for embedding in another page. Every style rule (custom properties and dark mode included) is scoped to the wrapping `<div class="ekumen-map">`, and the page uses no fixed element ids: its script finds elements inside its own wrapper, and SVG marker ids are unique per page, so several maps can share one host page.
 - **Links.** Every item links to its full text on the git host, in a new tab: decisions to `.ekumen/decisions/<id>.yaml`, tasks to their `brief.md` and latest handoff, contracts to their body, PRs to the PR. The link base comes from the `origin` remote: `git@github.com:o/r.git`, `ssh://git@github.com/o/r.git` and `https://github.com/o/r(.git)` give `https://github.com/o/r/blob/<default branch>/` (the default branch is `origin/HEAD`, else `main`). GitHub is the only built-in host; for any other, pass `--link-base` (e.g. `--link-base https://git.example.com/o/r/src/branch/main/`). With no remote and no `--link-base`, ids are plain text.
 
 ### `ekumen check`
@@ -287,7 +287,7 @@ For a decided or defaulted decision (C-decision-record §3, D-apply-before-loop)
 
 - **Idempotent:** applying an applied decision prints `{"ok": true, "events": [], "paths": []}` and writes nothing.
 - A pending or superseded decision is refused (exit 2).
-- Everything is written as the loop: `DecisionApplied`, and each `TaskAmended` with `by_decision: <id>`, which is in the loop's lane (C-event-log v5 §3, D-apply-amend-lane). No orchestrator claim is needed. Other amendments stay with the orchestrator.
+- Everything is written as the loop: `DecisionApplied`, and each `TaskAmended` with `by_decision: <id>`, which is in the loop's lane (C-event-log v5 §3, D-apply-amend-lane). No orchestrator claim is needed. The loop may amend a task only for a decided (or defaulted) decision that blocks it (in the decision's `blocks` or the task's `blocked_by`); anything else is a `lane` conflict. Other amendments stay with the orchestrator.
 - The command checks that the apply takes effect in the log before recording it.
 
 ### `ekumen contract draft --file <c.yaml> [--text-file body.md]` (orchestrator, with the claim)
@@ -421,5 +421,6 @@ After the switch point nobody edits `.ekumen/` by hand, with these exceptions (D
 | `.ekumen/contracts/<id>.md` | orchestrator | Draft: free to edit. Frozen: changed only through a decided tier-2 decision, `contract version` and `contract freeze`; `check` reports `frozen-text-changed` otherwise. |
 | `.ekumen/briefs/<id>/brief.md` (§A) | orchestrator | Only before `task approve`, which hashes it; afterwards `check` reports `frozen-text-changed`. Changes go in §B (`task amend`). |
 | `.ekumen/research/*.md` | the research task's session | Cited as evidence; no hash yet. |
+| `.ekumen/config.yaml` (optional) | orchestrator | `project:` names the project. |
 
 Everything else (events, amendments, handoffs, generated files) is written by `ekumen`. An amendment or handoff file with no event is reported by `check` as `orphan-entry`.

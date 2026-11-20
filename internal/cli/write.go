@@ -512,13 +512,6 @@ func orEmpty(s []string) []string {
 	return s
 }
 
-func (r *run) briefPath(s *project.Snapshot, id string) string {
-	if b := s.State.Tasks[id].Brief; b != "" {
-		return s.ResolvePath(b)
-	}
-	return filepath.Join(s.EkumenDir(), "briefs", id, "brief.md")
-}
-
 func (r *run) taskApprove(args []string) error {
 	fs := r.newFlags("task approve")
 	var grants strList
@@ -546,7 +539,7 @@ func (r *run) taskApprove(args []string) error {
 	if t.Approved {
 		return fieldErr(CodeValidation, "id", "%s was approved on %s; §A is frozen (amend it instead)", id, t.ApprovedOn)
 	}
-	sum, err := files.HashFile(r.briefPath(s, id))
+	sum, err := files.HashFile(s.BriefPath(id))
 	if err != nil {
 		return fieldErr(CodeNotFound, "brief", "%s: cannot hash the brief: %v", id, err)
 	}
@@ -871,6 +864,9 @@ func (r *run) contractVersion(args []string) error {
 		}
 		if f.TextSHA256 == sum && f.ByDecision == did {
 			return r.noop(fmt.Sprintf("%s version %d is already recorded by %s", id, version, did))
+		}
+		if f.TextSHA256 == sum {
+			return fieldErr(CodeValidation, "by", "%s version %d with this text is already recorded by %s, not %s; a version names one decision", id, version, f.ByDecision, did)
 		}
 		return fieldErr(CodeValidation, "version", "%s version %d is already recorded (by %s) with other text; bump `version` in the front matter", id, version, f.ByDecision)
 	}

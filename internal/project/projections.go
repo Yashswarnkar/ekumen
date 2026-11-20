@@ -248,16 +248,24 @@ func (s *Snapshot) DecisionYAML(id string) ([]byte, error) {
 	return encodeYAML(generatedHeader, mapping(false, pairs...))
 }
 
-// ProjectName is the project's name: Options.Name (the CLI passes the
-// repository name from the git remote), else the `project` field of an
-// existing registry.yaml (a local, git-ignored projection since
-// D-projections-in-git), else the name of the folder holding .ekumen/.
+// ConfigFile is an optional, committed, owner-edited .ekumen/config.yaml.
+// Its `project` field names the project.
+const ConfigFile = "config.yaml"
+
+// ProjectName is the project's name, in this order:
+//  1. `project:` in .ekumen/config.yaml, if the file exists (committed);
+//  2. Options.Name: the CLI passes the origin remote's repository name,
+//     but only when the project root is the repository's top, so a project
+//     in a monorepo subfolder is not named after the whole repository;
+//  3. the name of the folder holding .ekumen/.
+//
+// registry.yaml is not read: it is a local projection (D-projections-in-git).
 func (s *Snapshot) ProjectName() string {
+	if v := s.yamlField(ConfigFile, "project"); v != "" {
+		return v
+	}
 	if s.name != "" {
 		return s.name
-	}
-	if v := s.registryField("project"); v != "" {
-		return v
 	}
 	return filepath.Base(s.Root)
 }
@@ -270,11 +278,12 @@ func (s *Snapshot) Lead() string {
 			return s.Events[i].Actor.ID
 		}
 	}
-	return s.registryField("lead")
+	return s.yamlField(RegistryFile, "lead")
 }
 
-func (s *Snapshot) registryField(key string) string {
-	b, err := os.ReadFile(filepath.Join(s.EkumenDir(), RegistryFile))
+// yamlField reads a top-level string field of a YAML file in .ekumen/.
+func (s *Snapshot) yamlField(file, key string) string {
+	b, err := os.ReadFile(filepath.Join(s.EkumenDir(), file))
 	if err != nil {
 		return ""
 	}
