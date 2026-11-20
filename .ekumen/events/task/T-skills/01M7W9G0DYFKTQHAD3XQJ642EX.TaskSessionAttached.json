@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7W9G0DYFKTQHAD3XQJ642EX","type":"TaskSessionAttached","at":"2026-11-20T10:54:33.918501Z","actor":{"role":"orchestrator","id":"main"},"subject":{"kind":"task","id":"T-skills"},"data":{"session":"t-skills","adapter":""}}

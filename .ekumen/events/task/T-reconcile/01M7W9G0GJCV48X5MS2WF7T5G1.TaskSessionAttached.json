@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7W9G0GJCV48X5MS2WF7T5G1","type":"TaskSessionAttached","at":"2026-11-20T10:54:34.002442Z","actor":{"role":"orchestrator","id":"main"},"subject":{"kind":"task","id":"T-reconcile"},"data":{"session":"t-reconcile","adapter":""}}
