@@ -173,7 +173,7 @@ tasks:
     worktree: .worktrees/t-log-fixes
     session: t-log-fixes
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: ready
+    status: running
   T-reconcile:
     title: Control loop, one pass (ekumen reconcile)
     kind: build
@@ -234,3 +234,4 @@ contracts:
   C-decision-record: {title: Decision record, aliases: [C2], path: contracts/C-decision-record.md, status: frozen, version: 2}
   C-event-log: {title: Event log, aliases: [C1], path: contracts/C-event-log.md, status: frozen, version: 4}
   C-http-api: {title: HTTP API for the UI, aliases: [C5], path: contracts/C-http-api.md, status: draft, version: 0}
+  C-roles: {title: Roles and rules, path: contracts/C-roles.md, status: draft, version: 0}

@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7W2SZ1NX59EAGWQRA5Z9AM8","type":"ContractDrafted","at":"2026-11-20T08:57:40.149631Z","actor":{"role":"orchestrator","id":"main"},"subject":{"kind":"contract","id":"C-roles"},"data":{"title":"Roles and rules","path":"contracts/C-roles.md","blocked_by":["D-roles-and-rules"]}}

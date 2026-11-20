@@ -270,7 +270,7 @@
       "aliases": [],
       "title": "Event log fixes from the first audit",
       "kind": "build",
-      "status": "ready",
+      "status": "running",
       "blocked_by": [
         "D-imported-event-time-order",
         "D-projections-in-git",
@@ -2225,6 +2225,56 @@
       "holds_up": []
     },
     {
+      "id": "D-roles-and-rules",
+      "aliases": [],
+      "title": "Make roles and rules Ekumen's extension point",
+      "tier": 2,
+      "raised_by": {
+        "task": null,
+        "session": "main",
+        "on": "2026-11-20"
+      },
+      "question": "Kinds of agent work (review, research, audit, test, release…) are today one-off briefs that start only when the orchestrator remembers. Should Ekumen let each project declare reusable roles and the rules that start them, as plain files the control loop evaluates in code?\n",
+      "options": [
+        {
+          "id": "roles-and-rules",
+          "tradeoff": "Two small file kinds: a role (prompt, grants, output lane, escalation) and a rule (when / if / start / gate). The loop evaluates rules without tokens and starts roles through adapters; outputs enter through existing lanes. Ekumen stays a coordination layer and never builds reviewers or testers itself. Needs a new contract (C-roles), rule evaluation in T-reconcile, and an adapter to start sessions.\n"
+        },
+        {
+          "id": "briefs-only",
+          "tradeoff": "Keep one-off briefs (as T-audit is). No new concepts, but recurring work depends on someone remembering, and nothing gates a merge on a review.\n"
+        },
+        {
+          "id": "hardcoded-roles",
+          "tradeoff": "Build a fixed set (reviewer, tester, auditor) into Ekumen. Quick for the common cases, but every new kind of work needs a code change, and it pulls Ekumen into doing the work instead of coordinating it.\n"
+        }
+      ],
+      "recommendation": "roles-and-rules",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [],
+      "context": {
+        "summary": "Raised from the lead's observation that most PRs go unreviewed and that research and other work need their own kinds of agents. T-audit showed a new role can be added in minutes as a brief; what's missing is reuse and triggers. Until rules run, the orchestrator runs /code-review on each PR by hand before asking to merge.\n",
+        "evidence": [
+          ".ekumen/briefs/T-audit/brief.md",
+          ".ekumen/spine.md"
+        ],
+        "prior_decisions": []
+      },
+      "status": "pending",
+      "questions": [],
+      "answer": null,
+      "answer_note": null,
+      "decided_by": null,
+      "decided_on": null,
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 0,
+      "holds_up": []
+    },
+    {
       "id": "D-slug-length-scope",
       "aliases": [],
       "title": "Does the 40-character limit in C-event-log §1 cover the slug or the whole id?",
@@ -2677,12 +2727,29 @@
       "path": "contracts/C-http-api.md",
       "status": "draft",
       "version": 0
+    },
+    {
+      "id": "C-roles",
+      "aliases": [],
+      "title": "Roles and rules",
+      "path": "contracts/C-roles.md",
+      "status": "draft",
+      "version": 0
     }
   ],
   "externals": [],
   "questions": [],
   "inbox": {
-    "lead": [],
+    "lead": [
+      {
+        "kind": "decision",
+        "id": "D-roles-and-rules",
+        "title": "Make roles and rules Ekumen's extension point",
+        "priority": 0,
+        "reason": "blocks 0 tasks",
+        "created_at": "2026-11-20T08:57:06Z"
+      }
+    ],
     "orchestrator": [
       {
         "kind": "route",
@@ -2715,9 +2782,10 @@
     "tasks_by_status": {
       "done": 9,
       "draft": 6,
-      "ready": 2
+      "ready": 1,
+      "running": 1
     },
-    "decisions_open": 0,
+    "decisions_open": 1,
     "routes_open": 2,
     "conflicts": 0
   }
