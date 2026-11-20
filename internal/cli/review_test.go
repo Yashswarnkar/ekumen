@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Yashswarnkar/ekumen/internal/event"
 )
 
 func TestProjectionFailureIsNotSuccess(t *testing.T) {
@@ -46,5 +48,34 @@ func TestApplyAmendTextFrontMatterMustMatchTask(t *testing.T) {
 	}
 	if fs, _ := filepath.Glob(filepath.Join(h.root, ".ekumen/briefs/*/amendments/*")); len(fs) != 1 {
 		t.Errorf("amendment files written: %v", fs)
+	}
+}
+
+func TestApplyRerunAfterPartialApply(t *testing.T) {
+	h := gapsFixture(t)
+	h.write("d-two.yaml", strings.NewReplacer("D-gate", "D-two", "blocks: [T-gated]", "blocks: [T-gated, T-skills]").Replace(gateDecision))
+	h.must("--as", "lead:yash", "decision", "raise", "--file", "d-two.yaml")
+	h.must("--as", "lead:yash", "decision", "answer", "D-two", "go")
+	h.write(".ekumen/briefs/T-gated/amendments/20261120T090000Z-main.md", "---\ntask: T-gated\nauthor: main\ndate: 2026-11-20\n---\n\nApplied D-two.\n")
+	h.raw(event.TaskAmendedType, event.RoleLoop, "main", event.KindTask, "T-gated",
+		event.TaskAmended{File: "briefs/T-gated/amendments/20261120T090000Z-main.md", TextSHA256: "x", Note: "applies D-two", ByDecision: "D-two"})
+
+	h.must("--as", "loop:main", "decision", "apply", "D-two")
+	for task, want := range map[string]int{"T-gated": 1, "T-skills": 1} {
+		var n int
+		evs, _ := filepath.Glob(filepath.Join(h.root, ".ekumen/events/task", task, "*.TaskAmended.json"))
+		for _, p := range evs {
+			b, _ := os.ReadFile(p)
+			if strings.Contains(string(b), `"by_decision": "D-two"`) || strings.Contains(string(b), `"by_decision":"D-two"`) {
+				n++
+			}
+		}
+		if n != want {
+			t.Errorf("%s: %d amendments by D-two, want %d", task, n, want)
+		}
+	}
+	_, out, _ := h.run("decision", "show", "D-two", "--json")
+	if d := decodeJSON(t, out)["decision"].(map[string]any); d["applied_on"] == nil {
+		t.Errorf("not applied: %v", d)
 	}
 }
