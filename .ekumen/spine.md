@@ -47,6 +47,8 @@ Most waiting is for **permission, not judgment**. Removing permission waits is a
 
 **Decision priority** = tasks blocked transitively × urgency of the deadline. Computed in code.
 
+**Roles and rules (D-roles-and-rules, C-roles).** A *role* is a reusable kind of agent work that a project declares: what the agent is told, what it may do, and where its output goes (e.g. reviewer, auditor, tester). A *rule* says when the control loop starts a role and what its verdict holds back (e.g. "every build PR gets a reviewer; merge waits for a pass"). Both are plain files the lead approves. Ekumen coordinates them and never does the work itself, so a project grows its workflow by adding roles, not by changing Ekumen.
+
 ## 4. Decision tiers
 
 | Tier | Who decides | Mechanism |
@@ -87,6 +89,8 @@ Most waiting is for **permission, not judgment**. Removing permission waits is a
 3. **Adapters** hold every tool-specific choice. A generic ACP adapter covers any agent that speaks ACP v1 (D-015, D-018). Native adapters add what ACP can't do, starting with **Claude Code** for v0.1: status from hooks plus `claude agents --json` (D-013); answers delivered on the session's input stream for managed sessions (D-014); it runs the lead's own installed `claude` under the lead's login and never handles credentials (D-017). Codex, Gemini CLI and OpenCode adapters follow the same interface.
 
 A decision about one tool is recorded against its adapter, never written into the core.
+
+- **Rules are evaluated by the control loop in code** (no tokens), and start roles through agent adapters. Role runs are ordinary tasks whose handoffs carry a verdict; gates hold a task's `done` until the verdict passes (C-roles).
 
 ## 7. v0.1 scope
 
