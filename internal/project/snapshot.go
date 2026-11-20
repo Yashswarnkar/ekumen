@@ -47,10 +47,21 @@ type Snapshot struct {
 	// unavailable, so observed state is unknown.
 	PRs      map[string]observe.PR
 	Observed core.Observed
+	// PRsObserved is ObserveOK, ObserveUnavailable or ObserveTruncated.
+	PRsObserved string
 
 	byID map[string]event.Event
 	name string
 }
+
+// How pull requests were observed at load time.
+const (
+	ObserveOK          = "ok"
+	ObserveUnavailable = "unavailable"
+	// ObserveTruncated: the observer hit its limit, so older PRs may be
+	// missing (issue #15).
+	ObserveTruncated = "truncated"
+)
 
 // Options configure Load.
 type Options struct {
@@ -119,13 +130,32 @@ func Load(ctx context.Context, opt Options) (*Snapshot, error) {
 		obs = observe.None{}
 	}
 	prs, err := obs.PullRequests(ctx)
-	if err != nil {
+	switch {
+	case errors.Is(err, observe.ErrTruncated):
+		warn("observed state may be incomplete: " + err.Error())
+		s.PRs, s.PRsObserved = observe.ByBranch(prs), ObserveTruncated
+	case err != nil:
 		warn("observed state unknown: " + err.Error())
-	} else {
-		s.PRs = observe.ByBranch(prs)
+		s.PRsObserved = ObserveUnavailable
+	default:
+		s.PRs, s.PRsObserved = observe.ByBranch(prs), ObserveOK
 	}
 	s.Observed = s.observed()
 	return s, nil
+}
+
+// Absorb adds events already written to the log to the snapshot and
+// derives state again, keeping the observations made at load time.
+func (s *Snapshot) Absorb(evs ...event.Event) {
+	for _, e := range evs {
+		if _, ok := s.byID[e.ID]; ok {
+			continue
+		}
+		s.Events = append(s.Events, e)
+		s.byID[e.ID] = e
+	}
+	s.State = core.Reduce(s.Events)
+	s.Observed = s.observed()
 }
 
 func (s *Snapshot) observed() core.Observed {

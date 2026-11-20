@@ -29,6 +29,8 @@ type harness struct {
 	git  gitInfo
 	// commit is what Env.Commit answers.
 	commit string
+	// beforeAction is Env.beforeAction (reconcile tests).
+	beforeAction func(int) error
 }
 
 // gitInfo is what the fake Env.Git answers.
@@ -74,6 +76,8 @@ func (h *harness) env(stdin string, stdout, stderr *bytes.Buffer) Env {
 		Observer: func(string) observe.Observer { return h.prs },
 		Commit:   func(string) string { return h.commit },
 		Git:      func(_ string, args ...string) string { return h.git.run(args...) },
+
+		beforeAction: h.beforeAction,
 	}
 }
 

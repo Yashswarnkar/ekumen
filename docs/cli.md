@@ -17,7 +17,7 @@ The CLI is how people, agents and scripts read and change Ekumen state. The comm
 | Errors | With `--json`: `{"error": {"code": "lane\|validation\|not_found\|conflict\|usage\|internal", "message": "…", "field": "…"}}`. |
 | Writes | Print `{"ok": true, "events": [ids], "paths": [files written]}`. A write records all its events or none. After every write the projections are regenerated, and the changed ones are listed in `paths`; if that fails, the events stay recorded and the write exits `5` (`internal`, naming the recorded events): run `ekumen project`. The CLI never commits; `git add` the paths yourself (`registry.yaml` and `state.json` are git-ignored, see [Projections](#projections)). |
 | Project name | `project:` in `.ekumen/config.yaml` if that committed, owner-edited file exists; else, when the project root is the top of a git repository, the `origin` remote's repository name; else the name of the folder holding `.ekumen/` (so a project in a monorepo subfolder is named after its folder). `registry.yaml` is not read. |
-| Observed state | `status`, `task`, `graph`, `map` and the projections read pull requests with `gh pr list` from the project root. Without `gh` (or with `EKUMEN_OBSERVE=off`) a task's `observed` is `null`, a warning goes to stderr, and statuses are derived from events alone. |
+| Observed state | `status`, `task`, `graph`, `map` and the projections read pull requests with `gh pr list` from the project root. Without `gh` (or with `EKUMEN_OBSERVE=off`) a task's `observed` is `null`, a warning goes to stderr, and statuses are derived from events alone. `gh pr list` is capped at 200 pull requests; when it returns exactly that many, a warning goes to stderr because older ones may be missing (issue #15). |
 
 ## Read commands
 
@@ -289,6 +289,7 @@ For a decided or defaulted decision (C-decision-record §3, D-apply-before-loop)
 - A pending or superseded decision is refused (exit 2).
 - Everything is written as the loop: `DecisionApplied`, and each `TaskAmended` with `by_decision: <id>`, which is in the loop's lane (C-event-log v5 §3, D-apply-amend-lane). No orchestrator claim is needed. The loop may amend a task only for a decided (or defaulted) decision that blocks it (in the decision's `blocks` or the task's `blocked_by`); anything else is a `lane` conflict. Other amendments stay with the orchestrator.
 - The command checks that the apply takes effect in the log before recording it.
+- `ekumen reconcile` applies every decided or defaulted decision the same way, with the same code (`core.ApplyEffectOf`); `decision apply` stays for applying one decision by hand, or with `--amend-text-file`.
 
 ### `ekumen contract draft --file <c.yaml> [--text-file body.md]` (orchestrator, with the claim)
 
@@ -398,6 +399,53 @@ $ ekumen project --check --json
 Regenerates `decisions/<id>.yaml`, `registry.yaml` and `state.json` from the events (plus observed pull requests for task status). It does nothing on an empty log, so hand-written records are not replaced before they are imported.
 
 `--check` writes nothing: it fails (exit 2) if a committed `decisions/<id>.yaml` is stale or missing, or names no decision in the log. CI runs it (`scripts/ci-check.sh`).
+
+### `ekumen reconcile [--dry-run]` (loop)
+
+One pass of the control loop (D-control-loop, spine §6, §7). It compares the event log with the observed pull requests and takes only the loop's own actions, in this order:
+
+| `kind` | When | Records |
+|---|---|---|
+| `default` | A pending tier-1 decision whose `deadline` is before today (UTC). The deadline day itself is still answerable. | `DecisionDefaulted {answer: default_if_no_answer, deadline}` |
+| `apply` | A decided or defaulted decision that is neither applied nor superseded, including one defaulted earlier in this pass. | What `decision apply` records: a §B amendment (generated line) per drafted task in `blocks` not yet amended for it, then `DecisionApplied` |
+| `route` | A handoff with follow-ups, decisions raised or deviations, or an unanswered question, not yet routed (C-event-log §4). | `RoutedToOwner` |
+| `conflict` | A C-event-log §5 conflict not yet recorded. | A tier-2 decision `D-conflict-<rule>-<last 6 characters of its lowest event id, lowercased>` (options `fix` and `accept`, no recommendation, no blocks, the events' files as evidence, raised by the loop for no task), then `ConflictDetected {rule, events}` on that decision |
+
+It also reports, without acting: `ready` tasks, tasks `not_startable` because branch or worktree is empty (D-placeholder-task-fields), the tasks this pass `unblocked`, and the sessions to `notify` of amended tasks. It never starts or messages sessions.
+
+```
+$ ekumen --as loop:main reconcile
+reconcile: 3 action(s), 4 event(s); pull requests observed: ok
+  default  default D-late to `a`: deadline 2026-11-19 passed
+  apply    apply D-late (defaulted `a`): amend T-gated; unblock T-gated
+  route    route route-01M7W42VG0000000000000000N (task T-cli) to orchestrator: handoff has follow-ups, decisions raised or deviations
+ready: T-gated
+not startable (no branch or worktree, D-placeholder-task-fields): none
+unblocked: T-gated
+notify: t-gated
+  …
+```
+
+```jsonc
+// ekumen --as loop:main reconcile --json
+{"ok": true, "dry_run": false, "observed": {"prs": "ok"},     // ok | unavailable | truncated
+ "actions": [{"kind": "apply", "subject": {"kind": "decision", "id": "D-late"},
+              "detail": "apply D-late (defaulted `a`): amend T-gated; unblock T-gated",
+              "events": ["01M7…", "01M7…"], "paths": [".ekumen/briefs/T-gated/amendments/…md", "…"]}],
+ "ready": [{"id": "T-gated", "branch": "build/t-gated", "worktree": ".worktrees/t-gated",
+            "session": "t-gated", "brief": ".ekumen/briefs/T-gated/brief.md"}],   // null when unknown
+ "not_startable": [{"id": "T-skills", "missing": ["branch", "worktree"], "decision": "D-placeholder-task-fields"}],
+ "unblocked": ["T-gated"], "notify": ["t-gated"],
+ "events": ["01M7…"], "paths": ["…", ".ekumen/decisions/D-late.yaml", ".ekumen/registry.yaml", ".ekumen/state.json"]}
+```
+
+- **Actor:** `--as loop:<session>`; any other role is refused (exit 2). `--dry-run` needs no actor.
+- **One pass:** the log is loaded and pull requests observed once. Each action is written as its own all-or-none write, in plan order, each admitted against the log including the actions already written. Projections are regenerated once at the end, from the same observation.
+- **Idempotent and closed:** every action's last event marks it done (`DecisionApplied` after the amendments, `ConflictDetected` after the conflict's decision), so a second pass right after records nothing. A pass that fails partway exits `5` and names the events it recorded; the next pass finishes the work without repeating any of it.
+- **`--dry-run`** writes nothing (no events, entries or projections). It prints the same report with `dry_run: true`, the planned event ids, and `planned`: the planned events in full. Amendment files and their hashes are only known once written, so planned `TaskAmended` events have an empty `file` and `text_sha256`.
+- **Observation:** when pull requests are `unavailable` or `truncated`, the pass still defaults, applies, routes and records conflicts (only `unblocked_tasks` depends on pull requests, and it is then derived from events alone, with a warning). `ready` is `null` (unknown).
+- **Exit codes:** `0` when the pass completed, including when it recorded conflicts: they are now decisions in the lead's inbox, and `ekumen check` stays the CI gate. Otherwise the C-cli-json codes.
+- **Run one pass at a time.** Two concurrent passes may both raise the same conflict decision; run as different `loop:<session>` actors, `check` reports that as `id-collision`; duplicate defaults, applies and routes are ignored by the reducer. A write lock waits for the decision on issue #12.
 
 ## Skills commands
 

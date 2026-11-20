@@ -1,0 +1,304 @@
+{
+  "ok": true,
+  "dry_run": true,
+  "observed": {
+    "prs": "ok"
+  },
+  "actions": [
+    {
+      "kind": "default",
+      "subject": {
+        "kind": "decision",
+        "id": "D-late-default"
+      },
+      "detail": "default D-late-default to `go-yaml-in`: deadline 2026-11-19 passed",
+      "events": [
+        "01M7W4HG80000000000000000X"
+      ],
+      "paths": []
+    },
+    {
+      "kind": "apply",
+      "subject": {
+        "kind": "decision",
+        "id": "D-gate"
+      },
+      "detail": "apply D-gate (decided `go`): amend T-gated; unblock none",
+      "events": [
+        "01M7W4HG80000000000000000Y",
+        "01M7W4HG80000000000000000Z"
+      ],
+      "paths": []
+    },
+    {
+      "kind": "apply",
+      "subject": {
+        "kind": "decision",
+        "id": "D-gate-two"
+      },
+      "detail": "apply D-gate-two (decided `go`): amend T-gated; unblock none",
+      "events": [
+        "01M7W4HG800000000000000010",
+        "01M7W4HG800000000000000011"
+      ],
+      "paths": []
+    },
+    {
+      "kind": "apply",
+      "subject": {
+        "kind": "decision",
+        "id": "D-late-default"
+      },
+      "detail": "apply D-late-default (defaulted `go-yaml-in`): amend T-gated; unblock T-gated",
+      "events": [
+        "01M7W4HG800000000000000012",
+        "01M7W4HG800000000000000013"
+      ],
+      "paths": []
+    },
+    {
+      "kind": "route",
+      "subject": {
+        "kind": "task",
+        "id": "T-cli"
+      },
+      "detail": "route route-01M7W3VH40000000000000000H (task T-cli) to t-cli: question addressed to owner",
+      "events": [
+        "01M7W4HG800000000000000014"
+      ],
+      "paths": []
+    },
+    {
+      "kind": "route",
+      "subject": {
+        "kind": "task",
+        "id": "T-cli"
+      },
+      "detail": "route route-01M7W42VG0000000000000000N (task T-cli) to orchestrator: handoff has follow-ups, decisions raised or deviations",
+      "events": [
+        "01M7W4HG800000000000000015"
+      ],
+      "paths": []
+    }
+  ],
+  "ready": [
+    {
+      "id": "T-core",
+      "branch": "build/t-core",
+      "worktree": ".worktrees/t-core",
+      "session": "t-core",
+      "brief": ".ekumen/briefs/T-core/brief.md"
+    },
+    {
+      "id": "T-gated",
+      "branch": "build/t-gated",
+      "worktree": ".worktrees/t-gated",
+      "session": "t-gated",
+      "brief": ".ekumen/briefs/T-gated/brief.md"
+    }
+  ],
+  "not_startable": [],
+  "unblocked": [
+    "T-gated"
+  ],
+  "notify": [
+    "t-gated"
+  ],
+  "events": [
+    "01M7W4HG80000000000000000X",
+    "01M7W4HG80000000000000000Y",
+    "01M7W4HG80000000000000000Z",
+    "01M7W4HG800000000000000010",
+    "01M7W4HG800000000000000011",
+    "01M7W4HG800000000000000012",
+    "01M7W4HG800000000000000013",
+    "01M7W4HG800000000000000014",
+    "01M7W4HG800000000000000015"
+  ],
+  "paths": [],
+  "planned": [
+    {
+      "schema": 1,
+      "id": "01M7W4HG80000000000000000X",
+      "type": "DecisionDefaulted",
+      "at": "2026-11-20T09:28:00Z",
+      "actor": {
+        "role": "loop",
+        "id": "loop"
+      },
+      "subject": {
+        "kind": "decision",
+        "id": "D-late-default"
+      },
+      "data": {
+        "answer": "go-yaml-in",
+        "deadline": "2026-11-19"
+      }
+    },
+    {
+      "schema": 1,
+      "id": "01M7W4HG80000000000000000Y",
+      "type": "TaskAmended",
+      "at": "2026-11-20T09:28:00Z",
+      "actor": {
+        "role": "loop",
+        "id": "loop"
+      },
+      "subject": {
+        "kind": "task",
+        "id": "T-gated"
+      },
+      "data": {
+        "file": "",
+        "text_sha256": "",
+        "note": "applies D-gate",
+        "by_decision": "D-gate"
+      }
+    },
+    {
+      "schema": 1,
+      "id": "01M7W4HG80000000000000000Z",
+      "type": "DecisionApplied",
+      "at": "2026-11-20T09:28:00Z",
+      "actor": {
+        "role": "loop",
+        "id": "loop"
+      },
+      "subject": {
+        "kind": "decision",
+        "id": "D-gate"
+      },
+      "data": {
+        "amended_tasks": [
+          "T-gated"
+        ],
+        "unblocked_tasks": [],
+        "notified_sessions": []
+      }
+    },
+    {
+      "schema": 1,
+      "id": "01M7W4HG800000000000000010",
+      "type": "TaskAmended",
+      "at": "2026-11-20T09:28:00Z",
+      "actor": {
+        "role": "loop",
+        "id": "loop"
+      },
+      "subject": {
+        "kind": "task",
+        "id": "T-gated"
+      },
+      "data": {
+        "file": "",
+        "text_sha256": "",
+        "note": "applies D-gate-two",
+        "by_decision": "D-gate-two"
+      }
+    },
+    {
+      "schema": 1,
+      "id": "01M7W4HG800000000000000011",
+      "type": "DecisionApplied",
+      "at": "2026-11-20T09:28:00Z",
+      "actor": {
+        "role": "loop",
+        "id": "loop"
+      },
+      "subject": {
+        "kind": "decision",
+        "id": "D-gate-two"
+      },
+      "data": {
+        "amended_tasks": [
+          "T-gated"
+        ],
+        "unblocked_tasks": [],
+        "notified_sessions": []
+      }
+    },
+    {
+      "schema": 1,
+      "id": "01M7W4HG800000000000000012",
+      "type": "TaskAmended",
+      "at": "2026-11-20T09:28:00Z",
+      "actor": {
+        "role": "loop",
+        "id": "loop"
+      },
+      "subject": {
+        "kind": "task",
+        "id": "T-gated"
+      },
+      "data": {
+        "file": "",
+        "text_sha256": "",
+        "note": "applies D-late-default",
+        "by_decision": "D-late-default"
+      }
+    },
+    {
+      "schema": 1,
+      "id": "01M7W4HG800000000000000013",
+      "type": "DecisionApplied",
+      "at": "2026-11-20T09:28:00Z",
+      "actor": {
+        "role": "loop",
+        "id": "loop"
+      },
+      "subject": {
+        "kind": "decision",
+        "id": "D-late-default"
+      },
+      "data": {
+        "amended_tasks": [
+          "T-gated"
+        ],
+        "unblocked_tasks": [
+          "T-gated"
+        ],
+        "notified_sessions": []
+      }
+    },
+    {
+      "schema": 1,
+      "id": "01M7W4HG800000000000000014",
+      "type": "RoutedToOwner",
+      "at": "2026-11-20T09:28:00Z",
+      "actor": {
+        "role": "loop",
+        "id": "loop"
+      },
+      "subject": {
+        "kind": "task",
+        "id": "T-cli"
+      },
+      "data": {
+        "route_id": "route-01M7W3VH40000000000000000H",
+        "to": "t-cli",
+        "from_event": "01M7W3VH40000000000000000H",
+        "reason": "question addressed to owner"
+      }
+    },
+    {
+      "schema": 1,
+      "id": "01M7W4HG800000000000000015",
+      "type": "RoutedToOwner",
+      "at": "2026-11-20T09:28:00Z",
+      "actor": {
+        "role": "loop",
+        "id": "loop"
+      },
+      "subject": {
+        "kind": "task",
+        "id": "T-cli"
+      },
+      "data": {
+        "route_id": "route-01M7W42VG0000000000000000N",
+        "to": "orchestrator",
+        "from_event": "01M7W42VG0000000000000000N",
+        "reason": "handoff has follow-ups, decisions raised or deviations"
+      }
+    }
+  ]
+}

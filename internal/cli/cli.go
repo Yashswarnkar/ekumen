@@ -100,6 +100,10 @@ type Env struct {
 	// project name and map links), and `ekumen map` also reads origin/HEAD
 	// and the root's prefix in the repository.
 	Git func(root string, args ...string) string
+
+	// beforeAction, when set, runs before each reconcile action (by index)
+	// and stops the pass on error. Tests use it to interrupt a pass.
+	beforeAction func(action int) error
 }
 
 func gitOut(root string, args ...string) string {
@@ -380,6 +384,7 @@ Write (need --as <role>:<id> or EKUMEN_ACTOR):
   route resolve <route id> --note t
   claim <role> | release <role>
   project                                 regenerate projections
+  reconcile [--dry-run]                   one pass of the control loop (as loop:<session>; --dry-run needs no actor)
 
 Skills (no actor needed; nothing written under .ekumen/):
   skills list                             skills embedded in this binary
@@ -434,6 +439,8 @@ func (r *run) dispatch(args []string) error {
 		return r.check(rest)
 	case "project":
 		return r.projectCmd(rest)
+	case "reconcile":
+		return r.reconcile(rest)
 	case "claim":
 		return r.claim(rest, true)
 	case "release":

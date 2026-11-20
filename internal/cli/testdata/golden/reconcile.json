@@ -1,0 +1,155 @@
+{
+  "ok": true,
+  "dry_run": false,
+  "observed": {
+    "prs": "ok"
+  },
+  "actions": [
+    {
+      "kind": "default",
+      "subject": {
+        "kind": "decision",
+        "id": "D-late-default"
+      },
+      "detail": "default D-late-default to `go-yaml-in`: deadline 2026-11-19 passed",
+      "events": [
+        "01M7W4KAV00000000000000016"
+      ],
+      "paths": [
+        ".ekumen/events/decision/D-late-default/01M7W4KAV00000000000000016.DecisionDefaulted.json"
+      ]
+    },
+    {
+      "kind": "apply",
+      "subject": {
+        "kind": "decision",
+        "id": "D-gate"
+      },
+      "detail": "apply D-gate (decided `go`): amend T-gated; unblock none",
+      "events": [
+        "01M7W4KAV00000000000000017",
+        "01M7W4KAV00000000000000018"
+      ],
+      "paths": [
+        ".ekumen/briefs/T-gated/amendments/<STAMP>-main.md",
+        ".ekumen/events/task/T-gated/01M7W4KAV00000000000000017.TaskAmended.json",
+        ".ekumen/events/decision/D-gate/01M7W4KAV00000000000000018.DecisionApplied.json"
+      ]
+    },
+    {
+      "kind": "apply",
+      "subject": {
+        "kind": "decision",
+        "id": "D-gate-two"
+      },
+      "detail": "apply D-gate-two (decided `go`): amend T-gated; unblock none",
+      "events": [
+        "01M7W4KAV00000000000000019",
+        "01M7W4KAV0000000000000001A"
+      ],
+      "paths": [
+        ".ekumen/briefs/T-gated/amendments/<STAMP>-main-2.md",
+        ".ekumen/events/task/T-gated/01M7W4KAV00000000000000019.TaskAmended.json",
+        ".ekumen/events/decision/D-gate-two/01M7W4KAV0000000000000001A.DecisionApplied.json"
+      ]
+    },
+    {
+      "kind": "apply",
+      "subject": {
+        "kind": "decision",
+        "id": "D-late-default"
+      },
+      "detail": "apply D-late-default (defaulted `go-yaml-in`): amend T-gated; unblock T-gated",
+      "events": [
+        "01M7W4KAV0000000000000001B",
+        "01M7W4KAV0000000000000001C"
+      ],
+      "paths": [
+        ".ekumen/briefs/T-gated/amendments/<STAMP>-main-3.md",
+        ".ekumen/events/task/T-gated/01M7W4KAV0000000000000001B.TaskAmended.json",
+        ".ekumen/events/decision/D-late-default/01M7W4KAV0000000000000001C.DecisionApplied.json"
+      ]
+    },
+    {
+      "kind": "route",
+      "subject": {
+        "kind": "task",
+        "id": "T-cli"
+      },
+      "detail": "route route-01M7W3VH40000000000000000H (task T-cli) to t-cli: question addressed to owner",
+      "events": [
+        "01M7W4KAV0000000000000001D"
+      ],
+      "paths": [
+        ".ekumen/events/task/T-cli/01M7W4KAV0000000000000001D.RoutedToOwner.json"
+      ]
+    },
+    {
+      "kind": "route",
+      "subject": {
+        "kind": "task",
+        "id": "T-cli"
+      },
+      "detail": "route route-01M7W42VG0000000000000000N (task T-cli) to orchestrator: handoff has follow-ups, decisions raised or deviations",
+      "events": [
+        "01M7W4KAV0000000000000001E"
+      ],
+      "paths": [
+        ".ekumen/events/task/T-cli/01M7W4KAV0000000000000001E.RoutedToOwner.json"
+      ]
+    }
+  ],
+  "ready": [
+    {
+      "id": "T-core",
+      "branch": "build/t-core",
+      "worktree": ".worktrees/t-core",
+      "session": "t-core",
+      "brief": ".ekumen/briefs/T-core/brief.md"
+    },
+    {
+      "id": "T-gated",
+      "branch": "build/t-gated",
+      "worktree": ".worktrees/t-gated",
+      "session": "t-gated",
+      "brief": ".ekumen/briefs/T-gated/brief.md"
+    }
+  ],
+  "not_startable": [],
+  "unblocked": [
+    "T-gated"
+  ],
+  "notify": [
+    "t-gated"
+  ],
+  "events": [
+    "01M7W4KAV00000000000000016",
+    "01M7W4KAV00000000000000017",
+    "01M7W4KAV00000000000000018",
+    "01M7W4KAV00000000000000019",
+    "01M7W4KAV0000000000000001A",
+    "01M7W4KAV0000000000000001B",
+    "01M7W4KAV0000000000000001C",
+    "01M7W4KAV0000000000000001D",
+    "01M7W4KAV0000000000000001E"
+  ],
+  "paths": [
+    ".ekumen/events/decision/D-late-default/01M7W4KAV00000000000000016.DecisionDefaulted.json",
+    ".ekumen/briefs/T-gated/amendments/<STAMP>-main.md",
+    ".ekumen/events/task/T-gated/01M7W4KAV00000000000000017.TaskAmended.json",
+    ".ekumen/events/decision/D-gate/01M7W4KAV00000000000000018.DecisionApplied.json",
+    ".ekumen/briefs/T-gated/amendments/<STAMP>-main-2.md",
+    ".ekumen/events/task/T-gated/01M7W4KAV00000000000000019.TaskAmended.json",
+    ".ekumen/events/decision/D-gate-two/01M7W4KAV0000000000000001A.DecisionApplied.json",
+    ".ekumen/briefs/T-gated/amendments/<STAMP>-main-3.md",
+    ".ekumen/events/task/T-gated/01M7W4KAV0000000000000001B.TaskAmended.json",
+    ".ekumen/events/decision/D-late-default/01M7W4KAV0000000000000001C.DecisionApplied.json",
+    ".ekumen/events/task/T-cli/01M7W4KAV0000000000000001D.RoutedToOwner.json",
+    ".ekumen/events/task/T-cli/01M7W4KAV0000000000000001E.RoutedToOwner.json",
+    ".ekumen/decisions/D-gate-two.yaml",
+    ".ekumen/decisions/D-gate.yaml",
+    ".ekumen/decisions/D-late-default.yaml",
+    ".ekumen/registry.yaml",
+    ".ekumen/state.json"
+  ]
+}
