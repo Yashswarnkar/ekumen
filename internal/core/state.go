@@ -675,8 +675,9 @@ func (s *State) addAliases(e event.Event, id string, aliases []string, winner bo
 	}
 }
 
-// Has reports whether an item with this id or alias exists: a drafted task,
-// a raised decision, a contract or an external dependency.
+// Has reports whether an item with this id or alias exists: one whose
+// creating event (TaskDrafted, DecisionRaised, ContractDrafted,
+// ExternalAdded) is in the log. Later events on an id never create it.
 func (s *State) Has(id string) bool {
 	id = s.Resolve(id)
 	switch event.KindOf(id) {
@@ -687,11 +688,11 @@ func (s *State) Has(id string) bool {
 		d, ok := s.Decisions[id]
 		return ok && len(d.Raises) > 0
 	case event.KindContract:
-		_, ok := s.Contracts[id]
-		return ok
+		c, ok := s.Contracts[id]
+		return ok && c.DraftedEvent != ""
 	case event.KindExternal:
-		_, ok := s.Externals[id]
-		return ok
+		x, ok := s.Externals[id]
+		return ok && x.AddedEvent != ""
 	}
 	return false
 }

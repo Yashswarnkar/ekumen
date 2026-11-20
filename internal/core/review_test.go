@@ -169,3 +169,25 @@ func TestStatusCyclesStayBlocked(t *testing.T) {
 		t.Errorf("C-x open blockers = %v", got)
 	}
 }
+
+func TestGhostItemsNeverClearBlockers(t *testing.T) {
+	b := newLog(t)
+	b.draftTask("T-x", "X-ghost", "C-ghost", "T-ghost")
+	b.approve("T-x", "h")
+	b.add(event.ExternalResolvedType, event.RoleOrchestrator, "orch", event.KindExternal, "X-ghost", event.ExternalResolved{Note: "?"})
+	b.freeze("C-ghost", 1, "h")
+	b.approve("T-ghost", "h")
+	s := b.state()
+	obs := Observed{Tasks: map[string]TaskObservation{"T-ghost": {PR: PRMerged}}}
+	if got := OpenBlockers(&s, obs, "T-x"); len(got) != 3 {
+		t.Errorf("open blockers = %v, want the three ghosts", got)
+	}
+	for _, id := range []string{"X-ghost", "C-ghost", "T-ghost"} {
+		if s.Has(id) {
+			t.Errorf("Has(%s) for an item never created", id)
+		}
+	}
+	if got := len(OrphanStepConflicts(&s, b.events)); got != 3 {
+		t.Errorf("orphan-step conflicts = %d, want 3", got)
+	}
+}
