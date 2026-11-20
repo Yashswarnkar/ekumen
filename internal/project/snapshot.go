@@ -36,7 +36,7 @@ type Snapshot struct {
 	// Root is the project root (the folder containing .ekumen/).
 	Root  string
 	Store *files.Store
-	// Events are the events that decoded, in log order.
+	// Events are the events that decoded and validated, in log order.
 	Events []event.Event
 	// Invalid lists event files the store skipped or that failed to decode
 	// or validate.
@@ -107,9 +107,7 @@ func Load(ctx context.Context, opt Options) (*Snapshot, error) {
 		}
 		if err := e.Validate(); err != nil {
 			s.Invalid = append(s.Invalid, Invalid{Path: s.eventPath(e), Error: err.Error()})
-			if !e.Type.Known() {
-				continue // newer types are skipped by readers (C-event-log §9)
-			}
+			continue
 		}
 		s.Events = append(s.Events, e)
 		s.byID[e.ID] = e
