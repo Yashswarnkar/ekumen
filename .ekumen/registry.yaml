@@ -165,7 +165,7 @@ tasks:
     title: Event log fixes from the first audit
     kind: build
     brief: briefs/T-log-fixes/brief.md
-    approved: null
+    approved: 2026-11-20
     blocked_by: [D-imported-event-time-order, D-projections-in-git, D-contract-version-recording, D-post-switch-hand-edits, D-apply-amend-lane]
     repo: ekumen
     base_branch: main
@@ -173,7 +173,7 @@ tasks:
     worktree: .worktrees/t-log-fixes
     session: t-log-fixes
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: draft
+    status: ready
   T-reconcile:
     title: Control loop, one pass (ekumen reconcile)
     kind: build

@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7W0Y34BK3FPRR8PG3DK2E4H","type":"TaskAmended","at":"2026-11-20T08:24:58.251219Z","actor":{"role":"orchestrator","id":"main"},"subject":{"kind":"task","id":"T-log-fixes"},"data":{"file":"briefs/T-log-fixes/amendments/20261120T082458Z-main.md","text_sha256":"4a463d38cd50eddebcb3ee202b216148fc4d7722d2c216ccbd21fcedf95cc703","note":""}}

@@ -270,7 +270,7 @@
       "aliases": [],
       "title": "Event log fixes from the first audit",
       "kind": "build",
-      "status": "draft",
+      "status": "ready",
       "blocked_by": [
         "D-imported-event-time-order",
         "D-projections-in-git",
@@ -279,7 +279,7 @@
         "D-apply-amend-lane"
       ],
       "blocked_by_open": [],
-      "approved_on": null,
+      "approved_on": "2026-11-20",
       "branch": "build/t-log-fixes",
       "session": "t-log-fixes",
       "tier_grants": [
@@ -2702,8 +2702,8 @@
   "counts": {
     "tasks_by_status": {
       "done": 9,
-      "draft": 7,
-      "ready": 1
+      "draft": 6,
+      "ready": 2
     },
     "decisions_open": 0,
     "routes_open": 1,
