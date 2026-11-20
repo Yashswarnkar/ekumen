@@ -2284,104 +2284,7 @@
   "questions": [],
   "inbox": {
     "lead": [],
-    "orchestrator": [
-      {
-        "kind": "route",
-        "id": "route-01M7TQ3ZHR0WTMAR7JZS7VPYBM",
-        "title": "T-file-store handoff: done. `internal/store/files` built from C-event-log v1 alone (no import of `internal/event` or `internal/core`). `go test -race ./...`, `go vet ./...` and `gofmt -l` are clean locally. The draft PR's…",
-        "priority": 0,
-        "reason": "handoff has follow-ups, decisions raised or deviations",
-        "created_at": "2026-11-19T20:14:11Z",
-        "subject": {
-          "kind": "task",
-          "id": "T-file-store"
-        }
-      },
-      {
-        "kind": "route",
-        "id": "route-01M7TQKBQR0X9V54460CGMWHC6",
-        "title": "T-core handoff: Done, in review. Built against C-event-log v2 (rebased on origin/main, amendment `20261119T202137Z-orchestrator.md` applied: the slug, not the whole id, is ≤ 40 characters). `go test ./...`, `go vet …",
-        "priority": 0,
-        "reason": "handoff has follow-ups, decisions raised or deviations",
-        "created_at": "2026-11-19T20:22:35Z",
-        "subject": {
-          "kind": "task",
-          "id": "T-core"
-        }
-      },
-      {
-        "kind": "route",
-        "id": "route-01M7VQDSJR0X7C6X39JZKWRVHY",
-        "title": "T-import handoff: Done, in review (draft PR). Built against C-event-log v3 and C-decision-record v2, rebased on origin/main at `1cc5ec2` (C-adapter and C-http-api drafted). Dry run on that `.ekumen/`: every record map…",
-        "priority": 0,
-        "reason": "handoff has follow-ups, decisions raised or deviations",
-        "created_at": "2026-11-20T05:38:47Z",
-        "subject": {
-          "kind": "task",
-          "id": "T-import"
-        }
-      },
-      {
-        "kind": "route",
-        "id": "route-01M7VQSRCR0Z4H3CM1AR4CRTVD",
-        "title": "T-cli handoff: Done, in review (draft PR). Every C-cli-json v1 command is implemented with `--json`, plus `ekumen project`. Built against C-event-log v3, C-decision-record v2 and C-cli-json v1 on main at 3f695f3. `…",
-        "priority": 0,
-        "reason": "handoff has follow-ups, decisions raised or deviations",
-        "created_at": "2026-11-20T05:45:19Z",
-        "subject": {
-          "kind": "task",
-          "id": "T-cli"
-        }
-      },
-      {
-        "kind": "route",
-        "id": "route-01M7VW51DR0WRQF4VHGSYDPEJ7",
-        "title": "T-core-align handoff: Done, in review (draft PR). Core, event and file store now follow C-event-log v4 and C-decision-record v2. The import dry run on main gives 0 validation failures and 0 conflicts (lane conflicts inclu…",
-        "priority": 0,
-        "reason": "handoff has follow-ups, decisions raised or deviations",
-        "created_at": "2026-11-20T07:01:23Z",
-        "subject": {
-          "kind": "task",
-          "id": "T-core-align"
-        }
-      },
-      {
-        "kind": "route",
-        "id": "route-01M7WD7TG00X9DGQEYAH052P73",
-        "title": "T-landscape-research handoff: done; awaiting review (draft PR).",
-        "priority": 0,
-        "reason": "handoff has follow-ups, decisions raised or deviations",
-        "created_at": "2026-11-20T12:00:00Z",
-        "subject": {
-          "kind": "task",
-          "id": "T-landscape-research"
-        }
-      },
-      {
-        "kind": "route",
-        "id": "route-01M7WD7TG00XZ42KNE7RDHZERT",
-        "title": "T-scaffold handoff: in_review. All §A job items done; draft PR #1 (https://github.com/Yashswarnkar/ekumen/pull/1), CI green. Not merged.",
-        "priority": 0,
-        "reason": "handoff has follow-ups, decisions raised or deviations",
-        "created_at": "2026-11-20T12:00:00Z",
-        "subject": {
-          "kind": "task",
-          "id": "T-scaffold"
-        }
-      },
-      {
-        "kind": "route",
-        "id": "route-01M7WD7TG00YXVRABQN6QN52ZS",
-        "title": "T-acp-research handoff: done (draft PR open, not merged)",
-        "priority": 0,
-        "reason": "handoff has follow-ups, decisions raised or deviations",
-        "created_at": "2026-11-20T12:00:00Z",
-        "subject": {
-          "kind": "task",
-          "id": "T-acp-research"
-        }
-      }
-    ]
+    "orchestrator": []
   },
   "conflicts": [],
   "counts": {
@@ -2391,7 +2294,7 @@
       "ready": 2
     },
     "decisions_open": 0,
-    "routes_open": 8,
+    "routes_open": 0,
     "conflicts": 0
   }
 }

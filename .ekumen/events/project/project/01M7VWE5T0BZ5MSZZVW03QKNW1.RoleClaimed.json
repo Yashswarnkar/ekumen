@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7VWE5T0BZ5MSZZVW03QKNW1","type":"RoleClaimed","at":"2026-11-20T07:06:22.400546Z","actor":{"role":"orchestrator","id":"main"},"subject":{"kind":"project","id":"project"},"data":{"role":"orchestrator","session":"main"}}
