@@ -1,0 +1,18 @@
+{
+  "skills": [
+    {
+      "name": "blocked",
+      "description": "Use in an Ekumen task session when you hit a choice you may not make yourself (above your task's tier grants, a contract that looks wrong, anything touching production, outward actions, releases or irreversible steps). Turns it into a decision record for the lead with `ekumen decision raise` and lets you keep working on everything else. Also use when the lead says \"answer your questions\", or at a natural breakpoint, to answer questions about the decisions you raised and pick up applied decisions.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "decide",
+      "description": "Use when the lead of an Ekumen project wants to work through a pending decision, or an orchestrator session acts on the lead's explicit word. Picks a decision from the lead's inbox (or takes an id), shows it with its background, answers follow-up questions from the record or routes them to the session that raised it without derailing that session, records the lead's answer, and applies it so the blocked work can move.",
+      "files": [
+        "SKILL.md"
+      ]
+    }
+  ]
+}

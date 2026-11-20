@@ -9,8 +9,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-
-	"go.yaml.in/yaml/v3"
 )
 
 const skillsDir = "../../skills"
@@ -23,20 +21,6 @@ var (
 	forbidden   = []string{".ekumen/events", "registry.yaml", "state.json", "decisions/",
 		"claude", "codex", "gemini", "opencode", "cursor", "copilot", "anthropic", "openai"}
 )
-
-func skillFrontMatter(text string) (map[string]any, error) {
-	rest, ok := strings.CutPrefix(text, "---\n")
-	if !ok {
-		return nil, fmt.Errorf("no front matter")
-	}
-	head, _, ok := strings.Cut(rest, "\n---\n")
-	if !ok {
-		return nil, fmt.Errorf("unterminated front matter")
-	}
-	var m map[string]any
-	err := yaml.Unmarshal([]byte(head), &m)
-	return m, err
-}
 
 func skillTexts(t *testing.T) map[string]string {
 	t.Helper()
@@ -222,7 +206,7 @@ func TestSkillLineCheckerCatchesBrokenLines(t *testing.T) {
 
 func TestSkillFrontMatter(t *testing.T) {
 	for name, text := range skillTexts(t) {
-		m, err := skillFrontMatter(text)
+		m, err := skillFrontMatter([]byte(text))
 		if err != nil {
 			t.Errorf("%s: front matter: %v", name, err)
 			continue

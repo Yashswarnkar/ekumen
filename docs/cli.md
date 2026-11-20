@@ -399,6 +399,29 @@ Regenerates `decisions/<id>.yaml`, `registry.yaml` and `state.json` from the eve
 
 `--check` writes nothing: it fails (exit 2) if a committed `decisions/<id>.yaml` is stale or missing, or names no decision in the log. CI runs it (`scripts/ci-check.sh`).
 
+## Skills commands
+
+These need no actor and write nothing under `.ekumen/`; they work outside a project. See [Skills](skills.md).
+
+### `ekumen skills list`
+
+```
+$ ekumen skills list --json
+{"skills": [{"name": "blocked", "description": "Use in an Ekumen task session when …", "files": ["SKILL.md"]},
+            {"name": "decide", "description": "Use when the lead …", "files": ["SKILL.md"]}]}
+```
+
+The skills embedded in this binary, by name; `files` are relative to the skill's folder.
+
+### `ekumen skills install --dir <path> [--force]`
+
+```
+$ ekumen skills install --dir .agent/skills --json
+{"ok": true, "events": [], "paths": [".agent/skills/blocked/SKILL.md", ".agent/skills/decide/SKILL.md"]}
+```
+
+Writes each skill to `<path>/<name>/`. `paths` lists the files written, as `--dir` was given; identical files are skipped, so running it again prints `"paths": []`. A file that exists and differs is refused (exit 2, `field: force`, naming the file) and nothing is written, unless `--force`.
+
 ## Projections
 
 | File | Shape |

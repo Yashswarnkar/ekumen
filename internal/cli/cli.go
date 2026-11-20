@@ -381,6 +381,10 @@ Write (need --as <role>:<id> or EKUMEN_ACTOR):
   claim <role> | release <role>
   project                                 regenerate projections
 
+Skills (no actor needed; nothing written under .ekumen/):
+  skills list                             skills embedded in this binary
+  skills install --dir <path> [--force]   write each skill to <path>/<name>/
+
 Other:
   version | serve [--addr a] | help
 
@@ -514,6 +518,9 @@ func (r *run) dispatch(args []string) error {
 		if s == "resolve" {
 			return r.routeResolve(a)
 		}
+	case "skills":
+		s, a := sub()
+		return r.skillsCmd(s, a)
 	default:
 		return errf(CodeUsage, "unknown command %q", cmd)
 	}
