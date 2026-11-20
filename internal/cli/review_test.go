@@ -105,3 +105,20 @@ func TestDecisionRaiseRecordsIDsNotAliases(t *testing.T) {
 		t.Errorf("error %v, want field raised_by.task", e)
 	}
 }
+
+func TestHelpWithJSONKeepsStdoutJSON(t *testing.T) {
+	h := newHarness(t)
+	for _, args := range [][]string{{"--json", "--help"}, {"--json", "-h"}, {"help", "--json"}, {"task", "list", "--json", "-h"}} {
+		_, out, errOut := h.run(args...)
+		if out != "" || !strings.Contains(errOut, "Usage: ekumen") {
+			t.Errorf("%v: stdout %q, stderr %q; want usage on stderr only", args, out, errOut)
+		}
+	}
+	code, out, errOut := h.run("--json")
+	if code != ExitUsage || !strings.Contains(errOut, "Usage: ekumen") {
+		t.Fatalf("no command: exit %d, stderr %q", code, errOut)
+	}
+	if e := decodeJSON(t, out)["error"].(map[string]any); e["code"] != CodeUsage {
+		t.Errorf("no command: %v", e)
+	}
+}

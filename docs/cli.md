@@ -8,7 +8,7 @@ The CLI is how people, agents and scripts read and change Ekumen state. The comm
 |---|---|
 | Project root | The nearest parent directory containing `.ekumen/`, or `--root <dir>`. |
 | Who is acting | `--as <role>:<id>` or `EKUMEN_ACTOR`, e.g. `session:t-core`, `orchestrator:main`, `lead:Yashswarnkar`. Roles: `lead`, `orchestrator`, `session`, `integrator`, `loop`. Every write needs it. |
-| `--json` | Prints exactly one JSON object on stdout. Warnings go to stderr. |
+| `--json` | Prints exactly one JSON object on stdout. Warnings go to stderr, and so does usage text (`help`, `-h`), which then leaves stdout empty. |
 | Flags | Global flags (`--root`, `--as`, `--json`) go anywhere. Flags and positional arguments may be mixed. |
 | Files | `--file` and `--text-file` take a path, or `-` for stdin. |
 | Ids | An id or an alias (`C1`, `D-012`) is accepted anywhere; output always uses the id. Question and route ids also take a unique prefix, in any case (`q-01m7w3`); an ambiguous prefix is a usage error (exit 1) that lists the matches. |
