@@ -11,6 +11,7 @@ import (
 	"cmp"
 	"encoding/json"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/Yashswarnkar/ekumen/internal/event"
@@ -54,8 +55,10 @@ type State struct {
 	// (C-event-log v5, D-post-switch-hand-edits).
 	SpineApprovals []SpineApproval `json:"spine_approvals"`
 	// Skipped lists events the reducer could not use: unknown types (C-event-log
-	// §9) or payloads that do not decode.
+	// §9) or payloads that do not decode, and aliases it refused.
 	Skipped []SkippedEvent `json:"skipped"`
+
+	created map[string]bool
 }
 
 // SpineApproval is one SpineApproved.
@@ -430,11 +433,26 @@ func SortEvents(events []event.Event) []event.Event {
 		kind event.SubjectKind
 		id   string
 	}
-	aliases := map[subjectKey]string{} // (kind, alias) → id
+	created := map[string]bool{}
 	for _, k := range uniq {
+		if isCreating(k.e.Type) {
+			created[k.e.Subject.ID] = true
+		}
+	}
+	aliases := map[subjectKey]string{} // (kind, alias) → id
+	seen := map[subjectKey]bool{}
+	for _, k := range uniq {
+		if !isCreating(k.e.Type) {
+			continue
+		}
+		sk := subjectKey{k.e.Subject.Kind, k.e.Subject.ID}
+		if seen[sk] {
+			continue
+		}
+		seen[sk] = true
 		for _, a := range creatingAliases(k.e) {
 			ak := subjectKey{k.e.Subject.Kind, a}
-			if _, taken := aliases[ak]; !taken && a != k.e.Subject.ID {
+			if _, taken := aliases[ak]; !taken && aliasRefused(k.e.Subject.ID, a, created) == "" {
 				aliases[ak] = k.e.Subject.ID
 			}
 		}
@@ -531,12 +549,33 @@ func SortEvents(events []event.Event) []event.Event {
 	return out
 }
 
+func isCreating(t event.Type) bool {
+	switch t {
+	case event.TaskDraftedType, event.DecisionRaisedType, event.ContractDraftedType, event.ExternalAddedType:
+		return true
+	}
+	return false
+}
+
+// aliasRefused returns why alias a cannot name the item id, or "": it is
+// the id of an item some event creates, or it starts with another kind's
+// letter (C-event-log §1).
+func aliasRefused(id, a string, created map[string]bool) string {
+	switch {
+	case a == id:
+		return "alias is the item's own id"
+	case created[a]:
+		return "alias " + a + " is the id of an existing item"
+	case a != "" && id != "" && strings.ContainsRune("TDCX", rune(a[0])) && a[0] != id[0]:
+		return "alias " + a + " has another kind's letter than " + id
+	}
+	return ""
+}
+
 // creatingAliases returns the aliases an item-creating event declares
 // (TaskDrafted, DecisionRaised, ContractDrafted, ExternalAdded), or nil.
 func creatingAliases(e event.Event) []string {
-	switch e.Type {
-	case event.TaskDraftedType, event.DecisionRaisedType, event.ContractDraftedType, event.ExternalAddedType:
-	default:
+	if !isCreating(e.Type) {
 		return nil
 	}
 	p, err := e.Payload()
@@ -568,7 +607,14 @@ func creatingAliases(e event.Event) []string {
 // applied_on once, and only on a decided or defaulted decision.
 func Reduce(events []event.Event) State {
 	s := newState()
-	for _, e := range SortEvents(events) {
+	sorted := SortEvents(events)
+	s.created = map[string]bool{}
+	for _, e := range sorted {
+		if isCreating(e.Type) {
+			s.created[e.Subject.ID] = true
+		}
+	}
+	for _, e := range sorted {
 		s.apply(e)
 	}
 	s.finish()
@@ -591,11 +637,40 @@ func (s *State) Resolve(id string) string {
 	return id
 }
 
-func (s *State) addAliases(id string, aliases []string) {
+// ResolveAs is Resolve for an id known to name an item of this kind: an
+// alias of an item of another kind is returned unchanged.
+func (s *State) ResolveAs(kind event.SubjectKind, id string) string {
+	if to, ok := s.Aliases[id]; ok && event.KindOf(to) == kind {
+		return to
+	}
+	return id
+}
+
+// addAliases registers the aliases of the winning creating event for id.
+// Aliases it cannot take, and every alias of a losing duplicate, are
+// recorded in Skipped.
+func (s *State) addAliases(e event.Event, id string, aliases []string, winner bool) {
 	for _, a := range aliases {
-		if _, taken := s.Aliases[a]; !taken && a != id {
-			s.Aliases[a] = id
+		if a == id {
+			continue
 		}
+		if !winner {
+			if s.Aliases[a] != id {
+				s.skip(e, "alias "+a+" ignored: a later event creating "+id)
+			}
+			continue
+		}
+		if why := aliasRefused(id, a, s.created); why != "" {
+			s.skip(e, why)
+			continue
+		}
+		if to, taken := s.Aliases[a]; taken {
+			if to != id {
+				s.skip(e, "alias "+a+" is already an alias of "+to)
+			}
+			continue
+		}
+		s.Aliases[a] = id
 	}
 }
 
@@ -621,7 +696,7 @@ func (s *State) Has(id string) bool {
 }
 
 func (s *State) task(id string) *Task {
-	id = s.Resolve(id)
+	id = s.ResolveAs(event.KindTask, id)
 	t, ok := s.Tasks[id]
 	if !ok {
 		t = &Task{ID: id, BlockedBy: []string{}, TierGrants: []string{}, Drafts: []Writer{},
@@ -632,7 +707,7 @@ func (s *State) task(id string) *Task {
 }
 
 func (s *State) decision(id string) *Decision {
-	id = s.Resolve(id)
+	id = s.ResolveAs(event.KindDecision, id)
 	d, ok := s.Decisions[id]
 	if !ok {
 		d = &Decision{Raises: []Writer{}, Status: StatusPending, Questions: []Question{}, Answers: []Answer{}}
@@ -643,7 +718,7 @@ func (s *State) decision(id string) *Decision {
 }
 
 func (s *State) contract(id string) *Contract {
-	id = s.Resolve(id)
+	id = s.ResolveAs(event.KindContract, id)
 	c, ok := s.Contracts[id]
 	if !ok {
 		c = &Contract{ID: id, Status: ContractDraft, BlockedBy: []string{}, Freezes: []Freeze{}, Versions: []Freeze{}, Questions: []Question{}}
@@ -653,7 +728,7 @@ func (s *State) contract(id string) *Contract {
 }
 
 func (s *State) external(id string) *External {
-	id = s.Resolve(id)
+	id = s.ResolveAs(event.KindExternal, id)
 	x, ok := s.Externals[id]
 	if !ok {
 		x = &External{ID: id, Blocks: []string{}}
@@ -679,7 +754,7 @@ func (s *State) questionsOf(sub event.Subject) *[]Question {
 // FindQuestion returns the question with this id on the subject.
 func (s *State) FindQuestion(sub event.Subject, questionID string) (Question, bool) {
 	var qs []Question
-	id := s.Resolve(sub.ID)
+	id := s.ResolveAs(sub.Kind, sub.ID)
 	switch sub.Kind {
 	case event.KindTask:
 		if t, ok := s.Tasks[id]; ok {
@@ -745,8 +820,8 @@ func (s *State) apply(e event.Event) {
 	}
 	switch d := p.(type) {
 	case *event.TaskDrafted:
-		s.addAliases(e.Subject.ID, d.Aliases)
 		t := s.task(e.Subject.ID)
+		s.addAliases(e, t.ID, d.Aliases, !t.Drafted())
 		t.Drafts = append(t.Drafts, Writer{Event: e.ID, Actor: e.Actor})
 		if len(t.Drafts) > 1 {
 			return // first draft wins; later ones are id-collision or repeats
@@ -790,8 +865,8 @@ func (s *State) apply(e event.Event) {
 		t := s.task(e.Subject.ID)
 		t.Deferred, t.DeferredReason = true, d.Reason
 	case *event.DecisionRaised:
-		s.addAliases(e.Subject.ID, d.Aliases)
 		dec := s.decision(e.Subject.ID)
+		s.addAliases(e, dec.ID, d.Aliases, len(dec.Raises) == 0)
 		dec.Raises = append(dec.Raises, Writer{Event: e.ID, Actor: e.Actor})
 		if len(dec.Raises) > 1 {
 			return
@@ -861,8 +936,8 @@ func (s *State) apply(e event.Event) {
 			return
 		}
 	case *event.ContractDrafted:
-		s.addAliases(e.Subject.ID, d.Aliases)
 		c := s.contract(e.Subject.ID)
+		s.addAliases(e, c.ID, d.Aliases, c.DraftedEvent == "")
 		if c.DraftedEvent != "" {
 			return
 		}
@@ -879,8 +954,8 @@ func (s *State) apply(e event.Event) {
 		c := s.contract(e.Subject.ID)
 		c.Versions = append(c.Versions, Freeze{Event: e.ID, Version: d.Version, TextSHA256: d.TextSHA256, ByDecision: d.ByDecision})
 	case *event.ExternalAdded:
-		s.addAliases(e.Subject.ID, d.Aliases)
 		x := s.external(e.Subject.ID)
+		s.addAliases(e, x.ID, d.Aliases, x.AddedEvent == "")
 		if x.AddedEvent != "" {
 			return
 		}
@@ -955,6 +1030,7 @@ func (s *State) apply(e event.Event) {
 
 // finish computes values that depend on the whole log.
 func (s *State) finish() {
+	s.created = nil
 	for _, c := range s.Contracts {
 		var best *Freeze
 		for _, f := range c.Freezes {
