@@ -430,7 +430,10 @@ func mapLinks(s *project.Snapshot, base string) map[string]mapview.Link {
 	}
 	for _, id := range s.TaskIDs() {
 		t := s.State.Tasks[id]
-		l := mapview.Link{Source: url(s.Rel(s.BriefPath(id)))}
+		var l mapview.Link
+		if p, err := s.BriefPath(id); err == nil {
+			l.Source = url(s.Rel(p))
+		}
 		if n := len(t.Handoffs); n > 0 {
 			l.Handoff = url(s.RootPath(t.Handoffs[n-1].File))
 		}
@@ -474,7 +477,9 @@ func (r *run) check(args []string) error {
 		t := s.State.Tasks[id]
 		for _, f := range append(entryFiles(t.Amendments), handoffFiles(t.Handoffs)...) {
 			recorded[s.RootPath(f)] = true
-			if _, err := os.Stat(s.ResolvePath(f)); err != nil {
+			if p, err := s.ResolvePath(f); err != nil {
+				invalid = append(invalid, project.Invalid{Path: f, Error: err.Error()})
+			} else if _, err := os.Stat(p); err != nil {
 				invalid = append(invalid, project.Invalid{Path: s.RootPath(f), Error: "recorded by an event but missing"})
 			}
 		}

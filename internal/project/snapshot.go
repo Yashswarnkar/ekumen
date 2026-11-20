@@ -164,27 +164,27 @@ func (s *Snapshot) eventPath(e event.Event) string {
 	return filepath.ToSlash(filepath.Join(Dir, "events", string(e.Subject.Kind), e.Subject.ID, e.ID+"."+string(e.Type)+".json"))
 }
 
-// ResolvePath finds a file named in an event (a brief or contract path).
-// Paths may be relative to .ekumen/ ("contracts/C-x.md") or to the project
-// root (".ekumen/contracts/C-x.md"); both are tried.
-func (s *Snapshot) ResolvePath(p string) string {
+// ResolvePath finds a file named in an event (a brief, contract or entry
+// path). Paths may be relative to .ekumen/ ("contracts/C-x.md") or to the
+// project root (".ekumen/contracts/C-x.md"). Absolute paths and paths that
+// lead outside .ekumen/ are refused.
+func (s *Snapshot) ResolvePath(p string) (string, error) {
 	if p == "" {
-		return ""
+		return "", nil
 	}
-	if filepath.IsAbs(p) {
-		return p
+	if filepath.IsAbs(p) || strings.HasPrefix(p, "/") || filepath.VolumeName(p) != "" {
+		return "", fmt.Errorf("path %q is absolute; event paths are relative to %s/", p, Dir)
 	}
-	clean := filepath.FromSlash(p)
+	clean := filepath.Clean(filepath.FromSlash(p))
+	c := filepath.Join(s.EkumenDir(), clean)
 	if strings.HasPrefix(filepath.ToSlash(clean), Dir+"/") {
-		return filepath.Join(s.Root, clean)
+		c = filepath.Join(s.Root, clean)
 	}
-	if c := filepath.Join(s.EkumenDir(), clean); exists(c) {
-		return c
+	rel, err := filepath.Rel(s.EkumenDir(), c)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("path %q leads outside %s/", p, Dir)
 	}
-	if c := filepath.Join(s.Root, clean); exists(c) {
-		return c
-	}
-	return filepath.Join(s.EkumenDir(), clean)
+	return c, nil
 }
 
 func exists(p string) bool { _, err := os.Stat(p); return err == nil }
@@ -204,8 +204,10 @@ func (s *Snapshot) FrozenHashes() map[string]string {
 		if p == "" {
 			return
 		}
-		if h, err := files.HashFile(s.ResolvePath(p)); err == nil {
-			out[p] = h
+		if rp, err := s.ResolvePath(p); err == nil {
+			if h, err := files.HashFile(rp); err == nil {
+				out[p] = h
+			}
 		}
 	}
 	for _, t := range s.State.Tasks {

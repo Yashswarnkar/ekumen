@@ -539,7 +539,11 @@ func (r *run) taskApprove(args []string) error {
 	if t.Approved {
 		return fieldErr(CodeValidation, "id", "%s was approved on %s; §A is frozen (amend it instead)", id, t.ApprovedOn)
 	}
-	sum, err := files.HashFile(s.BriefPath(id))
+	brief, err := s.BriefPath(id)
+	if err != nil {
+		return fieldErr(CodeValidation, "brief", "%s: %v", id, err)
+	}
+	sum, err := files.HashFile(brief)
 	if err != nil {
 		return fieldErr(CodeNotFound, "brief", "%s: cannot hash the brief: %v", id, err)
 	}
@@ -761,7 +765,11 @@ func (r *run) contractFreeze(args []string) error {
 	if c.Path == "" {
 		return fieldErr(CodeValidation, "path", "contract %s has no file to freeze", id)
 	}
-	text, err := os.ReadFile(s.ResolvePath(c.Path))
+	path, err := s.ResolvePath(c.Path)
+	if err != nil {
+		return fieldErr(CodeValidation, "path", "contract %s: %v", id, err)
+	}
+	text, err := os.ReadFile(path)
 	if err != nil {
 		return fieldErr(CodeNotFound, "path", "read %s: %v", c.Path, err)
 	}
@@ -847,7 +855,11 @@ func (r *run) contractVersion(args []string) error {
 	case c.Path == "":
 		return fieldErr(CodeValidation, "path", "contract %s has no file", id)
 	}
-	text, err := os.ReadFile(s.ResolvePath(c.Path))
+	path, err := s.ResolvePath(c.Path)
+	if err != nil {
+		return fieldErr(CodeValidation, "path", "contract %s: %v", id, err)
+	}
+	text, err := os.ReadFile(path)
 	if err != nil {
 		return fieldErr(CodeNotFound, "path", "read %s: %v", c.Path, err)
 	}

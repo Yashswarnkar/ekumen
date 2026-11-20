@@ -250,11 +250,13 @@ func (s *Snapshot) TaskIDs() []string {
 // RootPath turns a path recorded in an event (relative to .ekumen/, or to
 // the project root) into the form CLI output uses: relative to the
 // project root, e.g. ".ekumen/briefs/T-core/brief.md" (C-cli-json v2 §1).
+// A path ResolvePath refuses is returned as recorded.
 func (s *Snapshot) RootPath(p string) string {
-	if p == "" {
-		return ""
+	rp, err := s.ResolvePath(p)
+	if err != nil || rp == "" {
+		return p
 	}
-	return s.rel(s.ResolvePath(p))
+	return s.rel(rp)
 }
 
 // TaskView builds the Task shape for a drafted task. Its brief path is
@@ -499,16 +501,18 @@ func (s *Snapshot) hasBrief(id string) bool {
 	if _, ok := s.State.Tasks[id]; !ok {
 		return false
 	}
-	return exists(s.BriefPath(id))
+	p, err := s.BriefPath(id)
+	return err == nil && exists(p)
 }
 
 // BriefPath is the file path of a task's §A: the brief recorded by
-// TaskDrafted, else briefs/<id>/brief.md under .ekumen/.
-func (s *Snapshot) BriefPath(id string) string {
+// TaskDrafted, else briefs/<id>/brief.md under .ekumen/. A recorded path
+// ResolvePath refuses is an error.
+func (s *Snapshot) BriefPath(id string) (string, error) {
 	if t, ok := s.State.Tasks[id]; ok && t.Brief != "" {
 		return s.ResolvePath(t.Brief)
 	}
-	return filepath.Join(s.EkumenDir(), "briefs", id, "brief.md")
+	return filepath.Join(s.EkumenDir(), "briefs", id, "brief.md"), nil
 }
 
 // AllTaskIDs lists every task id in the state, sorted, drafted or not

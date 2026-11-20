@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Yashswarnkar/ekumen/internal/event"
+	"github.com/Yashswarnkar/ekumen/internal/store/files"
 )
 
 func writeEvent(t *testing.T, root string, e event.Event) {
@@ -52,5 +53,25 @@ func TestLoadDoesNotReduceInvalidEvents(t *testing.T) {
 	}
 	if len(s.Invalid) != 1 {
 		t.Errorf("invalid = %v, want the schema 2 event", s.Invalid)
+	}
+}
+
+func TestResolvePathStaysInsideEkumen(t *testing.T) {
+	root := t.TempDir()
+	s := &Snapshot{Root: root, Store: files.New(filepath.Join(root, Dir))}
+	ek := filepath.Join(root, Dir)
+	for p, want := range map[string]string{
+		"contracts/C-x.md":           filepath.Join(ek, "contracts", "C-x.md"),
+		".ekumen/contracts/C-x.md":   filepath.Join(ek, "contracts", "C-x.md"),
+		"briefs/T-x/../T-y/brief.md": filepath.Join(ek, "briefs", "T-y", "brief.md"),
+	} {
+		if got, err := s.ResolvePath(p); err != nil || got != want {
+			t.Errorf("ResolvePath(%q) = %q, %v; want %q", p, got, err, want)
+		}
+	}
+	for _, p := range []string{"/etc/passwd", "../../etc/passwd", ".ekumen/../../go.mod", "contracts/../../go.mod", "..", "README.md/../../x"} {
+		if got, err := s.ResolvePath(p); err == nil {
+			t.Errorf("ResolvePath(%q) = %q, want an error", p, got)
+		}
 	}
 }
