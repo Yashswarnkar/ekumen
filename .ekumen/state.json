@@ -1069,6 +1069,76 @@
       ]
     },
     {
+      "id": "D-contract-version-recording",
+      "aliases": [],
+      "title": "Define how a frozen contract's new version is recorded",
+      "tier": 2,
+      "raised_by": {
+        "task": null,
+        "session": "main",
+        "on": "2026-11-20"
+      },
+      "question": "ContractVersioned {version, by_decision, text_sha256} has a lane but no CLI command, and the \"contract-change protocol\" in C-decision-record §1 is undefined. `contract freeze` takes the version from front matter with no decision link. How should a contract change be recorded after the switch?\n",
+      "options": [
+        {
+          "id": "versioned-command",
+          "tradeoff": "Add `ekumen contract version \u003cid\u003e --by \u003cdecision\u003e` (orchestrator), then `contract freeze` (lead) for the new text. Documents the protocol; minor C-cli-json addition."
+        },
+        {
+          "id": "freeze-carries-decision",
+          "tradeoff": "Drop ContractVersioned; `contract freeze` takes `--by \u003cdecision\u003e` and refuses a version bump without a decided decision whose contract_impact names the contract. One step, but it changes an event's meaning (schema bump)."
+        }
+      ],
+      "recommendation": "versioned-command",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [
+        "C-event-log",
+        "C-cli-json",
+        "C-decision-record"
+      ],
+      "context": {
+        "summary": "No ContractVersioned events exist; C-event-log v1 to v4 was imported as one ContractFrozen v4. D-cli-missing-writes's chosen option listed `contract draft|version`, but C-cli-json v2 and the T-cli-gaps brief left out `version`. The next tier-2 contract change has no recordable path that links it to its decision.\n",
+        "evidence": [
+          ".ekumen/contracts/C-cli-json.md#3-write-commands",
+          ".ekumen/decisions/D-cli-missing-writes.yaml",
+          "internal/cli/write.go"
+        ],
+        "prior_decisions": [
+          "D-cli-missing-writes"
+        ]
+      },
+      "status": "pending",
+      "questions": [],
+      "answer": null,
+      "answer_note": null,
+      "decided_by": null,
+      "decided_on": null,
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 13,
+      "holds_up": [
+        "C-cli-json",
+        "C-decision-record",
+        "C-event-log",
+        "T-audit",
+        "T-claude-adapter",
+        "T-cli",
+        "T-cli-gaps",
+        "T-core",
+        "T-core-align",
+        "T-decision-views",
+        "T-file-store",
+        "T-graph-view",
+        "T-import",
+        "T-reconcile",
+        "T-server",
+        "T-skills"
+      ]
+    },
+    {
       "id": "D-control-loop",
       "aliases": [
         "D-012"
@@ -1377,6 +1447,78 @@
       ]
     },
     {
+      "id": "D-imported-event-time-order",
+      "aliases": [],
+      "title": "Stop backdated or future-stamped events from being silently reordered",
+      "tier": 2,
+      "raised_by": {
+        "task": null,
+        "session": "main",
+        "on": "2026-11-20"
+      },
+      "question": "The import stamped 82 events 2026-11-20T12:00:00Z, later than today's live writes, and the reducer orders by ULID time. A DecisionApplied written before noon UTC for a decision \"decided at noon\" is silently ignored. How should log order handle events whose time disagrees with their causal order?\n",
+      "options": [
+        {
+          "id": "causal-within-subject",
+          "tradeoff": "Within one subject, apply lifecycle steps in rank order whatever their time (an apply always lands after its decide). Small core change; C-event-log §2 rewording; fixes clock skew too."
+        },
+        {
+          "id": "reject-out-of-order",
+          "tradeoff": "The CLI refuses a write whose new event would sort before an existing event it depends on, with a clear error. No semantic change; writes before noon today are refused."
+        },
+        {
+          "id": "wait-it-out",
+          "tradeoff": "No change. Nobody writes to those 30 subjects before 12:00Z today. Leaves the general clock-skew hole and a silent failure mode."
+        }
+      ],
+      "recommendation": "causal-within-subject",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [
+        "C-event-log"
+      ],
+      "context": {
+        "summary": "Found by T-audit's first run. Reproduced on a scratch copy. A hand-made DecisionApplied for D-alias-field stamped 07:1xZ left the decision \"decided, applied_on null\", and ekumen check was clean. The 11 decisions decided at 12:00Z include D-alias-field, D-lane-gaps and D-task-status-approved. T-cli-gaps is adding `decision apply` now, so the window is live today. C-http-api's SSE cursor makes the same order assumption.\n",
+        "evidence": [
+          "internal/core/state.go",
+          ".ekumen/events/decision/D-alias-field",
+          ".ekumen/contracts/C-event-log.md#2-envelope",
+          ".ekumen/contracts/C-http-api.md#4-live-updates"
+        ],
+        "prior_decisions": [
+          "D-blocker-semantics",
+          "D-apply-before-loop"
+        ]
+      },
+      "status": "pending",
+      "questions": [],
+      "answer": null,
+      "answer_note": null,
+      "decided_by": null,
+      "decided_on": null,
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 13,
+      "holds_up": [
+        "C-event-log",
+        "T-audit",
+        "T-claude-adapter",
+        "T-cli",
+        "T-cli-gaps",
+        "T-core",
+        "T-core-align",
+        "T-decision-views",
+        "T-file-store",
+        "T-graph-view",
+        "T-import",
+        "T-reconcile",
+        "T-server",
+        "T-skills"
+      ]
+    },
+    {
       "id": "D-lane-gaps",
       "aliases": [],
       "title": "Fill three gaps in the lane table",
@@ -1633,6 +1775,74 @@
       "applied": null,
       "priority": 0,
       "holds_up": []
+    },
+    {
+      "id": "D-post-switch-hand-edits",
+      "aliases": [],
+      "title": "Which .ekumen files may be edited by hand after the switch",
+      "tier": 2,
+      "raised_by": {
+        "task": null,
+        "session": "main",
+        "on": "2026-11-20"
+      },
+      "question": "Spine §8 says nobody edits .ekumen/ by hand after the switch, but brief.md, contract bodies, the spine and research files have no CLI writer (docs/cli.md says to write brief.md yourself). The spine has no hash or approval event. Which files are owner-edited prose, and how are spine changes approved?\n",
+      "options": [
+        {
+          "id": "prose-carve-out",
+          "tradeoff": "Name the owner-edited prose files in the spine (brief.md before approval, draft contracts, spine, research); add a hashed SpineApproved-style event so `check` reports unapproved spine edits. Small change."
+        },
+        {
+          "id": "cli-for-everything",
+          "tradeoff": "Add CLI writers for every prose file (`task brief`, `contract edit`, `spine propose`). Strict and auditable, more commands."
+        },
+        {
+          "id": "carve-out-only",
+          "tradeoff": "Reword the rule only. No detection of unapproved spine edits."
+        }
+      ],
+      "recommendation": "prose-carve-out",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [
+        "C-event-log"
+      ],
+      "context": {
+        "summary": "The rule is unsatisfiable as written, so every legitimate brief or contract edit looks like a violation, and a real violation of the spine looks like nothing. Approved §A and frozen contracts are already hashed (frozen-text-changed); the spine and drafts are not.\n",
+        "evidence": [
+          ".ekumen/spine.md#8-how-this-repo-is-built-dogfooding",
+          "docs/cli.md",
+          ".ekumen/contracts/C-event-log.md#5-conflicts"
+        ],
+        "prior_decisions": []
+      },
+      "status": "pending",
+      "questions": [],
+      "answer": null,
+      "answer_note": null,
+      "decided_by": null,
+      "decided_on": null,
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 13,
+      "holds_up": [
+        "C-event-log",
+        "T-audit",
+        "T-claude-adapter",
+        "T-cli",
+        "T-cli-gaps",
+        "T-core",
+        "T-core-align",
+        "T-decision-views",
+        "T-file-store",
+        "T-graph-view",
+        "T-import",
+        "T-reconcile",
+        "T-server",
+        "T-skills"
+      ]
     },
     {
       "id": "D-project-folder",
@@ -2283,7 +2493,32 @@
   "externals": [],
   "questions": [],
   "inbox": {
-    "lead": [],
+    "lead": [
+      {
+        "kind": "decision",
+        "id": "D-contract-version-recording",
+        "title": "Define how a frozen contract's new version is recorded",
+        "priority": 13,
+        "reason": "blocks 13 tasks",
+        "created_at": "2026-11-20T07:16:31Z"
+      },
+      {
+        "kind": "decision",
+        "id": "D-imported-event-time-order",
+        "title": "Stop backdated or future-stamped events from being silently reordered",
+        "priority": 13,
+        "reason": "blocks 13 tasks",
+        "created_at": "2026-11-20T07:16:33Z"
+      },
+      {
+        "kind": "decision",
+        "id": "D-post-switch-hand-edits",
+        "title": "Which .ekumen files may be edited by hand after the switch",
+        "priority": 13,
+        "reason": "blocks 13 tasks",
+        "created_at": "2026-11-20T07:16:35Z"
+      }
+    ],
     "orchestrator": []
   },
   "conflicts": [],
@@ -2293,7 +2528,7 @@
       "draft": 6,
       "ready": 2
     },
-    "decisions_open": 0,
+    "decisions_open": 3,
     "routes_open": 0,
     "conflicts": 0
   }
