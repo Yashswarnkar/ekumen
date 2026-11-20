@@ -62,13 +62,6 @@ func (r *run) contractShow(args []string) error {
 	return nil
 }
 
-func orNone(l []string) string {
-	if len(l) == 0 {
-		return "none"
-	}
-	return strings.Join(l, ", ")
-}
-
 var showCommand = map[event.SubjectKind]string{
 	event.KindTask:     "ekumen task show",
 	event.KindDecision: "ekumen decision show",
