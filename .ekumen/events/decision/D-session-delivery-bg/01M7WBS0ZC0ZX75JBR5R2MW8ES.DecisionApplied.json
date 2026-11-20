@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WBS0ZC0ZX75JBR5R2MW8ES","type":"DecisionApplied","at":"2026-11-20T11:34:26.540223Z","actor":{"role":"loop","id":"main"},"subject":{"kind":"decision","id":"D-session-delivery-bg"},"data":{"amended_tasks":[],"unblocked_tasks":[],"notified_sessions":[]}}

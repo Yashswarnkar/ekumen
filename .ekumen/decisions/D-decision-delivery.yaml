@@ -19,11 +19,6 @@ context:
   summary: |
     Delivery is a separate effect from the answer (docket R21): record `decided` once, then deliver with pending/delivered/uncertain state, re-checking the target decision version just before sending (chekrd/quanticstudios first-wins with typed refusals).
   evidence: [.ekumen/research/R2-landscape.md#4-adopt--avoid]
-status: decided
+status: superseded
 questions: []
-answer: other
-answer_note: 'As recommended, in the revised form from the orchestrator note: raise through the ekumen CLI; deliver to Ekumen-started sessions through their input stream and to lead-started sessions as a queued side question; side questions in a fork.'
-decided_by: Yashswarnkar
-decided_on: 2026-11-20
-applied_on: 2026-11-20
-applied: {amended_tasks: [], unblocked_tasks: [], notified_sessions: []}
+superseded_by: D-session-delivery-bg

@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WBS15V12FTM3RWB8SQRX9J","type":"TaskSessionAttached","at":"2026-11-20T11:34:26.747242Z","actor":{"role":"orchestrator","id":"main"},"subject":{"kind":"task","id":"T-claude-adapter"},"data":{"session":"t-claude-adapter","adapter":""}}

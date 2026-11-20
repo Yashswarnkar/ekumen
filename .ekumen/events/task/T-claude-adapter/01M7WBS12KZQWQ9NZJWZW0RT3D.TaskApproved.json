@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WBS12KZQWQ9NZJWZW0RT3D","type":"TaskApproved","at":"2026-11-20T11:34:26.643805Z","actor":{"role":"lead","id":"Yashswarnkar"},"subject":{"kind":"task","id":"T-claude-adapter"},"data":{"tier_grants":["push_own_branch","open_draft_pr","restack"],"text_sha256":"63a7ac33cfc95d7b2383791ecfe791def29221dd4d9b90c6114c6bae4abe91eb"}}

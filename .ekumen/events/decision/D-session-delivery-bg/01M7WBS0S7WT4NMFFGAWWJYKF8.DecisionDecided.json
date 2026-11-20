@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WBS0S7WT4NMFFGAWWJYKF8","type":"DecisionDecided","at":"2026-11-20T11:34:26.343818Z","actor":{"role":"lead","id":"Yashswarnkar"},"subject":{"kind":"decision","id":"D-session-delivery-bg"},"data":{"answer":"background-sessions","note":"As recommended; permission mode stays Claude Code's default (lead, in chat 2026-11-20)."}}

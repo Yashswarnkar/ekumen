@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WBS0WB9JRWFNQRBBCFYPYB","type":"DecisionSuperseded","at":"2026-11-20T11:34:26.44322Z","actor":{"role":"lead","id":"Yashswarnkar"},"subject":{"kind":"decision","id":"D-decision-delivery"},"data":{"by":"D-session-delivery-bg","note":"Background sessions instead of a held input stream (T-claude-adapter brief)."}}
