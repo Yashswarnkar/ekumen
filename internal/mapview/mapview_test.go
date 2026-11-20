@@ -1,6 +1,7 @@
 package mapview
 
 import (
+	"bytes"
 	"encoding/json"
 	"os/exec"
 	"regexp"
@@ -144,7 +145,7 @@ const mk = () => ({innerHTML: ""});
 const root = () => { const m = {}; els.push(m); return {querySelector: q => (m[q] ??= mk())}; };
 const ctx = {console}; ctx.window = ctx; ctx.self = ctx; vm.createContext(ctx);
 const run = (src, r) => { ctx.document = {currentScript: {closest: () => r}}; vm.runInContext(src, ctx); };
-const scripts = JSON.parse(process.argv[1]);
+const scripts = JSON.parse(require("fs").readFileSync(0, "utf8"));
 for (let i = 0; i < scripts.length; i += 2) { const r = root(); run(scripts[i], r); run(scripts[i + 1], r); }
 if (els.length !== 2 || !els[1]['[data-ek="graph"]'].innerHTML.includes("T-a")) { console.error("second map not drawn"); process.exit(1); }
 `)
@@ -153,7 +154,9 @@ if (els.length !== 2 || !els[1]['[data-ek="graph"]'].innerHTML.includes("T-a")) 
 		srcs = append(srcs, m[1])
 	}
 	arg, _ := json.Marshal(srcs)
-	out, err := exec.Command(node, "-e", js.String(), string(arg)).CombinedOutput()
+	cmd := exec.Command(node, "-e", js.String())
+	cmd.Stdin = bytes.NewReader(arg)
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Errorf("two fragments on one page: %v\n%s", err, out)
 	}
