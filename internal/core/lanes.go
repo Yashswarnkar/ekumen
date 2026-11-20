@@ -27,6 +27,11 @@ type Lane struct {
 	// ClaimingSession: data.session must be the actor's id (RoleClaimed,
 	// RoleReleased, D-claim-lane).
 	ClaimingSession bool
+	// ByDecision are roles that may write the type only when its
+	// data.by_decision is set (TaskAmended by the loop when it applies a
+	// decision; C-event-log v5 §3, D-apply-amend-lane). They must also be
+	// listed in Roles.
+	ByDecision []event.Role
 	// Subjects are the subject kinds the type may be about. Empty means any.
 	Subjects []event.SubjectKind
 }
@@ -45,11 +50,12 @@ var (
 	orchestrator = []event.Role{event.RoleOrchestrator}
 	loop         = []event.Role{event.RoleLoop}
 	orchOrLoop   = []event.Role{event.RoleOrchestrator, event.RoleLoop}
+	loopRole     = []event.Role{event.RoleLoop}
 	taskSessions = []event.Role{event.RoleSession, event.RoleIntegrator}
 	raisers      = []event.Role{event.RoleLead, event.RoleOrchestrator, event.RoleSession, event.RoleIntegrator, event.RoleLoop}
 )
 
-// Lanes is the lane table of C-event-log v4 §3, as data. The subject kinds
+// Lanes is the lane table of C-event-log v5 §3, as data. The subject kinds
 // follow from §6 (task events are about tasks, and so on; questions may be
 // about a task, decision or contract). Role events are project-wide.
 var Lanes = map[event.Type]Lane{
@@ -57,9 +63,10 @@ var Lanes = map[event.Type]Lane{
 	event.DecisionDecidedType:    {Roles: lead, Subjects: decisionOnly},
 	event.DecisionSupersededType: {Roles: lead, Subjects: decisionOnly},
 	event.ContractFrozenType:     {Roles: lead, Subjects: contractOnly},
+	event.SpineApprovedType:      {Roles: lead, Subjects: projectOnly},
 
 	event.TaskDraftedType:             {Roles: orchestrator, Subjects: taskOnly},
-	event.TaskAmendedType:             {Roles: orchestrator, Subjects: taskOnly},
+	event.TaskAmendedType:             {Roles: orchOrLoop, ByDecision: loopRole, Subjects: taskOnly},
 	event.TaskBlockersChangedType:     {Roles: orchestrator, Subjects: taskOnly},
 	event.TaskDeferredType:            {Roles: orchestrator, Subjects: taskOnly},
 	event.ContractDraftedType:         {Roles: orchestrator, Subjects: contractOnly},
@@ -104,6 +111,17 @@ func CheckLane(e event.Event) error {
 	}
 	if !lane.Anyone && !slices.Contains(lane.Roles, e.Actor.Role) {
 		return laneErr(e, "role %q may not write it (lane: %v)", e.Actor.Role, lane.Roles)
+	}
+	if slices.Contains(lane.ByDecision, e.Actor.Role) {
+		var d struct {
+			ByDecision string `json:"by_decision"`
+		}
+		if err := json.Unmarshal(orEmptyJSON(e.Data), &d); err != nil {
+			return laneErr(e, "%v", err)
+		}
+		if d.ByDecision == "" {
+			return laneErr(e, "role %q may write it only when applying a decision (data.by_decision)", e.Actor.Role)
+		}
 	}
 	if len(lane.Subjects) > 0 && !slices.Contains(lane.Subjects, e.Subject.Kind) {
 		return laneErr(e, "subject kind %q not allowed (want %v)", e.Subject.Kind, lane.Subjects)

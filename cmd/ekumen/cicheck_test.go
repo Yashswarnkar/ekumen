@@ -76,6 +76,16 @@ func TestCICheckScript(t *testing.T) {
 			appendEvent(t, root, event.TaskApprovedType, event.Actor{Role: event.RoleSession, ID: "t-x"},
 				event.Subject{Kind: event.KindTask, ID: "T-x"}, event.TaskApproved{TierGrants: []string{}, TextSHA256: strings.Repeat("0", 64)})
 		}, true, `"rule": "lane"`},
+		{"stale decision file", func(t *testing.T, root string) {
+			claim(t, root)
+			appendEvent(t, root, event.DecisionRaisedType, event.Actor{Role: event.RoleOrchestrator, ID: "main"},
+				event.Subject{Kind: event.KindDecision, ID: "D-x"}, event.DecisionRaised{ID: "D-x", Title: "x", Tier: 2,
+					RaisedBy: event.RaisedBy{Session: "main", On: "2026-11-20"}, Question: "?",
+					Options: []event.Option{{ID: "a", Tradeoff: "a"}, {ID: "b", Tradeoff: "b"}},
+					Blocks:  []string{}, ContractImpact: []string{}, Context: event.DecisionContext{Summary: "x"}})
+			os.MkdirAll(filepath.Join(root, ".ekumen/decisions"), 0o755)
+			os.WriteFile(filepath.Join(root, ".ekumen/decisions/D-x.yaml"), []byte("id: D-x\n"), 0o644)
+		}, true, "does not match the events"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

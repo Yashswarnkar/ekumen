@@ -49,6 +49,7 @@ type Snapshot struct {
 	Observed core.Observed
 
 	byID map[string]event.Event
+	name string
 }
 
 // Options configure Load.
@@ -58,6 +59,9 @@ type Options struct {
 	Observer observe.Observer
 	// Warn receives warnings (for stderr). Nil drops them.
 	Warn func(string)
+	// Name is the project's name when the caller knows it (e.g. from the
+	// git remote); see Snapshot.ProjectName.
+	Name string
 }
 
 // FindRoot returns the nearest directory at or above dir that contains
@@ -87,7 +91,7 @@ func Load(ctx context.Context, opt Options) (*Snapshot, error) {
 	if fi, err := os.Stat(ek); err != nil || !fi.IsDir() {
 		return nil, fmt.Errorf("%s is not a folder", ek)
 	}
-	s := &Snapshot{Root: opt.Root, Store: files.New(ek), Now: opt.Now.UTC(), byID: map[string]event.Event{}}
+	s := &Snapshot{Root: opt.Root, Store: files.New(ek), Now: opt.Now.UTC(), byID: map[string]event.Event{}, name: opt.Name}
 	raws, warns, err := s.Store.ReadAll()
 	if err != nil {
 		return nil, fmt.Errorf("read events: %w", err)
@@ -194,7 +198,8 @@ func (s *Snapshot) TaskStatus(id string) core.TaskStatus {
 
 // FrozenHashes hashes the current text of every approved brief and frozen
 // contract, keyed by the path recorded in events, for the
-// frozen-text-changed rule.
+// frozen-text-changed rule, and the spine's under core.SpineFile for the
+// spine-unapproved rule.
 func (s *Snapshot) FrozenHashes() map[string]string {
 	out := map[string]string{}
 	add := func(p string) {
@@ -214,6 +219,9 @@ func (s *Snapshot) FrozenHashes() map[string]string {
 		if c.Status == core.ContractFrozen {
 			add(c.Path)
 		}
+	}
+	if h, err := files.HashFile(filepath.Join(s.EkumenDir(), core.SpineFile)); err == nil {
+		out[core.SpineFile] = h
 	}
 	return out
 }

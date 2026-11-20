@@ -135,6 +135,10 @@ type InboxItem struct {
 	Reason    string   `json:"reason"`
 	CreatedAt string   `json:"created_at"`
 	Subject   *Subject `json:"subject,omitempty"`
+	// Action and Command are set on kind "action" items (C-cli-json v3):
+	// approve, freeze or apply, and the command that does it.
+	Action  string `json:"action,omitempty"`
+	Command string `json:"command,omitempty"`
 }
 
 // Node is a graph node.
@@ -175,6 +179,9 @@ type Contract struct {
 	Path    *string  `json:"path"`
 	Status  string   `json:"status"`
 	Version int      `json:"version"`
+	// PendingVersion is a newer version recorded by `contract version`
+	// and not frozen yet (C-cli-json v3).
+	PendingVersion *int `json:"pending_version,omitempty"`
 }
 
 // External is an external dependency as listed in projections.
@@ -429,9 +436,10 @@ func NormalizeOwner(o string) string {
 // ---- inbox ----
 
 // Inbox lists what waits on owner (a role name or session name), ranked:
-// for the lead, pending decisions by priority (core.PendingDecisions) and
-// then unrecorded conflicts; then, for everyone, open routed items
-// (questions and handoffs), oldest first.
+// for the lead, pending decisions by priority (core.PendingDecisions), then
+// unrecorded conflicts, then the lead's next moves (kind "action",
+// core.LeadActions: approve, freeze, apply); then, for everyone, open
+// routed items (questions and handoffs), oldest first.
 func (s *Snapshot) Inbox(owner string) []InboxItem {
 	out := []InboxItem{}
 	if owner == string(event.RoleLead) {
@@ -447,6 +455,11 @@ func (s *Snapshot) Inbox(owner string) []InboxItem {
 		for _, c := range s.Conflicts() {
 			out = append(out, InboxItem{Kind: "conflict", ID: "conflict-" + c.Rule + "-" + strings.ToLower(first(c.Events)),
 				Title: c.Detail, Reason: "rule " + c.Rule, CreatedAt: s.atOf(last(c.Events))})
+		}
+		for _, a := range core.LeadActions(&s.State, s.Observed, s.Now, s.hasBrief) {
+			out = append(out, InboxItem{Kind: "action", ID: a.Subject.ID, Title: s.actionTitle(a), Reason: a.Reason,
+				CreatedAt: s.atOf(a.Event), Subject: &Subject{string(a.Subject.Kind), a.Subject.ID},
+				Action: a.Action, Command: a.Command})
 		}
 	}
 	var routes []InboxItem
@@ -478,6 +491,33 @@ func (s *Snapshot) Inbox(owner string) []InboxItem {
 		return cmp.Or(cmp.Compare(a.CreatedAt, b.CreatedAt), cmp.Compare(a.ID, b.ID))
 	})
 	return append(out, routes...)
+}
+
+// hasBrief reports whether a task's brief file exists.
+func (s *Snapshot) hasBrief(id string) bool {
+	t, ok := s.State.Tasks[id]
+	if !ok {
+		return false
+	}
+	p := t.Brief
+	if p == "" {
+		p = "briefs/" + id + "/brief.md"
+	}
+	return exists(s.ResolvePath(p))
+}
+
+func (s *Snapshot) actionTitle(a core.LeadAction) string {
+	title := ""
+	switch a.Subject.Kind {
+	case event.KindTask:
+		title = s.State.Tasks[a.Subject.ID].Title
+	case event.KindContract:
+		title = s.State.Contracts[a.Subject.ID].Title
+	case event.KindDecision:
+		title = s.State.Decisions[a.Subject.ID].Title
+	}
+	verb := map[string]string{core.ActionApprove: "Approve", core.ActionFreeze: "Freeze", core.ActionApply: "Apply"}[a.Action]
+	return fmt.Sprintf("%s %s: %s", verb, a.Subject.ID, title)
 }
 
 func plural(n int) string {
@@ -590,7 +630,12 @@ func (s *Snapshot) ContractViews() []Contract {
 	out := []Contract{}
 	for _, id := range sortedKeys(s.State.Contracts) {
 		c := s.State.Contracts[id]
-		out = append(out, Contract{ID: id, Aliases: list(c.Aliases), Title: c.Title, Path: ptr(c.Path), Status: c.Status, Version: c.Version})
+		v := Contract{ID: id, Aliases: list(c.Aliases), Title: c.Title, Path: ptr(c.Path), Status: c.Status, Version: c.Version}
+		if c.Pending != nil {
+			n := c.Pending.Version
+			v.PendingVersion = &n
+		}
+		out = append(out, v)
 	}
 	return out
 }

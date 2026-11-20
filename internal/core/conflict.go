@@ -16,10 +16,21 @@ const (
 	RuleFrozenTwice       = "frozen-twice"
 	RuleFrozenTextChanged = "frozen-text-changed"
 	RuleIDCollision       = "id-collision"
+	// RuleOrphanStep: a lifecycle step whose prerequisite never exists, e.g.
+	// an apply with no decide (C-event-log v5, D-imported-event-time-order).
+	RuleOrphanStep = "orphan-step"
+	// RuleSpineUnapproved: spine.md does not match the latest SpineApproved
+	// (C-event-log v5, D-post-switch-hand-edits).
+	RuleSpineUnapproved = "spine-unapproved"
 )
 
+// SpineFile is the spine's path relative to .ekumen/. Its hash is passed in
+// ConflictInputs.TextSHA256 under this key.
+const SpineFile = "spine.md"
+
 // ConflictRules lists every rule in the order of C-event-log §5.
-var ConflictRules = []string{RuleLane, RuleRole, RuleDecidedTwice, RuleFrozenTwice, RuleFrozenTextChanged, RuleIDCollision}
+var ConflictRules = []string{RuleLane, RuleRole, RuleDecidedTwice, RuleFrozenTwice, RuleFrozenTextChanged, RuleIDCollision,
+	RuleOrphanStep, RuleSpineUnapproved}
 
 // Conflict is a contradiction to report with ConflictDetected {rule,
 // events}. Detail explains it for the decision the loop raises.
@@ -32,8 +43,9 @@ type Conflict struct {
 // ConflictInputs are the observed facts the conflict rules need. The core
 // never reads files or checks processes; the caller supplies them.
 type ConflictInputs struct {
-	// TextSHA256 maps a repo path (a brief's §A, a contract body) to the
-	// sha256 of its current text. A path that is missing is not checked.
+	// TextSHA256 maps a path as recorded in events (a brief's §A, a
+	// contract body), or SpineFile, to the sha256 of its current text. A
+	// path that is missing is not checked.
 	TextSHA256 map[string]string
 	// AliveSessions says which sessions are alive. Nil means "unknown":
 	// every claim counts as live.
@@ -53,6 +65,8 @@ func Conflicts(s *State, events []event.Event, in ConflictInputs) []Conflict {
 	all = append(all, FrozenTwiceConflicts(s)...)
 	all = append(all, FrozenTextChangedConflicts(s, in.TextSHA256)...)
 	all = append(all, IDCollisionConflicts(s)...)
+	all = append(all, OrphanStepConflicts(s, events)...)
+	all = append(all, SpineUnapprovedConflicts(s, in.TextSHA256)...)
 
 	seen := map[string]bool{}
 	for _, r := range s.Conflicts {
@@ -180,8 +194,10 @@ func FrozenTwiceConflicts(s *State) []Conflict {
 // FrozenTextChangedConflicts is rule `frozen-text-changed`: the current
 // text of an approved §A (the task's brief path) or of a frozen contract
 // (its path) no longer matches the hash recorded by TaskApproved, or by the
-// latest ContractFrozen/ContractVersioned. Hashes come from the caller;
-// paths it doesn't supply are not checked.
+// latest frozen version of the contract (C-event-log v5). A contract whose
+// text matches a newer version recorded by ContractVersioned and not yet
+// frozen is not a conflict: it waits for `contract freeze`. Hashes come
+// from the caller; paths it doesn't supply are not checked.
 func FrozenTextChangedConflicts(s *State, current map[string]string) []Conflict {
 	var out []Conflict
 	for _, id := range sortedKeys(s.Tasks) {
@@ -199,7 +215,7 @@ func FrozenTextChangedConflicts(s *State, current map[string]string) []Conflict 
 		if c.Status != ContractFrozen || c.Path == "" {
 			continue
 		}
-		if h, ok := current[c.Path]; ok && h != c.TextSHA256 {
+		if h, ok := current[c.Path]; ok && h != c.TextSHA256 && (c.Pending == nil || h != c.Pending.TextSHA256) {
 			out = append(out, newConflict(RuleFrozenTextChanged,
 				fmt.Sprintf("contract %s: %s changed since version %d was frozen", id, c.Path, c.Version), c.freezeEvent()))
 		}
@@ -209,7 +225,7 @@ func FrozenTextChangedConflicts(s *State, current map[string]string) []Conflict 
 
 // freezeEvent returns the event that recorded the current frozen version.
 func (c *Contract) freezeEvent() string {
-	for _, f := range append(slices.Clone(c.Freezes), c.Versions...) {
+	for _, f := range c.Freezes {
 		if f.Version == c.Version && f.TextSHA256 == c.TextSHA256 {
 			return f.Event
 		}
@@ -239,4 +255,86 @@ func IDCollisionConflicts(s *State) []Conflict {
 		check("task", id, s.Tasks[id].Drafts)
 	}
 	return out
+}
+
+// OrphanStepConflicts is rule `orphan-step` (C-event-log v5,
+// D-imported-event-time-order): an event whose lifecycle prerequisite is
+// nowhere in the log. The reducer orders steps causally within a subject,
+// so a step is never dropped for arriving "too early"; one whose
+// prerequisite never exists is reported here instead of being ignored:
+//
+//   - any task event other than TaskDrafted (and questions on a task) with
+//     no TaskDrafted;
+//   - any decision event other than DecisionRaised with no DecisionRaised,
+//     and DecisionApplied with no DecisionDecided or DecisionDefaulted;
+//   - any contract event other than ContractDrafted with no ContractDrafted;
+//   - ExternalUpdated or ExternalResolved with no ExternalAdded;
+//   - QuestionAnswered for a question never asked on that subject.
+//
+// Routing, role and conflict events have no prerequisite here (a route
+// may be resolved before it is written; see State.EarlyResolutions).
+func OrphanStepConflicts(s *State, events []event.Event) []Conflict {
+	var out []Conflict
+	for _, e := range SortEvents(events) {
+		if !e.Type.Known() {
+			continue
+		}
+		id := s.Resolve(e.Subject.ID)
+		missing := ""
+		switch e.Subject.Kind {
+		case event.KindTask:
+			if t, ok := s.Tasks[id]; e.Type != event.TaskDraftedType && (!ok || !t.Drafted()) {
+				missing = "TaskDrafted"
+			}
+		case event.KindDecision:
+			d, ok := s.Decisions[id]
+			switch {
+			case e.Type != event.DecisionRaisedType && (!ok || len(d.Raises) == 0):
+				missing = "DecisionRaised"
+			case e.Type == event.DecisionAppliedType && d.DecidedEvent == "":
+				missing = "DecisionDecided or DecisionDefaulted"
+			}
+		case event.KindContract:
+			if c, ok := s.Contracts[id]; e.Type != event.ContractDraftedType && (!ok || c.DraftedEvent == "") {
+				missing = "ContractDrafted"
+			}
+		case event.KindExternal:
+			if x, ok := s.Externals[id]; e.Type != event.ExternalAddedType && (!ok || x.AddedEvent == "") {
+				missing = "ExternalAdded"
+			}
+		}
+		if missing == "" && e.Type == event.QuestionAnsweredType {
+			if p, err := e.Payload(); err == nil {
+				if _, ok := s.FindQuestion(e.Subject, p.(*event.QuestionAnswered).QuestionID); !ok {
+					missing = "QuestionAsked"
+				}
+			}
+		}
+		if missing != "" {
+			out = append(out, newConflict(RuleOrphanStep,
+				fmt.Sprintf("%s %s on %s %s has no %s", e.Type, e.ID, e.Subject.Kind, e.Subject.ID, missing), e.ID))
+		}
+	}
+	return out
+}
+
+// SpineUnapprovedConflicts is rule `spine-unapproved` (C-event-log v5,
+// D-post-switch-hand-edits): the spine's current text does not match the
+// latest SpineApproved. Before the first approval there is nothing to
+// compare against, so nothing is reported; nor when the caller does not
+// supply the spine's hash.
+func SpineUnapprovedConflicts(s *State, current map[string]string) []Conflict {
+	if len(s.SpineApprovals) == 0 {
+		return nil
+	}
+	h, ok := current[SpineFile]
+	if !ok {
+		return nil
+	}
+	last := s.SpineApprovals[len(s.SpineApprovals)-1]
+	if h == last.TextSHA256 {
+		return nil
+	}
+	return []Conflict{newConflict(RuleSpineUnapproved,
+		fmt.Sprintf("%s changed since the lead approved it (run `ekumen spine approve` once the lead has)", SpineFile), last.Event)}
 }

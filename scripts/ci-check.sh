@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# CI gate: run `ekumen check --json` on a project root and fail on invalid
-# records, lane violations or conflicts. See docs/development.md.
+# CI gate: run `ekumen check --json` and `ekumen project --check --json` on a
+# project root, and fail on invalid records, lane violations, conflicts, or
+# committed decisions/<id>.yaml that don't match the events
+# (D-projections-in-git). See docs/development.md.
 #
 #   scripts/ci-check.sh [root]       (default root: .)
 #   EKUMEN_BIN=path/to/ekumen        (default: bin/ekumen)
@@ -28,4 +30,17 @@ echo "$out"
 if [ "$code" -ne 0 ]; then
   echo "::error::ekumen check failed (exit $code): see the JSON above"
 fi
-exit "$code"
+
+# registry.yaml and state.json are local (git-ignored); per-item files are
+# committed and must match the events.
+pout=$(EKUMEN_OBSERVE=off "$bin" --root "$root" project --check --json)
+pcode=$?
+echo "$pout"
+if [ "$pcode" -ne 0 ]; then
+  echo "::error::ekumen project --check failed (exit $pcode): run \`ekumen project\` and commit .ekumen/decisions/"
+fi
+
+if [ "$code" -ne 0 ]; then
+  exit "$code"
+fi
+exit "$pcode"

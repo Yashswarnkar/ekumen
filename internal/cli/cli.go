@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/Yashswarnkar/ekumen/internal/event"
+	"github.com/Yashswarnkar/ekumen/internal/mapview"
 	"github.com/Yashswarnkar/ekumen/internal/observe"
 	"github.com/Yashswarnkar/ekumen/internal/project"
 )
@@ -93,6 +94,29 @@ type Env struct {
 	Observer func(root string) observe.Observer
 	// Commit returns the short commit of the project root, or "".
 	Commit func(root string) string
+	// Git returns what the CLI reads from git for the project root: the
+	// origin remote (for the project name and map links) and the default
+	// branch. Nil or empty fields mean unknown.
+	Git func(root string) GitInfo
+}
+
+// GitInfo is what the CLI reads from git about a project root.
+type GitInfo struct {
+	// Remote is the URL of the `origin` remote, or "".
+	Remote string
+	// DefaultBranch is origin's default branch (origin/HEAD), or "".
+	DefaultBranch string
+	// Prefix is the project root's path inside the repository, with a
+	// trailing slash, or "" at the top.
+	Prefix string
+}
+
+func gitOut(root string, args ...string) string {
+	out, err := exec.Command("git", append([]string{"-C", root}, args...)...).Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 // DefaultEnv is the environment of the real binary. Observation uses `gh`
@@ -108,14 +132,27 @@ func DefaultEnv() Env {
 			}
 			return observe.GH{Dir: root}
 		},
-		Commit: func(root string) string {
-			out, err := exec.Command("git", "-C", root, "rev-parse", "--short", "HEAD").Output()
-			if err != nil {
-				return ""
+		Commit: func(root string) string { return gitOut(root, "rev-parse", "--short", "HEAD") },
+		Git: func(root string) GitInfo {
+			return GitInfo{
+				Remote:        gitOut(root, "remote", "get-url", "origin"),
+				DefaultBranch: strings.TrimPrefix(gitOut(root, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"), "origin/"),
+				Prefix:        gitOut(root, "rev-parse", "--show-prefix"),
 			}
-			return strings.TrimSpace(string(out))
 		},
 	}
+}
+
+// git returns the GitInfo of the project root, read once per run.
+func (r *run) git(root string) GitInfo {
+	if r.gitInfo == nil {
+		g := GitInfo{}
+		if r.env.Git != nil {
+			g = r.env.Git(root)
+		}
+		r.gitInfo = &g
+	}
+	return *r.gitInfo
 }
 
 // globals are the flags every command accepts (C-cli-json §1).
@@ -137,6 +174,8 @@ type run struct {
 	g      globals
 	ctx    context.Context
 	warned map[string]bool
+
+	gitInfo *GitInfo
 }
 
 // Run executes one ekumen command and returns its exit status.
@@ -267,7 +306,7 @@ func (r *run) load() (*project.Snapshot, error) {
 		obs = r.env.Observer(root)
 	}
 	s, err := project.Load(r.ctx, project.Options{Root: root, Now: r.now(), Observer: obs,
-		Warn: func(m string) { r.warn("%s", m) }})
+		Name: mapview.RepoName(r.git(root).Remote), Warn: func(m string) { r.warn("%s", m) }})
 	if err != nil {
 		return nil, errf(CodeInternal, "%v", err)
 	}
@@ -306,8 +345,10 @@ Read (every read prints one JSON object with --json):
   decision list [--status s] | decision show <id>
   question list [--for x] [--open]
   graph                                   task graph nodes and edges
-  map --out <file.html>                   self-contained build map
+  map --out <file.html> [--fragment] [--link-base url]
+                                          self-contained build map
   check                                   validate files and run conflict rules
+  project --check                         fail if committed decisions/*.yaml are stale
 
 Write (need --as <role>:<id> or EKUMEN_ACTOR):
   decision raise --file <d.yaml>
@@ -326,6 +367,8 @@ Write (need --as <role>:<id> or EKUMEN_ACTOR):
   contract draft --file <c.yaml> [--text-file body.md]
   contract block <id> [--add x] [--remove y] --reason t
   contract freeze <id>
+  contract version <id> --by <decision>   (orchestrator; then the lead freezes it)
+  spine approve                           (lead; hashes .ekumen/spine.md)
   external add --file f | external update <id> --file f | external resolve <id> --note t
   route resolve <route id> --note t
   claim <role> | release <role>
@@ -438,6 +481,13 @@ func (r *run) dispatch(args []string) error {
 			return r.contractDraft(a)
 		case "block":
 			return r.contractBlock(a)
+		case "version":
+			return r.contractVersion(a)
+		}
+	case "spine":
+		s, a := sub()
+		if s == "approve" {
+			return r.spineApprove(a)
 		}
 	case "external":
 		s, a := sub()

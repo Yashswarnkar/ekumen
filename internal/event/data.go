@@ -46,6 +46,10 @@ type TaskAmended struct {
 	File       string `json:"file"`
 	TextSHA256 string `json:"text_sha256"`
 	Note       string `json:"note"`
+	// ByDecision is set when the amendment is made by applying that
+	// decision; such amendments are in the loop's lane (C-event-log v5 §3,
+	// D-apply-amend-lane).
+	ByDecision string `json:"by_decision,omitempty"`
 }
 
 // TaskBlockersChanged adds and removes ids from a task's blocked_by.
@@ -252,6 +256,12 @@ type ConflictDetected struct {
 	Events []string `json:"events"`
 }
 
+// SpineApproved records the lead's approval of the spine's current text
+// (C-event-log v5 §6, D-post-switch-hand-edits). Subject: project.
+type SpineApproved struct {
+	TextSHA256 string `json:"text_sha256"`
+}
+
 // NewPayload returns a pointer to a zero payload for t, or nil for an
 // unknown type.
 func NewPayload(t Type) any {
@@ -308,6 +318,8 @@ func NewPayload(t Type) any {
 		return new(RoleReleased)
 	case ConflictDetectedType:
 		return new(ConflictDetected)
+	case SpineApprovedType:
+		return new(SpineApproved)
 	}
 	return nil
 }

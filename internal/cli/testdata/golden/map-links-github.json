@@ -1,0 +1,40 @@
+{
+  "C-cli-json": {
+    "source": "https://github.com/o/r/blob/trunk/.ekumen/contracts/C-cli-json.md"
+  },
+  "C-event-log": {
+    "source": "https://github.com/o/r/blob/trunk/.ekumen/contracts/C-event-log.md"
+  },
+  "D-claim-lane": {
+    "source": "https://github.com/o/r/blob/trunk/.ekumen/decisions/D-claim-lane.yaml"
+  },
+  "D-gate": {
+    "source": "https://github.com/o/r/blob/trunk/.ekumen/decisions/D-gate.yaml"
+  },
+  "D-gate-two": {
+    "source": "https://github.com/o/r/blob/trunk/.ekumen/decisions/D-gate-two.yaml"
+  },
+  "D-new-choice": {
+    "source": "https://github.com/o/r/blob/trunk/.ekumen/decisions/D-new-choice.yaml"
+  },
+  "D-old-choice": {
+    "source": "https://github.com/o/r/blob/trunk/.ekumen/decisions/D-old-choice.yaml"
+  },
+  "D-yaml-library": {
+    "source": "https://github.com/o/r/blob/trunk/.ekumen/decisions/D-yaml-library.yaml"
+  },
+  "T-cli": {
+    "handoff": "https://github.com/o/r/blob/trunk/.ekumen/briefs/T-cli/handoffs/<STAMP>-t-cli.md",
+    "source": "https://github.com/o/r/blob/trunk/.ekumen/briefs/T-cli/brief.md"
+  },
+  "T-core": {
+    "source": "https://github.com/o/r/blob/trunk/.ekumen/briefs/T-core/brief.md"
+  },
+  "T-gated": {
+    "handoff": "https://github.com/o/r/blob/trunk/.ekumen/briefs/T-gated/handoffs/<STAMP>-t-gated.md",
+    "source": "https://github.com/o/r/blob/trunk/.ekumen/briefs/T-gated/brief.md"
+  },
+  "T-skills": {
+    "source": "https://github.com/o/r/blob/trunk/.ekumen/briefs/T-skills/brief.md"
+  }
+}

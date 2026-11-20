@@ -158,7 +158,6 @@ func TestNewWritesLanes_EventLog3(t *testing.T) {
 	}{
 		{"session applies", []string{"--as", "session:t-gated", "decision", "apply", "D-gate"}},
 		{"orchestrator applies as itself", []string{"--as", "orchestrator:main", "decision", "apply", "D-gate"}},
-		{"loop without the orchestrator claim", []string{"--as", "loop:loop", "decision", "apply", "D-gate"}},
 		{"lead applies", []string{"--as", "lead:yash", "decision", "apply", "D-gate"}},
 		{"session defers", []string{"--as", "session:t-gated", "task", "defer", "T-gated", "--reason", "x"}},
 		{"orchestrator without claim defers", []string{"--as", "orchestrator:other", "task", "defer", "T-gated", "--reason", "x"}},

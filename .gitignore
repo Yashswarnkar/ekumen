@@ -4,3 +4,7 @@ web/node_modules/
 # Vite build output; embedded only with -tags embedui. The no-Node fallback
 # lives in web/placeholder/ and is committed.
 web/dist/
+# Aggregate projections are local: every ekumen command regenerates them
+# (D-projections-in-git). Per-item .ekumen/decisions/<id>.yaml stay committed.
+.ekumen/registry.yaml
+.ekumen/state.json

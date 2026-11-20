@@ -50,9 +50,18 @@ type State struct {
 	Conflicts []RecordedConflict `json:"conflicts"`
 	// Aliases maps an older id to its slug id (C-event-log §1).
 	Aliases map[string]string `json:"aliases"`
+	// SpineApprovals are the SpineApproved events, in log order
+	// (C-event-log v5, D-post-switch-hand-edits).
+	SpineApprovals []SpineApproval `json:"spine_approvals"`
 	// Skipped lists events the reducer could not use: unknown types (C-event-log
 	// §9) or payloads that do not decode.
 	Skipped []SkippedEvent `json:"skipped"`
+}
+
+// SpineApproval is one SpineApproved.
+type SpineApproval struct {
+	Event      string `json:"event"`
+	TextSHA256 string `json:"text_sha256"`
 }
 
 // Writer is one event that created an item, with who wrote it. Several
@@ -69,6 +78,7 @@ type Entry struct {
 	File       string `json:"file"`
 	TextSHA256 string `json:"text_sha256"`
 	Note       string `json:"note,omitempty"`
+	ByDecision string `json:"by_decision,omitempty"`
 }
 
 // Handoff is one §C entry.
@@ -164,15 +174,18 @@ type Decision struct {
 
 	Raises []Writer `json:"raises"`
 
-	Status       string     `json:"status"`
-	Questions    []Question `json:"questions"`
-	Answer       string     `json:"answer,omitempty"`
-	AnswerNote   string     `json:"answer_note,omitempty"`
-	DecidedBy    string     `json:"decided_by,omitempty"`
-	DecidedOn    string     `json:"decided_on,omitempty"`
-	SupersededBy string     `json:"superseded_by,omitempty"`
-	AppliedOn    string     `json:"applied_on,omitempty"`
-	Applied      *Applied   `json:"applied,omitempty"`
+	Status     string     `json:"status"`
+	Questions  []Question `json:"questions"`
+	Answer     string     `json:"answer,omitempty"`
+	AnswerNote string     `json:"answer_note,omitempty"`
+	DecidedBy  string     `json:"decided_by,omitempty"`
+	DecidedOn  string     `json:"decided_on,omitempty"`
+	// DecidedEvent is the DecisionDecided or DecisionDefaulted that set
+	// the answer.
+	DecidedEvent string   `json:"decided_event,omitempty"`
+	SupersededBy string   `json:"superseded_by,omitempty"`
+	AppliedOn    string   `json:"applied_on,omitempty"`
+	Applied      *Applied `json:"applied,omitempty"`
 
 	// Answers lists every DecisionDecided in event order, including ones
 	// that came after the first (decided-twice, C-event-log §5).
@@ -197,11 +210,16 @@ type Contract struct {
 	// BlockedBy are the ids the contract waits on (C-event-log v4,
 	// D-contract-blockers).
 	BlockedBy []string `json:"blocked_by"`
-	// Status is draft until the first ContractFrozen or ContractVersioned.
+	// Status is draft until the first ContractFrozen.
 	Status string `json:"status"`
-	// Version and TextSHA256 are those of the highest frozen version.
+	// Version and TextSHA256 are those of the highest ContractFrozen
+	// (C-event-log v5: a ContractVersioned does not freeze by itself).
 	Version    int    `json:"version"`
 	TextSHA256 string `json:"text_sha256,omitempty"`
+	// Pending is the highest ContractVersioned above Version: a new
+	// version recorded by a decision and waiting for `contract freeze`
+	// (D-contract-version-recording). Nil when none.
+	Pending *Freeze `json:"pending,omitempty"`
 	// Freezes lists ContractFrozen events; Versions lists ContractVersioned.
 	Freezes   []Freeze   `json:"freezes"`
 	Versions  []Freeze   `json:"versions"`
@@ -275,21 +293,22 @@ func newState() State {
 
 		EarlyResolutions: map[string]Resolution{},
 		Aliases:          map[string]string{},
+		SpineApprovals:   []SpineApproval{},
 		Skipped:          []SkippedEvent{},
 	}
 }
 
-// LifecycleRank orders event types that share a timestamp (C-event-log v4
-// §2): drafted/raised, then approved/frozen/asked, then
-// amended/answered/decided/defaulted/superseded, then applied. Types the
-// contract does not place sit where their lifecycle puts them (see the
-// table in README.md). Unknown types come last.
+// LifecycleRank is an event type's lifecycle step (C-event-log v5 §2,
+// D-imported-event-time-order): 0 drafted/raised, 1 approved/frozen/asked,
+// 2 amended/answered/decided/defaulted/superseded/handoff, 3 applied.
+// Types the decision does not name sit where their lifecycle puts them
+// (see the table in README.md). Unknown types come last.
 func LifecycleRank(t event.Type) int {
 	switch t {
 	case event.TaskDraftedType, event.DecisionRaisedType, event.ContractDraftedType, event.ExternalAddedType:
 		return 0
 	case event.TaskApprovedType, event.ContractFrozenType, event.QuestionAskedType,
-		event.TaskSessionAttachedType, event.RoleClaimedType:
+		event.TaskSessionAttachedType, event.RoleClaimedType, event.SpineApprovedType:
 		return 1
 	case event.TaskAmendedType, event.QuestionAnsweredType, event.DecisionDecidedType,
 		event.DecisionDefaultedType, event.DecisionSupersededType, event.TaskBlockersChangedType,
@@ -303,6 +322,17 @@ func LifecycleRank(t event.Type) int {
 	return 4
 }
 
+// step is an event's position within its subject: its LifecycleRank,
+// except for project-wide events (role claims and releases, spine
+// approvals, conflicts), which are not one item's lifecycle and keep plain
+// time order.
+func step(e event.Event) int {
+	if e.Subject.Kind == event.KindProject {
+		return 0
+	}
+	return LifecycleRank(e.Type)
+}
+
 // ulidTime is the millisecond-timestamp part of a ULID (its first 10
 // characters), which sorts as text. Malformed ids use the whole id.
 func ulidTime(id string) string {
@@ -312,12 +342,19 @@ func ulidTime(id string) string {
 	return id
 }
 
-// SortEvents returns a copy of events in log order (C-event-log v4 §2):
-// by the timestamp in the id, then, for events in the same millisecond, by
-// LifecycleRank, then by id, type and encoded bytes, so the order is total
-// even for malformed logs. The rank is a stable tie-break that does not
-// depend on ULID entropy: an import or replay that writes a draft and its
-// approval at the same instant is still applied draft first. Exact
+// SortEvents returns a copy of events in log order (C-event-log v5 §2,
+// D-imported-event-time-order: causal within a subject):
+//
+//   - Within one subject (kind and id), events are ordered by lifecycle
+//     step first (see step), then by the timestamp in the id. An apply
+//     therefore always comes after its decide, and an approval after its
+//     draft, whatever their clocks said (backdated imports, clock skew).
+//     Events of one step keep time order.
+//   - Across subjects, events are ordered by time: the subjects' sequences
+//     are merged by always taking the earliest next event.
+//
+// Remaining ties break by LifecycleRank, id, type and encoded bytes, so the
+// order is total and the same for any permutation of the input. Exact
 // duplicates (same encoding) are dropped.
 func SortEvents(events []event.Event) []event.Event {
 	type keyed struct {
@@ -332,7 +369,7 @@ func SortEvents(events []event.Event) []event.Event {
 		}
 		ks = append(ks, keyed{e, string(b)})
 	}
-	slices.SortStableFunc(ks, func(a, b keyed) int {
+	byTime := func(a, b keyed) int {
 		return cmp.Or(
 			cmp.Compare(ulidTime(a.e.ID), ulidTime(b.e.ID)),
 			cmp.Compare(LifecycleRank(a.e.Type), LifecycleRank(b.e.Type)),
@@ -340,13 +377,72 @@ func SortEvents(events []event.Event) []event.Event {
 			cmp.Compare(a.e.Type, b.e.Type),
 			cmp.Compare(a.enc, b.enc),
 		)
-	})
-	out := make([]event.Event, 0, len(ks))
+	}
+	slices.SortStableFunc(ks, byTime)
+	// Drop exact duplicates.
+	uniq := ks[:0]
 	for i, k := range ks {
 		if i > 0 && k.enc != "" && k.enc == ks[i-1].enc {
 			continue
 		}
-		out = append(out, k.e)
+		uniq = append(uniq, k)
+	}
+	// One sequence per subject, in causal order.
+	type subjectKey struct {
+		kind event.SubjectKind
+		id   string
+	}
+	var order []subjectKey
+	seqs := map[subjectKey][]keyed{}
+	for _, k := range uniq {
+		sk := subjectKey{k.e.Subject.Kind, k.e.Subject.ID}
+		if _, ok := seqs[sk]; !ok {
+			order = append(order, sk)
+		}
+		seqs[sk] = append(seqs[sk], k)
+	}
+	for _, sk := range order {
+		slices.SortStableFunc(seqs[sk], func(a, b keyed) int {
+			return cmp.Or(cmp.Compare(step(a.e), step(b.e)), byTime(a, b))
+		})
+	}
+	// Merge: repeatedly take the earliest head (a binary heap of subjects).
+	out := make([]event.Event, 0, len(uniq))
+	heads := make([]int, len(order))
+	head := func(i int) keyed { return seqs[order[i]][heads[i]] }
+	less := func(h []int, a, b int) bool { return byTime(head(h[a]), head(h[b])) < 0 }
+	down := func(h []int, i int) {
+		for {
+			l, m := 2*i+1, i
+			if l < len(h) && less(h, l, m) {
+				m = l
+			}
+			if r := l + 1; r < len(h) && less(h, r, m) {
+				m = r
+			}
+			if m == i {
+				return
+			}
+			h[i], h[m] = h[m], h[i]
+			i = m
+		}
+	}
+	h := make([]int, len(order))
+	for i := range h {
+		h[i] = i
+	}
+	for i := len(h)/2 - 1; i >= 0; i-- {
+		down(h, i)
+	}
+	for len(h) > 0 {
+		i := h[0]
+		out = append(out, head(i).e)
+		heads[i]++
+		if heads[i] == len(seqs[order[i]]) {
+			h[0] = h[len(h)-1]
+			h = h[:len(h)-1]
+		}
+		down(h, 0)
 	}
 	return out
 }
@@ -565,7 +661,7 @@ func (s *State) apply(e event.Event) {
 		t.TierGrants = orEmpty(d.TierGrants)
 	case *event.TaskAmended:
 		t := s.task(e.Subject.ID)
-		t.Amendments = append(t.Amendments, Entry{Event: e.ID, At: stamp(e.At), File: d.File, TextSHA256: d.TextSHA256, Note: d.Note})
+		t.Amendments = append(t.Amendments, Entry{Event: e.ID, At: stamp(e.At), File: d.File, TextSHA256: d.TextSHA256, Note: d.Note, ByDecision: d.ByDecision})
 	case *event.TaskBlockersChanged:
 		t := s.task(e.Subject.ID)
 		t.BlockedBy = appendUnique(t.BlockedBy, d.Added...)
@@ -601,14 +697,14 @@ func (s *State) apply(e event.Event) {
 			return
 		}
 		dec.Status, dec.Answer, dec.AnswerNote = StatusDecided, d.Answer, d.Note
-		dec.DecidedBy, dec.DecidedOn = e.Actor.ID, day(e.At)
+		dec.DecidedBy, dec.DecidedOn, dec.DecidedEvent = e.Actor.ID, day(e.At), e.ID
 	case *event.DecisionDefaulted:
 		dec := s.decision(e.Subject.ID)
 		if dec.Status != StatusPending {
 			return
 		}
 		dec.Status, dec.Answer = StatusDefaulted, d.Answer
-		dec.DecidedBy, dec.DecidedOn = e.Actor.ID, day(e.At)
+		dec.DecidedBy, dec.DecidedOn, dec.DecidedEvent = e.Actor.ID, day(e.At), e.ID
 	case *event.DecisionSuperseded:
 		dec := s.decision(e.Subject.ID)
 		if dec.Status == StatusSuperseded {
@@ -739,6 +835,8 @@ func (s *State) apply(e event.Event) {
 		s.Claims = append(s.Claims, Claim{Role: d.Role, Session: d.Session, Event: e.ID})
 	case *event.RoleReleased:
 		s.Claims = slices.DeleteFunc(s.Claims, func(c Claim) bool { return c.Role == d.Role && c.Session == d.Session })
+	case *event.SpineApproved:
+		s.SpineApprovals = append(s.SpineApprovals, SpineApproval{Event: e.ID, TextSHA256: d.TextSHA256})
 	case *event.ConflictDetected:
 		evs := slices.Clone(d.Events)
 		slices.Sort(evs)
@@ -750,13 +848,19 @@ func (s *State) apply(e event.Event) {
 func (s *State) finish() {
 	for _, c := range s.Contracts {
 		var best *Freeze
-		for _, f := range append(slices.Clone(c.Freezes), c.Versions...) {
+		for _, f := range c.Freezes {
 			if best == nil || f.Version > best.Version {
 				best = &f
 			}
 		}
 		if best != nil {
 			c.Status, c.Version, c.TextSHA256 = ContractFrozen, best.Version, best.TextSHA256
+		}
+		c.Pending = nil
+		for _, f := range c.Versions {
+			if f.Version > c.Version && (c.Pending == nil || f.Version >= c.Pending.Version) {
+				c.Pending = &f
+			}
 		}
 	}
 }

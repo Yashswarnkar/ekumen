@@ -9,11 +9,13 @@ import (
 	"github.com/Yashswarnkar/ekumen/internal/event"
 )
 
-// C-event-log v4 §3: the lane table, written out as in the contract so a
-// change to Lanes has to match it.
+// C-event-log v5 §3: the lane table, written out as in the contract so a
+// change to Lanes has to match it. The loop's TaskAmended needs
+// data.by_decision, so with empty data it is refused here; see
+// TestApplyAmendLane_DApplyAmendLane.
 var contractLanes = map[event.Role][]event.Type{
 	event.RoleLead: {event.TaskApprovedType, event.DecisionDecidedType, event.DecisionSupersededType, event.ContractFrozenType,
-		event.DecisionRaisedType},
+		event.DecisionRaisedType, event.SpineApprovedType},
 	event.RoleOrchestrator: {event.TaskDraftedType, event.TaskAmendedType, event.TaskBlockersChangedType, event.TaskDeferredType,
 		event.TaskSessionAttachedType, event.ContractDraftedType, event.ContractBlockersChangedType, event.ContractVersionedType,
 		event.ExternalAddedType, event.ExternalUpdatedType, event.ExternalResolvedType, event.DecisionRaisedType},

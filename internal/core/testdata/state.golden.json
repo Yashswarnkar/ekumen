@@ -234,6 +234,7 @@
         "answer_note": "Fine.",
         "decided_by": "yash",
         "decided_on": "2026-11-20",
+        "decided_event": "01JD8Z3K6Q4M2V7X9T1B5N0R20",
         "applied_on": "2026-11-20",
         "applied": {
           "amended_tasks": [
@@ -356,6 +357,7 @@
       "C1": "C-event-log",
       "C2": "C-decision-record"
     },
+    "spine_approvals": [],
     "skipped": [
       {
         "event": "01JD8Z3K6Q4M2V7X9T1B5N0R24",

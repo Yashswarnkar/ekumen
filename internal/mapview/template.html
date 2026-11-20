@@ -95,7 +95,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 .n.contract rect { fill: var(--panel); stroke: var(--accent); }
 .n.contract.draft rect { stroke-dasharray: 4 3; stroke: var(--plan); fill: var(--plan-soft); }
 .n.decision polygon { fill: var(--gate-soft); stroke: var(--gate); }
-.n .badge { font-family: var(--font-mono); font-size: 10.5px; fill: var(--review); }
+.badge { font-family: var(--font-mono); font-size: 10.5px; fill: var(--review); }
 .e { fill: none; stroke: var(--plan); stroke-width: 1.3; }
 .e.fromgate { stroke: var(--gate); }
 .gkey { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
@@ -178,6 +178,12 @@ const nodes = Object.fromEntries(DATA.nodes.map(n => [n.id, n]));
 const out = {};
 DATA.edges.forEach(e => (out[e.from] ||= []).push(e.to));
 const label = id => `${id} · ${(nodes[id] || {}).title || ""}`;
+// Links to source files on the git host, computed by `ekumen map`. With no
+// link base, ids are plain text. Links open in a new tab.
+const LINKS = DATA.links || {};
+const href = u => `href="${esc(u)}" target="_blank" rel="noopener"`;
+const linkTo = (url, html) => url ? `<a ${href(url)}>${html}</a>` : html;
+const linkId = (id, html) => linkTo((LINKS[id] || {}).source, html ?? esc(id));
 
 // ---- header ----
 const c = DATA.counts.tasks_by_status || {};
@@ -204,7 +210,7 @@ document.getElementById("decisions").innerHTML = inboxDecisions.map(d => {
   const direct = out[d.id] || [];
   const held = d.holds_up.filter(x => tasks[x]);
   return `<article class="card gate">
-    <div class="idline"><span class="mono">${esc(d.id)}</span>
+    <div class="idline"><span class="mono">${linkId(d.id)}</span>
       <span class="pill gate">tier ${esc(d.tier)}${d.tier === 1 ? ", applies by default" + (d.deadline ? " on " + esc(d.deadline) : "") : ", needs you"}</span>
       <span>priority ${esc(d.priority)}</span>
       <span>raised by ${esc(d.raised_by.task || d.raised_by.session)}</span></div>
@@ -217,8 +223,8 @@ document.getElementById("decisions").innerHTML = inboxDecisions.map(d => {
     ${(d.questions || []).filter(q => !q.answer).map(q => `<p class="note"><b>Open question</b> from ${esc(q.by)} to ${esc(q.to)}: ${esc(q.text)}</p>`).join("")}
   </article>`;
 }).join("") + others.map(i => `<article class="card gate">
-    <div class="idline"><span class="mono">${esc(i.id)}</span><span class="pill gate">${esc(i.kind)}</span></div>
-    <h3>${esc(i.title)}</h3><p class="ctx">${esc(i.reason)}</p></article>`).join("")
+    <div class="idline"><span class="mono">${i.subject ? linkId(i.subject.id, esc(i.id)) : esc(i.id)}</span><span class="pill gate">${esc(i.action || i.kind)}</span></div>
+    <h3>${esc(i.title)}</h3><p class="ctx">${esc(i.reason)}</p>${i.command ? `<p class="note mono">${esc(i.command)}</p>` : ""}</article>`).join("")
   || `<p class="sub">Nothing waiting on you.</p>`;
 
 // ---- PRs ----
@@ -228,8 +234,9 @@ document.getElementById("prs").innerHTML = prs.map(t => {
   return `<article class="card pr">
     <div class="idline"><span class="mono">PR #${esc(p.number)}</span>${p.state === "draft" ? `<span class="pill review">draft</span>` : ""}${ci}</div>
     <h3>${esc(p.title || t.title)}</h3>
-    <div class="holds"><span>From task</span><span class="chip">${esc(t.id)}</span><span>${esc(t.title)}</span></div>
-    ${p.url ? `<a href="${esc(p.url)}" target="_blank" rel="noopener">Open pull request</a>` : ""}
+    <div class="holds"><span>From task</span><span class="chip">${linkId(t.id)}</span><span>${esc(t.title)}</span></div>
+    ${p.url ? `<a ${href(p.url)}>Open pull request</a>` : ""}
+    ${(LINKS[t.id] || {}).handoff ? `<a ${href(LINKS[t.id].handoff)}>Latest handoff</a>` : ""}
   </article>`;
 }).join("") || `<p class="sub">${DATA.observed ? "No pull requests waiting." : "Pull requests were not observed."}</p>`;
 
@@ -266,17 +273,19 @@ document.getElementById("prs").innerHTML = prs.map(t => {
     const t = tasks[id];
     const pr = t && t.observed && t.observed.pr;
     const sub = info.kind === "task" ? info.status.replace("_", " ") : info.kind === "decision" ? `decision, tier ${decisions[id] ? decisions[id].tier : "?"}` : `${info.kind}, ${info.status}`;
-    svg += `<g class="n ${esc(cls)}"><title>${esc(label(id))}</title>${shape}
+    const node = `<g class="n ${esc(cls)}"><title>${esc(label(id))}</title>${shape}
       <text class="nid" x="${x + 12}" y="${y + 16}">${esc(id)} · ${esc(sub)}</text>
-      ${pr ? `<text class="badge" x="${x + n.width - 12}" y="${y + 16}" text-anchor="end">PR #${esc(pr.number)}</text>` : ""}
       ${lines.map((l, i) => `<text class="ntitle" x="${x + 12}" y="${y + 33 + i * 15}">${esc(l)}</text>`).join("")}</g>`;
+    svg += linkTo((LINKS[id] || {}).source, node);
+    const badge = pr ? `<text class="badge" x="${x + n.width - 12}" y="${y + 16}" text-anchor="end">PR #${esc(pr.number)}</text>` : "";
+    svg += pr && pr.url ? linkTo(pr.url, badge) : badge;
   });
   box.innerHTML = svg + "</svg>";
 })();
 
 // ---- decided ----
 document.getElementById("decided").innerHTML = DATA.decisions.filter(d => d.status !== "pending").map(d =>
-  `<tr><td class="id">${esc(d.id)}</td><td>${esc(d.title)}</td><td><span class="pill ${d.status === "decided" ? "ok" : "plan"}">${esc(d.status === "superseded" ? "superseded by " + d.superseded_by : d.answer)}</span>${d.status === "defaulted" ? ` <span class="sub" style="font-size:12px">(default applied)</span>` : ""}</td><td class="id">${esc(d.decided_on || "")}</td></tr>`
+  `<tr><td class="id">${linkId(d.id)}</td><td>${esc(d.title)}</td><td><span class="pill ${d.status === "decided" ? "ok" : "plan"}">${esc(d.status === "superseded" ? "superseded by " + d.superseded_by : d.answer)}</span>${d.status === "defaulted" ? ` <span class="sub" style="font-size:12px">(default applied)</span>` : ""}</td><td class="id">${esc(d.decided_on || "")}</td></tr>`
 ).join("") || `<tr><td colspan="4" class="sub">Nothing decided yet.</td></tr>`;
 
 document.getElementById("foot").innerHTML = `This page is generated by <span class="mono">ekumen map</span> for ${esc(DATA.project)}, never hand-edited. Graph layout: dagre 0.8.5, MIT License, Copyright (c) 2012-2014 Chris Pettitt.`;

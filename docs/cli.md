@@ -15,7 +15,8 @@ The CLI is how people, agents and scripts read and change Ekumen state. The comm
 | Paths | Every path the CLI prints (`paths` of a write, `Entry.path`, `Task.brief`, `check`'s `invalid[].path`, `map`'s output) is relative to the project root, e.g. `.ekumen/briefs/T-core/brief.md`. Paths recorded inside events (`file`, `path`, `brief`) and in `registry.yaml` stay relative to `.ekumen/`, as the event log records them. |
 | Exit codes | `0` ok · `1` usage · `2` refused (validation, lane, or role claim) · `3` not found · `4` conflict · `5` internal. |
 | Errors | With `--json`: `{"error": {"code": "lane\|validation\|not_found\|conflict\|usage\|internal", "message": "…", "field": "…"}}`. |
-| Writes | Print `{"ok": true, "events": [ids], "paths": [files written]}`. A write records all its events or none. After every write the projections are regenerated, and the changed ones are listed in `paths`. The CLI never commits; `git add` the paths yourself. |
+| Writes | Print `{"ok": true, "events": [ids], "paths": [files written]}`. A write records all its events or none. After every write the projections are regenerated, and the changed ones are listed in `paths`. The CLI never commits; `git add` the paths yourself (`registry.yaml` and `state.json` are git-ignored, see [Projections](#projections)). |
+| Project name | The repository name of the `origin` remote, else the folder holding `.ekumen/`. |
 | Observed state | `status`, `task`, `graph`, `map` and the projections read pull requests with `gh pr list` from the project root. Without `gh` (or with `EKUMEN_OBSERVE=off`) a task's `observed` is `null`, a warning goes to stderr, and statuses are derived from events alone. |
 
 ## Read commands
@@ -42,7 +43,23 @@ inbox for orchestrator:
   route     route-01M7W42VG0000000000000000N p=0    T-cli handoff: Done, in review. (handoff has follow-ups, …)
 ```
 
-Ranked: for the lead, pending decisions by priority, then conflicts; then, for every owner, open routed items (questions and handoffs needing action), oldest first. Until the control loop exists, the CLI computes the routes the loop would write (C-event-log §4), so questions and handoffs show up straight away. `--for session:t-cli` and `--for t-cli` are the same.
+Ranked: for the lead, pending decisions by priority, then conflicts, then the lead's next moves (`kind: action`, below); then, for every owner, open routed items (questions and handoffs needing action), oldest first. Until the control loop exists, the CLI computes the routes the loop would write (C-event-log §4), so questions and handoffs show up straight away. `--for session:t-cli` and `--for t-cli` are the same.
+
+The lead's `action` items carry `action` and `command` (C-cli-json v3), with `subject` naming the item:
+
+| `action` | When | `command` |
+|---|---|---|
+| `approve` | A task is drafted, has its `brief.md`, has no open blockers, and is not approved or deferred. | `ekumen task approve <id>` |
+| `freeze` | A draft contract has no open blockers, or a frozen contract has a newer version recorded by `contract version`. | `ekumen contract freeze <id>` |
+| `apply` | A decision has been decided or defaulted for a day or more and is not applied. | `ekumen decision apply <id> --as loop:<orchestrator session>` |
+
+```
+$ ekumen inbox --for lead --json
+{"for": "lead", "items": [
+  {"kind": "action", "id": "C-http-api", "title": "Freeze C-http-api: HTTP API for the UI", "priority": 0,
+   "reason": "draft contract with no open blockers", "created_at": "…",
+   "subject": {"kind": "contract", "id": "C-http-api"}, "action": "freeze", "command": "ekumen contract freeze C-http-api"}]}
+```
 
 ### `ekumen task list [--status s]` / `ekumen task show <id>`
 
@@ -78,7 +95,7 @@ $ ekumen graph --json      # {nodes: [{id, kind, title, status}], edges: [{from,
 
 Nodes are tasks, contracts, external dependencies, and decisions that still gate (not applied, not superseded). An edge `{from: A, to: B}` means B needs A.
 
-### `ekumen map --out <file.html>`
+### `ekumen map --out <file.html> [--fragment] [--link-base url]`
 
 ```
 $ ekumen map --out /tmp/ekumen-map.html
@@ -86,6 +103,9 @@ wrote /tmp/ekumen-map.html: 7 nodes, 6 edges, 2 inbox items
 ```
 
 One self-contained HTML file (inbox, pull requests, task graph, decided list) built from the same data as `graph` and `inbox --for lead`. It makes no network requests: dagre 0.8.5 (MIT) is inlined for the layout.
+
+- `--fragment` writes the page without `<!doctype>`, `<html>`, `<head>` and `<body>`, for embedding in another page. The styles are scoped to a wrapping `<div class="ekumen-map">`.
+- **Links.** Every item links to its full text on the git host, in a new tab: decisions to `.ekumen/decisions/<id>.yaml`, tasks to their `brief.md` and latest handoff, contracts to their body, PRs to the PR. The link base comes from the `origin` remote: `git@github.com:o/r.git`, `ssh://git@github.com/o/r.git` and `https://github.com/o/r(.git)` give `https://github.com/o/r/blob/<default branch>/` (the default branch is `origin/HEAD`, else `main`). GitHub is the only built-in host; for any other, pass `--link-base` (e.g. `--link-base https://git.example.com/o/r/src/branch/main/`). With no remote and no `--link-base`, ids are plain text.
 
 ### `ekumen check`
 
@@ -96,7 +116,13 @@ $ echo $?
 4
 ```
 
-Validates event and brief files (layout, envelope, payload), checks that files recorded by events still exist, and runs the C-event-log §5 rules, including `frozen-text-changed` against the current text of approved briefs and frozen contracts. Exit `4` with conflicts, `2` with invalid files only.
+Validates event and brief files (layout, envelope, payload), checks that files recorded by events still exist and that every amendment and handoff file is recorded by an event (`invalid[].error` starting `orphan-entry:` otherwise), and runs the C-event-log §5 rules:
+
+- `frozen-text-changed` against the current text of approved briefs and frozen contracts (a contract's text may also match a newer version recorded by `contract version` and not yet frozen);
+- `orphan-step`: a lifecycle step whose prerequisite is nowhere in the log, e.g. a `DecisionApplied` with no `DecisionDecided`. Steps whose prerequisite exists are never dropped for being stamped earlier than it: within one item the log is ordered by lifecycle step, then time (D-imported-event-time-order);
+- `spine-unapproved`: `.ekumen/spine.md` does not match the latest `ekumen spine approve`. Nothing is reported before the first approval.
+
+Exit `4` with conflicts, `2` with invalid files only.
 
 ## Write commands
 
@@ -176,7 +202,7 @@ aliases: []
 $ ekumen --as orchestrator:main task draft --file t.yaml
 ```
 
-Write `briefs/<id>/brief.md` (§A) yourself before approval; the CLI hashes it at approval.
+Write `briefs/<id>/brief.md` (§A) yourself before approval; the CLI hashes it at approval. It is one of the [owner-edited prose files](#owner-edited-prose-files).
 
 ### `ekumen task approve <id> [--grants a,b]` (lead)
 
@@ -261,7 +287,8 @@ For a decided or defaulted decision (C-decision-record §3, D-apply-before-loop)
 
 - **Idempotent:** applying an applied decision prints `{"ok": true, "events": [], "paths": []}` and writes nothing.
 - A pending or superseded decision is refused (exit 2).
-- `DecisionApplied` is in the loop's lane, `TaskAmended` in the orchestrator's (C-event-log §3). The amendments are recorded as `orchestrator:<the same id>`, so the session running the command must hold the orchestrator claim when the decision blocks any task (D-apply-amend-lane).
+- Everything is written as the loop: `DecisionApplied`, and each `TaskAmended` with `by_decision: <id>`, which is in the loop's lane (C-event-log v5 §3, D-apply-amend-lane). No orchestrator claim is needed. Other amendments stay with the orchestrator.
+- The command checks that the apply takes effect in the log before recording it.
 
 ### `ekumen contract draft --file <c.yaml> [--text-file body.md]` (orchestrator, with the claim)
 
@@ -317,7 +344,31 @@ $ ekumen --as lead:yash contract freeze C-event-log
 froze C-event-log version 3
 ```
 
-The version is the contract file's front-matter `version`, or the next one. Freezing a version again with the same text is refused (2); with different text it is a conflict (4).
+The version is the contract file's front-matter `version`, or the next one. Freezing a version again with the same text is refused (2); with different text it is a conflict (4). A new version of a frozen contract is frozen only after `contract version` recorded it for this text (refused, 2, otherwise).
+
+### `ekumen contract version <id> --by <decision>` (orchestrator, with the claim)
+
+The contract-change protocol (C-decision-record §3, D-contract-version-recording):
+
+1. The lead decides a tier-2 decision whose `contract_impact` names the contract.
+2. The orchestrator edits the contract body and bumps `version` in its front matter.
+3. The orchestrator records the change against the decision:
+   ```
+   $ ekumen --as orchestrator:main contract version C-event-log --by D-imported-event-time-order
+   recorded C-event-log version 5 by D-imported-event-time-order; the lead freezes it with `ekumen contract freeze C-event-log`
+   ```
+4. The lead freezes it: `ekumen --as lead:yash contract freeze C-event-log`. Until then, `check` accepts the recorded text, and the lead's inbox shows a `freeze` action.
+
+Records `ContractVersioned {version, by_decision, text_sha256}`. Refused (2) unless the contract is frozen, the decision is decided (or defaulted) and names the contract in `contract_impact`, the front-matter version is higher than the frozen one, and the text changed. Recording the same version, text and decision again records nothing.
+
+### `ekumen spine approve` (lead)
+
+```
+$ ekumen --as lead:yash spine approve
+approved .ekumen/spine.md
+```
+
+Records `SpineApproved {text_sha256}` for the current `.ekumen/spine.md` (D-post-switch-hand-edits). From then on `check` reports `spine-unapproved` whenever the spine does not match the latest approval. Approving the same text again records nothing.
 
 ### `ekumen route resolve <route id> --note t` (the route's owner)
 
@@ -335,14 +386,18 @@ $ ekumen --as orchestrator:main release orchestrator
 
 One holder per role. Every orchestrator write needs the claim.
 
-### `ekumen project`
+### `ekumen project [--check]`
 
 ```
 $ ekumen project
 projections: 3 file(s) changed
+$ ekumen project --check --json
+{"ok": false, "invalid": [{"path": ".ekumen/decisions/D-x.yaml", "error": "does not match the events: run `ekumen project` and commit it"}]}
 ```
 
 Regenerates `decisions/<id>.yaml`, `registry.yaml` and `state.json` from the events (plus observed pull requests for task status). It does nothing on an empty log, so hand-written records are not replaced before they are imported.
+
+`--check` writes nothing: it fails (exit 2) if a committed `decisions/<id>.yaml` is stale or missing, or names no decision in the log. CI runs it (`scripts/ci-check.sh`).
 
 ## Projections
 
@@ -353,3 +408,18 @@ Regenerates `decisions/<id>.yaml`, `registry.yaml` and `state.json` from the eve
 | `state.json` | Everything the CLI derives: tasks, decisions (with priority), contracts, externals, questions, the lead's and orchestrator's inboxes, conflicts and counts, as of a UTC date. |
 
 They carry a "generated, do not edit" header. Decision files for ids not in the log are left alone.
+
+**What is committed** (D-projections-in-git): `decisions/<id>.yaml` is committed, so each decision reads well on the git host, and CI checks it matches the events (`project --check`). `registry.yaml` and `state.json` aggregate the whole project, so two branches that each record one event would always conflict on them: they are git-ignored, and every write (and `ekumen project`) regenerates them. A fresh clone needs neither; read commands derive everything from the events.
+
+## Owner-edited prose files
+
+After the switch point nobody edits `.ekumen/` by hand, with these exceptions (D-post-switch-hand-edits). They are prose with no CLI writer, edited by their owner only:
+
+| File | Owner | Guard |
+|---|---|---|
+| `.ekumen/spine.md` | orchestrator, with the lead's approval | `ekumen spine approve` (lead) hashes it; `check` reports `spine-unapproved` after an unapproved edit. |
+| `.ekumen/contracts/<id>.md` | orchestrator | Draft: free to edit. Frozen: changed only through a decided tier-2 decision, `contract version` and `contract freeze`; `check` reports `frozen-text-changed` otherwise. |
+| `.ekumen/briefs/<id>/brief.md` (§A) | orchestrator | Only before `task approve`, which hashes it; afterwards `check` reports `frozen-text-changed`. Changes go in §B (`task amend`). |
+| `.ekumen/research/*.md` | the research task's session | Cited as evidence; no hash yet. |
+
+Everything else (events, amendments, handoffs, generated files) is written by `ekumen`. An amendment or handoff file with no event is reported by `check` as `orphan-entry`.

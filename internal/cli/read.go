@@ -358,7 +358,9 @@ func (r *run) graph(args []string) error {
 func (r *run) mapCmd(args []string) error {
 	fs := r.newFlags("map")
 	outPath := fs.String("out", "", "HTML file to write")
-	if _, err := r.parse(fs, args, 0, 0, "map --out <file.html>"); err != nil {
+	fragment := fs.Bool("fragment", false, "write the page without <!doctype>, <html>, <head> and <body>, for embedding")
+	linkBase := fs.String("link-base", "", "URL prefix for links to files (default: from the origin remote; none if unknown)")
+	if _, err := r.parse(fs, args, 0, 0, "map --out <file.html> [--fragment] [--link-base url]"); err != nil {
 		return err
 	}
 	if *outPath == "" {
@@ -373,10 +375,22 @@ func (r *run) mapCmd(args []string) error {
 	if r.env.Commit != nil {
 		commit = r.env.Commit(s.Root)
 	}
-	page, err := mapview.Render(mapview.Data{
+	base := *linkBase
+	if base == "" {
+		g := r.git(s.Root)
+		if base = mapview.LinkBase(g.Remote, g.DefaultBranch); base != "" {
+			base += g.Prefix
+		}
+	}
+	render := mapview.Render
+	if *fragment {
+		render = mapview.RenderFragment
+	}
+	page, err := render(mapview.Data{
 		GeneratedAt: r.now().Format(time.RFC3339), Commit: commit, Project: s.ProjectName(),
 		Observed: s.PRs != nil, Counts: s.Counts(), Inbox: s.Inbox(string(event.RoleLead)),
 		Nodes: nodes, Edges: edges, Tasks: s.Tasks(""), Decisions: s.Decisions(""),
+		Links: mapLinks(s, base),
 	})
 	if err != nil {
 		return errf(CodeInternal, "render map: %v", err)
@@ -395,6 +409,38 @@ func (r *run) mapCmd(args []string) error {
 		fmt.Fprintf(w, "wrote %s: %d nodes, %d edges, %d inbox items\n", s.Rel(p), len(nodes), len(edges), len(s.Inbox(string(event.RoleLead))))
 	})
 	return nil
+}
+
+// mapLinks builds the map's links to source files under base (paths
+// relative to the project root): decisions to their YAML, tasks to their
+// brief and latest handoff, contracts to their body. Empty base: no links.
+func mapLinks(s *project.Snapshot, base string) map[string]mapview.Link {
+	out := map[string]mapview.Link{}
+	if base == "" {
+		return out
+	}
+	url := func(p string) string { return mapview.FileURL(base, p) }
+	for _, id := range s.DecisionIDs() {
+		out[id] = mapview.Link{Source: url(project.Dir + "/" + project.DecisionsDir + "/" + id + ".yaml")}
+	}
+	for _, id := range s.TaskIDs() {
+		t := s.State.Tasks[id]
+		brief := t.Brief
+		if brief == "" {
+			brief = "briefs/" + id + "/brief.md"
+		}
+		l := mapview.Link{Source: url(s.RootPath(brief))}
+		if n := len(t.Handoffs); n > 0 {
+			l.Handoff = url(s.RootPath(t.Handoffs[n-1].File))
+		}
+		out[id] = l
+	}
+	for _, c := range s.ContractViews() {
+		if c.Path != nil {
+			out[c.ID] = mapview.Link{Source: url(s.RootPath(*c.Path))}
+		}
+	}
+	return out
 }
 
 func (r *run) check(args []string) error {
@@ -422,14 +468,18 @@ func (r *run) check(args []string) error {
 		}
 	}
 	// Recorded entry files must still exist.
-	for _, id := range s.TaskIDs() {
+	recorded := map[string]bool{}
+	for _, id := range sortedTaskIDs(s) {
 		t := s.State.Tasks[id]
 		for _, f := range append(entryFiles(t.Amendments), handoffFiles(t.Handoffs)...) {
+			recorded[s.RootPath(f)] = true
 			if _, err := os.Stat(s.ResolvePath(f)); err != nil {
 				invalid = append(invalid, project.Invalid{Path: s.RootPath(f), Error: "recorded by an event but missing"})
 			}
 		}
 	}
+	// And every entry file must be recorded by one (orphan-entry).
+	invalid = append(invalid, orphanEntries(s, briefs, recorded)...)
 	conflicts := s.ConflictViews()
 	ok := len(conflicts) == 0 && len(invalid) == 0
 	r.out(struct {
@@ -456,6 +506,46 @@ func (r *run) check(args []string) error {
 	return nil
 }
 
+// sortedTaskIDs lists every task id in the state, drafted or not, so
+// entries recorded on an undrafted task (an orphan step) still count.
+func sortedTaskIDs(s *project.Snapshot) []string {
+	ids := make([]string, 0, len(s.State.Tasks))
+	for id := range s.State.Tasks {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+	return ids
+}
+
+// orphanEntries reports amendment and handoff files that no TaskAmended or
+// TaskHandoff records (check rule orphan-entry, T-audit F-2026-11-20-3).
+func orphanEntries(s *project.Snapshot, briefs []os.DirEntry, recorded map[string]bool) []project.Invalid {
+	var out []project.Invalid
+	for _, d := range briefs {
+		if !d.IsDir() {
+			continue
+		}
+		for _, kind := range []string{string(files.Amendments), string(files.Handoffs)} {
+			dir := filepath.Join(s.EkumenDir(), "briefs", d.Name(), kind)
+			ents, err := os.ReadDir(dir)
+			if err != nil {
+				continue
+			}
+			for _, e := range ents {
+				if e.IsDir() || filepath.Ext(e.Name()) != ".md" {
+					continue
+				}
+				rel := s.Rel(filepath.Join(dir, e.Name()))
+				if !recorded[rel] {
+					out = append(out, project.Invalid{Path: rel,
+						Error: "orphan-entry: no TaskAmended or TaskHandoff records this file (write entries with `ekumen task amend` or `ekumen task handoff`)"})
+				}
+			}
+		}
+	}
+	return out
+}
+
 func entryFiles(es []core.Entry) []string {
 	var out []string
 	for _, e := range es {
@@ -474,12 +564,16 @@ func handoffFiles(hs []core.Handoff) []string {
 
 func (r *run) projectCmd(args []string) error {
 	fs := r.newFlags("project")
-	if _, err := r.parse(fs, args, 0, 0, "project"); err != nil {
+	checkOnly := fs.Bool("check", false, "write nothing; fail if a committed per-item projection does not match the events")
+	if _, err := r.parse(fs, args, 0, 0, "project [--check]"); err != nil {
 		return err
 	}
 	s, err := r.load()
 	if err != nil {
 		return err
+	}
+	if *checkOnly {
+		return r.projectCheck(s)
 	}
 	paths, err := s.WriteProjections()
 	if errors.Is(err, project.ErrNoEvents) {
@@ -498,5 +592,36 @@ func (r *run) projectCmd(args []string) error {
 			fmt.Fprintf(w, "  %s\n", p)
 		}
 	})
+	return nil
+}
+
+// projectCheck is `ekumen project --check` (D-projections-in-git): the
+// committed decisions/<id>.yaml must match the events. registry.yaml and
+// state.json are local and git-ignored, so they are not checked.
+func (r *run) projectCheck(s *project.Snapshot) error {
+	if len(s.Events) == 0 {
+		r.warn("%v", project.ErrNoEvents)
+		r.out(map[string]any{"ok": true, "invalid": []project.Invalid{}}, func(w io.Writer) { fmt.Fprintln(w, "ok: no events") })
+		return nil
+	}
+	invalid, err := s.CheckProjections()
+	if err != nil {
+		return errf(CodeInternal, "projections: %v", err)
+	}
+	ok := len(invalid) == 0
+	r.out(struct {
+		OK      bool              `json:"ok"`
+		Invalid []project.Invalid `json:"invalid"`
+	}{ok, invalid}, func(w io.Writer) {
+		for _, i := range invalid {
+			fmt.Fprintf(w, "invalid %s: %s\n", i.Path, i.Error)
+		}
+		if ok {
+			fmt.Fprintf(w, "ok: %d decision file(s) match the events\n", len(s.DecisionIDs()))
+		}
+	})
+	if !ok {
+		return &Error{Code: CodeValidation, Silent: true}
+	}
 	return nil
 }
