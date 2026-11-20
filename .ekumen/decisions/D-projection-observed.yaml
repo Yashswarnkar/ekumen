@@ -25,3 +25,5 @@ answer: include-observed
 answer_note: As recommended.
 decided_by: lead
 decided_on: 2026-11-20
+applied_on: 2026-11-20
+applied: {amended: [C-event-log v4, C-cli-json v2, T-core-align, T-cli-gaps], unblocked: [], notified_sessions: []}

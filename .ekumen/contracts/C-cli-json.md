@@ -4,7 +4,7 @@ aliases: [C3]
 title: CLI commands and JSON output
 status: frozen         # draft | frozen
 frozen_on: 2026-11-20
-version: 1
+version: 2
 consumers: [T-skills, T-reconcile, T-server, agents]
 producers: [T-cli]
 ---
@@ -21,7 +21,8 @@ producers: [T-cli]
 - **Exit codes:** `0` ok · `1` usage error · `2` refused (validation, lane, or role claim) · `3` not found · `4` conflict detected · `5` internal error.
 - **Errors with `--json`:** `{"error": {"code": "lane|validation|not_found|conflict|usage|internal", "message": "…", "field": "…"}}`. `field` is optional.
 - **Writes** return `{"ok": true, "events": ["<event id>", …], "paths": ["<file written>", …]}`. A write either records all its events or none.
-- **Ids** may be given as an id or an alias, and output always uses the id.
+- **Ids** may be given as an id or an alias, and output always uses the id. Question and route ids also accept a unique prefix; an ambiguous one is a usage error listing the matches.
+- **Paths** in output are relative to the repository root (e.g. `.ekumen/briefs/T-core/brief.md`).
 - **Times** are RFC 3339 UTC; dates are `YYYY-MM-DD`.
 
 ## 2. Read commands
@@ -44,6 +45,7 @@ producers: [T-cli]
 | `ekumen decision raise --file <d.yaml>` | session, integrator, orchestrator, lead | `DecisionRaised` after C-decision-record §2 validation |
 | `ekumen decision answer <id> <option\|other> [--note t]` | lead | `DecisionDecided` |
 | `ekumen decision supersede <id> --by <id> [--note t]` | lead | `DecisionSuperseded` |
+| `ekumen decision apply <id> [--amend-text-file f]` | loop (the orchestrator runs it as `--as loop:<session>` until the loop exists) | `DecisionApplied` + a §B amendment per blocked task; idempotent |
 | `ekumen question ask <subject id> --text t [--to x]` | anyone | `QuestionAsked` |
 | `ekumen question answer <question id> --text t` | the addressee | `QuestionAnswered` |
 | `ekumen task draft --file <t.yaml>` | orchestrator | `TaskDrafted` |
@@ -51,9 +53,13 @@ producers: [T-cli]
 | `ekumen task amend <id> --text-file f` | orchestrator | amendment file + `TaskAmended` |
 | `ekumen task handoff <id> --text-file f` | the task's session | handoff file + `TaskHandoff` (the `has_*` flags are parsed from the section headings) |
 | `ekumen task block <id> --add x --remove y --reason t` | orchestrator | `TaskBlockersChanged` |
+| `ekumen task defer <id> --reason t` | orchestrator | `TaskDeferred` |
+| `ekumen task attach <id> --session s [--adapter a]` | orchestrator | `TaskSessionAttached` |
+| `ekumen contract draft --file <c.yaml>` · `contract block <id> --add x --remove y --reason t` | orchestrator | `ContractDrafted` · `ContractBlockersChanged` |
+| `ekumen external add --file f` · `external update <id> --file f` · `external resolve <id> --note t` | orchestrator | `ExternalAdded` · `ExternalUpdated` · `ExternalResolved` |
 | `ekumen contract freeze <id>` | lead | `ContractFrozen` (hashes the file) |
 | `ekumen route resolve <route id> --note t` | the route's owner | `RouteResolved` |
-| `ekumen claim <role>` / `ekumen release <role>` | the claiming session | `RoleClaimed` / `RoleReleased` |
+| `ekumen claim <role>` / `ekumen release <role>` | the claiming session (C-event-log v4) | `RoleClaimed` / `RoleReleased` |
 
 Lead commands are run by the lead, or by an orchestrator session acting on the lead's explicit word with `--as lead:<handle>`. The event records the actor as given.
 
@@ -96,3 +102,9 @@ Adding commands, flags or fields is a minor change; callers must ignore fields t
 
 - The CLI never commits to git; the caller does.
 - `ekumen map` stays: it is the build map until `ekumen serve` has views, and a static export afterwards.
+
+## Version 2 (2026-11-20)
+
+- New writes: `decision apply`, `task defer`, `task attach`, `contract draft`/`block`, `external add`/`update`/`resolve` (D-apply-before-loop, D-cli-missing-writes, D-contract-blockers).
+- Id prefixes for questions and routes; paths relative to the repository root.
+- Task status in projections and output includes observed PR state (D-projection-observed).

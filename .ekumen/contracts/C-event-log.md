@@ -4,7 +4,7 @@ aliases: [C1]
 title: Event log
 status: frozen         # draft | frozen
 frozen_on: 2026-11-20
-version: 3
+version: 4
 consumers: [T-core, T-file-store, T-cli, T-server, T-import, T-reconcile]
 producers: [T-core]
 ---
@@ -56,7 +56,7 @@ Every event is one JSON object:
 | `subject.id` | The subject's id (§1). `project` for project-wide events. |
 | `data` | Type-specific payload (§6). Unknown fields are kept and ignored. |
 
-Events are ordered by `id`. There is no per-subject counter: two events written at the same moment by different writers both stand.
+Events are ordered by `id`. There is no per-subject counter: two events written at the same moment by different writers both stand. When events about one subject share a timestamp (imports, replays), readers apply them in lifecycle order: drafted/raised, then approved/frozen/asked, then amended/answered/decided/defaulted/superseded, then applied.
 
 ## 3. Lanes: who may write what
 
@@ -65,13 +65,16 @@ Every event type has one role allowed to write it: its **lane**. The CLI refuses
 | Role | May write |
 |---|---|
 | **lead** | `TaskApproved`, `DecisionDecided`, `DecisionSuperseded`, `ContractFrozen` |
-| **orchestrator** | `TaskDrafted`, `TaskAmended` (§B), `TaskBlockersChanged`, `TaskDeferred`, `TaskSessionAttached`, `ContractDrafted`, `ContractVersioned`, `External*` |
+| **orchestrator** | `TaskDrafted`, `TaskAmended` (§B), `TaskBlockersChanged`, `TaskDeferred`, `TaskSessionAttached`, `ContractDrafted`, `ContractBlockersChanged`, `ContractVersioned`, `External*` |
 | **session** (its own task only) | `TaskHandoff` (§C) |
 | **integrator** (its own task only) | `TaskHandoff` |
 | **lead, orchestrator, session, integrator, loop** | `DecisionRaised`. A session or integrator raises only from its own task; the others may raise with `raised_by.task: null` (D-lane-gaps). |
 | **anyone** | `QuestionAsked`. `QuestionAnswered` only by the question's addressee. |
 | **the route's owner** | `RouteResolved`, for items routed to them (D-lane-gaps). |
-| **loop** | `DecisionDefaulted`, `DecisionApplied`, `TaskSessionAttached`, `RoutedToOwner`, `ConflictDetected`, `RoleClaimed`, `RoleReleased` |
+| **the claiming session** | `RoleClaimed`, `RoleReleased` (D-claim-lane) |
+| **loop** | `DecisionDefaulted`, `DecisionApplied`, `TaskSessionAttached`, `RoutedToOwner`, `ConflictDetected` |
+
+Until the control loop exists, the orchestrator runs `ekumen decision apply` acting as `loop:<its session>`, which writes `DecisionApplied` in the loop's lane (D-apply-before-loop).
 
 **A session's own task** is the task whose `TaskDrafted.session` names it, or the latest `TaskSessionAttached` for that session (written by the orchestrator or the loop) (D-lane-gaps).
 
@@ -133,7 +136,7 @@ Events that don't contradict are never conflicts. Two questions on one decision 
 | `QuestionAsked` | `question_id, text, to` (role or session; may be empty, see §4) |
 | `QuestionAnswered` | `question_id, text` |
 
-**Contract:** `ContractDrafted {title, path, aliases[]?}` · `ContractFrozen {version, text_sha256}` · `ContractVersioned {version, by_decision, text_sha256}`
+**Contract:** `ContractDrafted {title, path, aliases[]?, blocked_by[]?}` · `ContractBlockersChanged {added[], removed[], reason}` · `ContractFrozen {version, text_sha256}` · `ContractVersioned {version, by_decision, text_sha256}`
 
 **External dependency:** `ExternalAdded {what, owner_team, asked_on, needed_by, blocks[], aliases[]?}` · `ExternalUpdated {fields}` · `ExternalResolved {note}`
 
@@ -189,3 +192,10 @@ Adding an event type or an optional field is a minor change: readers ignore what
 - Lanes widened: who may raise decisions, a session's own task, who resolves routes (D-lane-gaps).
 - All dates are UTC dates.
 - Documented the same-author entry-name case (D-entry-name-same-author-branches) and the store's type check (D-store-event-type-check).
+
+## Version 4 (2026-11-20)
+
+- Contracts can be blocked: `blocked_by[]` on `ContractDrafted` and `ContractBlockersChanged`. A task blocked by a contract stays blocked while that contract has open blockers (D-contract-blockers).
+- `RoleClaimed`/`RoleReleased` are written by the claiming session (D-claim-lane).
+- Until the loop exists, `DecisionApplied` is written through `ekumen decision apply` acting as the loop (D-apply-before-loop).
+- Lifecycle order for events that share a timestamp.

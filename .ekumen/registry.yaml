@@ -72,9 +72,15 @@ tasks:
     title: Align core and file store with C-event-log v3
     kind: build
     brief: briefs/T-core-align/brief.md
-    approved: null
+    approved: 2026-11-20
     blocked_by: [T-import, D-contract-blockers, D-claim-lane, D-apply-before-loop]
-    status: draft
+    repo: ekumen
+    base_branch: main
+    branch: build/t-core-align
+    worktree: .worktrees/t-core-align
+    session: t-core-align
+    tier_grants: [push_own_branch, open_draft_pr, restack]
+    status: running
   T-cli:
     title: "ekumen CLI with --json, incl. ekumen map"
     kind: build
@@ -87,13 +93,19 @@ tasks:
     worktree: .worktrees/t-cli
     session: t-cli
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: in_review
+    status: done
   T-cli-gaps:
     title: CLI commands the orchestrator needs after the switch
     kind: build
     brief: briefs/T-cli-gaps/brief.md
-    approved: null
+    approved: 2026-11-20
     blocked_by: [T-cli, T-core-align, D-apply-before-loop, D-cli-missing-writes]
+    repo: ekumen
+    base_branch: main
+    branch: build/t-cli-gaps
+    worktree: .worktrees/t-cli-gaps
+    session: t-cli-gaps
+    tier_grants: [push_own_branch, open_draft_pr, restack]
     status: draft
   T-skills:
     title: /blocked and /decide skills
@@ -142,7 +154,7 @@ tasks:
     worktree: .worktrees/t-import
     session: t-import
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: in_review
+    status: done
   T-reconcile:
     title: Control loop, one pass (ekumen reconcile)
     kind: build
