@@ -55,6 +55,11 @@ type Observer interface {
 // is not installed). Callers treat observed state as unknown.
 var ErrUnavailable = errors.New("observer unavailable")
 
+// ErrTruncated is returned with the pull requests when the observer hit its
+// limit, so older ones may be missing (issue #15). The list returned with
+// it is usable.
+var ErrTruncated = errors.New("pull request list truncated")
+
 // None is an Observer that is always unavailable.
 type None struct{}
 
@@ -91,7 +96,9 @@ type ghPR struct {
 	} `json:"statusCheckRollup"`
 }
 
-// PullRequests runs `gh pr list --state all --json …`.
+// PullRequests runs `gh pr list --state all --json …`. When it returns
+// Limit pull requests, the error wraps ErrTruncated and the list is
+// returned with it.
 func (g GH) PullRequests(ctx context.Context) ([]PR, error) {
 	path, err := exec.LookPath("gh")
 	if err != nil {
@@ -114,7 +121,11 @@ func (g GH) PullRequests(ctx context.Context) ([]PR, error) {
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("gh pr list: %v: %s: %w", err, strings.TrimSpace(stderr.String()), ErrUnavailable)
 	}
-	return ParseGH(stdout.Bytes())
+	prs, err := ParseGH(stdout.Bytes())
+	if err == nil && len(prs) >= limit {
+		return prs, fmt.Errorf("gh pr list returned its limit of %d; older pull requests may be missing: %w", limit, ErrTruncated)
+	}
+	return prs, err
 }
 
 // ParseGH converts `gh pr list --json number,title,headRefName,isDraft,

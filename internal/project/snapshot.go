@@ -47,10 +47,21 @@ type Snapshot struct {
 	// unavailable, so observed state is unknown.
 	PRs      map[string]observe.PR
 	Observed core.Observed
+	// PRsObserved is ObserveOK, ObserveUnavailable or ObserveTruncated.
+	PRsObserved string
 
 	byID map[string]event.Event
 	name string
 }
+
+// How pull requests were observed at load time.
+const (
+	ObserveOK          = "ok"
+	ObserveUnavailable = "unavailable"
+	// ObserveTruncated: the observer hit its limit, so older PRs may be
+	// missing (issue #15).
+	ObserveTruncated = "truncated"
+)
 
 // Options configure Load.
 type Options struct {
@@ -92,10 +103,36 @@ func Load(ctx context.Context, opt Options) (*Snapshot, error) {
 		return nil, fmt.Errorf("%s is not a folder", ek)
 	}
 	s := &Snapshot{Root: opt.Root, Store: files.New(ek), Now: opt.Now.UTC(), byID: map[string]event.Event{}, name: opt.Name}
+	if err := s.readEvents(); err != nil {
+		return nil, err
+	}
+
+	obs := opt.Observer
+	if obs == nil {
+		obs = observe.None{}
+	}
+	prs, err := obs.PullRequests(ctx)
+	switch {
+	case errors.Is(err, observe.ErrTruncated):
+		warn("observed state may be incomplete: " + err.Error())
+		s.PRs, s.PRsObserved = observe.ByBranch(prs), ObserveTruncated
+	case err != nil:
+		warn("observed state unknown: " + err.Error())
+		s.PRsObserved = ObserveUnavailable
+	default:
+		s.PRs, s.PRsObserved = observe.ByBranch(prs), ObserveOK
+	}
+	s.Observed = s.observed()
+	return s, nil
+}
+
+// readEvents reads, decodes and validates the event log and reduces it.
+func (s *Snapshot) readEvents() error {
 	raws, warns, err := s.Store.ReadAll()
 	if err != nil {
-		return nil, fmt.Errorf("read events: %w", err)
+		return fmt.Errorf("read events: %w", err)
 	}
+	s.Events, s.Invalid, s.byID = nil, nil, map[string]event.Event{}
 	for _, w := range warns {
 		s.Invalid = append(s.Invalid, Invalid{Path: s.rel(w.Path), Error: w.Reason})
 	}
@@ -113,19 +150,32 @@ func Load(ctx context.Context, opt Options) (*Snapshot, error) {
 		s.byID[e.ID] = e
 	}
 	s.State = core.Reduce(s.Events)
+	return nil
+}
 
-	obs := opt.Observer
-	if obs == nil {
-		obs = observe.None{}
-	}
-	prs, err := obs.PullRequests(ctx)
-	if err != nil {
-		warn("observed state unknown: " + err.Error())
-	} else {
-		s.PRs = observe.ByBranch(prs)
+// Refresh reads the event log again (events another writer may have
+// added) and derives state again, keeping the observations made at load
+// time. It never observes.
+func (s *Snapshot) Refresh() error {
+	if err := s.readEvents(); err != nil {
+		return err
 	}
 	s.Observed = s.observed()
-	return s, nil
+	return nil
+}
+
+// Absorb adds events already written to the log to the snapshot and
+// derives state again, keeping the observations made at load time.
+func (s *Snapshot) Absorb(evs ...event.Event) {
+	for _, e := range evs {
+		if _, ok := s.byID[e.ID]; ok {
+			continue
+		}
+		s.Events = append(s.Events, e)
+		s.byID[e.ID] = e
+	}
+	s.State = core.Reduce(s.Events)
+	s.Observed = s.observed()
 }
 
 func (s *Snapshot) observed() core.Observed {

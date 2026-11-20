@@ -81,28 +81,9 @@ func (r *run) checkLane(s *project.Snapshot, e event.Event) error {
 // written are files already created for this write (an amendment or
 // handoff), removed again if the events can't be recorded.
 func (r *run) commit(s *project.Snapshot, evs []event.Event, written []string, human string) error {
-	var appended []string
-	rollback := func() {
-		for _, p := range append(appended, written...) {
-			os.Remove(p)
-		}
-	}
-	for _, e := range evs {
-		if err := r.admit(s, e); err != nil {
-			rollback()
-			return err
-		}
-		b, err := event.Encode(e)
-		if err != nil {
-			rollback()
-			return errf(CodeInternal, "encode: %v", err)
-		}
-		p, err := s.Store.Append(b)
-		if err != nil {
-			rollback()
-			return errf(CodeInternal, "append: %v", err)
-		}
-		appended = append(appended, p)
+	appended, err := r.appendEvents(s, evs, written)
+	if err != nil {
+		return err
 	}
 	res := writeResult{OK: true, Events: []string{}, Paths: []string{}}
 	for _, e := range evs {
@@ -120,7 +101,7 @@ func (r *run) commit(s *project.Snapshot, evs []event.Event, written []string, h
 		}
 		if err != nil {
 			r.warn("%v", err)
-			return errf(CodeInternal, "events recorded (%s), projections not regenerated; run `ekumen project`", strings.Join(res.Events, ", "))
+			return projectionsErr(res.Events, res.Paths)
 		}
 	}
 	r.out(res, func(w io.Writer) {
@@ -130,6 +111,50 @@ func (r *run) commit(s *project.Snapshot, evs []event.Event, written []string, h
 		}
 	})
 	return nil
+}
+
+// projectionsErr is the exit-5 failure of a write whose events were
+// recorded but whose projections were not regenerated.
+func projectionsErr(events, paths []string) *Error {
+	e := errf(CodeInternal, "events recorded (%s), projections not regenerated; run `ekumen project`", strings.Join(events, ", "))
+	e.Details = recordedDetails{Events: orEmpty(events), Paths: orEmpty(paths)}
+	return e
+}
+
+// recordedDetails is error.details for a failure after events were
+// recorded.
+type recordedDetails struct {
+	Events []string `json:"events"`
+	Paths  []string `json:"paths"`
+}
+
+// appendEvents admits and appends events, all or none, and returns the
+// event files written. On failure it removes them and written.
+func (r *run) appendEvents(s *project.Snapshot, evs []event.Event, written []string) ([]string, error) {
+	var appended []string
+	rollback := func() {
+		for _, p := range append(appended, written...) {
+			os.Remove(p)
+		}
+	}
+	for _, e := range evs {
+		if err := r.admit(s, e); err != nil {
+			rollback()
+			return nil, err
+		}
+		b, err := event.Encode(e)
+		if err != nil {
+			rollback()
+			return nil, errf(CodeInternal, "encode: %v", err)
+		}
+		p, err := s.Store.Append(b)
+		if err != nil {
+			rollback()
+			return nil, errf(CodeInternal, "append: %v", err)
+		}
+		appended = append(appended, p)
+	}
+	return appended, nil
 }
 
 // strList is a repeatable, comma-separated flag.

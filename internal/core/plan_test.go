@@ -367,8 +367,8 @@ func TestConflictDecisionIDIsAHashOfTheConflict_EventLog5(t *testing.T) {
 	d2 := b.decide("D-x", "b")
 	s := b.state()
 	c := Conflict{Rule: RuleDecidedTwice, Events: []string{d2.ID, d1.ID}}
-	id := ConflictDecisionID(&s, b.events, c)
-	if id != ConflictDecisionID(&s, b.events, Conflict{Rule: RuleDecidedTwice, Events: []string{d1.ID, d2.ID}}) {
+	id, _ := ConflictDecisionID(&s, b.events, c)
+	if id2, _ := ConflictDecisionID(&s, b.events, Conflict{Rule: RuleDecidedTwice, Events: []string{d1.ID, d2.ID}}); id != id2 {
 		t.Error("id depends on event order")
 	}
 	if event.ValidateID(id) != nil || len(id) != len("D-conflict-decided-twice-")+6 {
@@ -405,5 +405,30 @@ func TestPlanSkipsAnActionAndGoesOn(t *testing.T) {
 	}
 	if len(p.Skipped) != 1 || p.Skipped[0].Subject.ID != "D-one" || p.Skipped[0].Kind != LoopDefault || !strings.Contains(p.Skipped[0].Reason, "no id") {
 		t.Errorf("skipped %+v", p.Skipped)
+	}
+}
+
+// Review: when every id width is taken by other conflicts' decisions, the
+// conflict is skipped with a reason, never attributed to another decision.
+func TestConflictDecisionIDAllTaken_EventLog5(t *testing.T) {
+	b := newLog(t)
+	b.draftTask("T-a")
+	leadRaise(b, record("D-x", "T-a", "s1", 2))
+	d1 := b.decide("D-x", "a")
+	d2 := b.decide("D-x", "b")
+	sum := sha256.Sum256([]byte("decided-twice|" + d1.ID + "," + d2.ID))
+	h := hex.EncodeToString(sum[:])
+	for _, n := range []int{6, 8, 10} {
+		rec := record("D-conflict-decided-twice-"+h[:n], "T-a", "s1", 2)
+		rec.Context.Evidence = []string{"other"}
+		leadRaise(b, rec)
+	}
+	s := b.state()
+	if id, err := ConflictDecisionID(&s, b.events, Conflict{Rule: RuleDecidedTwice, Events: []string{d1.ID, d2.ID}}); err == nil {
+		t.Fatalf("got %s, want an error", id)
+	}
+	p := planAt(t, b.events, t0)
+	if len(p.Skipped) != 1 || p.Skipped[0].Kind != LoopConflict || !strings.Contains(p.Skipped[0].Reason, "taken") {
+		t.Errorf("skipped %+v, actions %v", p.Skipped, kinds(p))
 	}
 }

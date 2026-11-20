@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Yashswarnkar/ekumen/internal/core"
 	"github.com/Yashswarnkar/ekumen/internal/event"
 	"github.com/Yashswarnkar/ekumen/internal/mapview"
 	"github.com/Yashswarnkar/ekumen/internal/observe"
@@ -52,6 +53,9 @@ type Error struct {
 	// Silent: the command already printed its result; only the exit
 	// status carries the failure (check with conflicts).
 	Silent bool
+	// Details are structured facts about the failure, printed as
+	// error.details with --json (e.g. the events already recorded).
+	Details any
 }
 
 func (e *Error) Error() string { return e.Message }
@@ -100,6 +104,10 @@ type Env struct {
 	// project name and map links), and `ekumen map` also reads origin/HEAD
 	// and the root's prefix in the repository.
 	Git func(root string, args ...string) string
+
+	// beforeAction, when set, runs before each reconcile action; an error
+	// fails that action. Tests use it to inject failures.
+	beforeAction func(core.LoopAction) error
 }
 
 func gitOut(root string, args ...string) string {
@@ -204,6 +212,9 @@ func Run(args []string, env Env) int {
 		body := map[string]any{"code": ce.Code, "message": ce.Message}
 		if ce.Field != "" {
 			body["field"] = ce.Field
+		}
+		if ce.Details != nil {
+			body["details"] = ce.Details
 		}
 		r.printJSON(map[string]any{"error": body})
 	} else {
@@ -380,6 +391,7 @@ Write (need --as <role>:<id> or EKUMEN_ACTOR):
   route resolve <route id> --note t
   claim <role> | release <role>
   project                                 regenerate projections
+  reconcile [--dry-run]                   one pass of the control loop (as loop:<session>; --dry-run needs no actor)
 
 Skills (no actor needed; nothing written under .ekumen/):
   skills list                             skills embedded in this binary
@@ -434,6 +446,8 @@ func (r *run) dispatch(args []string) error {
 		return r.check(rest)
 	case "project":
 		return r.projectCmd(rest)
+	case "reconcile":
+		return r.reconcile(rest)
 	case "claim":
 		return r.claim(rest, true)
 	case "release":
