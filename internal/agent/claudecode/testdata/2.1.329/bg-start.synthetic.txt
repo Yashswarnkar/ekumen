@@ -1,0 +1,4 @@
+Started background session {short} ({name})
+  claude attach {short}
+  claude logs {short}
+  claude stop {short}
