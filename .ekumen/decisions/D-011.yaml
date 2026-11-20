@@ -7,6 +7,9 @@ options:
   - {id: ekumen-research, tradeoff: Research is the phase before a project; it is evidence for the spine and decisions and belongs with them}
   - {id: docs, tradeoff: Keeps .ekumen/ to coordination state only}
 recommendation: ekumen-research
+context:
+  summary: >
+    Research is the phase before a project, and its reports are evidence for the spine and decisions, so they live in .ekumen/research/.
 status: decided
 answer: ekumen-research
 answer_note: Research is a first-class task kind; outputs go to .ekumen/research/<task-id>-<slug>.md and are cited as evidence.

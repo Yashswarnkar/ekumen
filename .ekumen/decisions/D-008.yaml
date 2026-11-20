@@ -4,12 +4,13 @@ tier: 2
 raised_by: {task: public-repo, session: orchestrator, on: 2026-11-19}
 question: What folder holds Ekumen state inside a user's repo?
 options:
-  - {id: .ekumen, tradeoff: Explicit and recognizable}
-  - {id: .ek, tradeoff: Short; cryptic}
-recommendation: .ekumen
+  - {id: dot-ekumen, tradeoff: Explicit and recognizable}
+  - {id: dot-ek, tradeoff: Short; cryptic}
+recommendation: dot-ekumen
 context:
   summary: Part of the file format; renaming after release breaks users' repos.
 status: decided
-answer: .ekumen
+answer: dot-ekumen
+answer_note: The folder is named .ekumen/
 decided_by: lead
 decided_on: 2026-11-19

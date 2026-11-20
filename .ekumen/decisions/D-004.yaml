@@ -7,6 +7,9 @@ options:
   - {id: react-ts-vite, tradeoff: Rich interactive graph (React Flow + ELK); needs a Node build step; static output embedded in the Go binary}
   - {id: go-templates-htmx, tradeoff: No JS build, simplest; weak for an interactive graph}
 recommendation: react-ts-vite
+context:
+  summary: >
+    The UI needs an interactive task graph. React, TypeScript and Vite are the common default, built to static files embedded in the Go binary.
 status: decided
 answer: react-ts-vite
 decided_by: lead

@@ -4,7 +4,7 @@ tier: 2
 raised_by:
   task: T-core
   session: t-core
-  true: 2026-11-20
+  on: 2026-11-20
 question: Spine §3 lists both approved and ready as derived statuses but never says
   what separates them. What should "approved" mean?
 options:

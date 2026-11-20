@@ -68,6 +68,13 @@ tasks:
     session: t-file-store
     tier_grants: [push_own_branch, open_draft_pr, restack]
     status: done
+  T-core-align:
+    title: Align core and file store with C-event-log v3
+    kind: build
+    brief: briefs/T-core-align/brief.md
+    approved: null
+    blocked_by: [T-import, D-contract-blockers]
+    status: draft
   T-cli:
     title: "ekumen CLI with --json, incl. ekumen map"
     kind: build
@@ -128,7 +135,7 @@ tasks:
     worktree: .worktrees/t-import
     session: t-import
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: running
+    status: in_review
   T-reconcile:
     title: Control loop, one pass (ekumen reconcile)
     kind: build

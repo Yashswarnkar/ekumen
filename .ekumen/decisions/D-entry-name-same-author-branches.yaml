@@ -5,7 +5,7 @@ tier: 2
 raised_by:
   task: T-file-store
   session: t-file-store
-  true: 2026-11-20
+  on: 2026-11-20
 question: C-event-log §8 says two writers never pick the same entry name. The -N suffix
   only works within one checkout. If the same author (e.g. orchestrator) writes an
   entry for the same task on two branches in the same second, both get the same name

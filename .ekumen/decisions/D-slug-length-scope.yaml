@@ -4,7 +4,7 @@ tier: 2
 raised_by:
   task: T-file-store
   session: t-file-store
-  true: 2026-11-20
+  on: 2026-11-20
 question: C-event-log §1 says "slug ... ≤ 40 characters in total" and the regex has
   no length. Is the limit on the slug after "<letter>-" (id ≤ 42) or on the whole
   id (≤ 40)?

@@ -7,6 +7,9 @@ options:
   - {id: agnostic, tradeoff: Long-term durable; slower v0.1}
   - {id: claude-only, tradeoff: Fastest; risk of being absorbed by the platform}
 recommendation: agnostic
+context:
+  summary: >
+    From the vision discussion. Binding to one agent tool is fastest but risks being absorbed by that platform; an adapter layer keeps Ekumen above any one tool.
 status: decided
 answer: agnostic
 answer_note: Adapter per agent tool; support order Claude Code + Codex, then Gemini CLI + OpenCode, then Cursor + Copilot.

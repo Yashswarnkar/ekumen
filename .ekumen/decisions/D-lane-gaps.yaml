@@ -4,7 +4,7 @@ tier: 2
 raised_by:
   task: T-core
   session: t-core
-  true: 2026-11-20
+  on: 2026-11-20
 question: '(1) Only a session or integrator may write DecisionRaised, yet §5 says
   the loop "raises a tier-2 decision" for a conflict, and project decisions (raised_by.task
   null) have no lane. (2) "Its own task" can only be known from TaskSessionAttached,

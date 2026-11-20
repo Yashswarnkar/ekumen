@@ -4,7 +4,7 @@ tier: 2
 raised_by:
   task: T-core
   session: t-core
-  true: 2026-11-20
+  on: 2026-11-20
 question: 'C-event-log §1 says readers resolve aliases everywhere, but only DecisionRaised
   (through the record) has an aliases field. Where do task, contract and external
   aliases live?

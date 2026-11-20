@@ -24,3 +24,5 @@ answer: go-yaml-in
 answer_note: As recommended.
 decided_by: lead
 decided_on: 2026-11-20
+applied_on: 2026-11-20
+applied: {amended: [T-cli], unblocked: [T-cli], notified_sessions: []}

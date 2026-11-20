@@ -4,7 +4,7 @@ tier: 2
 raised_by:
   task: T-core
   session: t-core
-  true: 2026-11-20
+  on: 2026-11-20
 question: '(a) C-decision-record says tasks stay blocked "until the decision is applied",
   and that a superseded decision is never applied. Does a superseded decision keep
   blocking? (b) Priority counts tasks blocked "directly or through contracts". Is

@@ -8,7 +8,7 @@ options:
   - {id: v2-draft, tradeoff: Better model (prompt while running, state updates), but only the Claude and Codex adapters implement it; spec may change}
 recommendation: v1-plus-unstable
 default_if_no_answer: v1-plus-unstable
-deadline: null   # R1 proposed "when the first ACP build task is briefed"; C2 only allows dates (FRICTION)
+deadline: 2026-11-27
 context:
   summary: Not needed for v0.1, which has no ACP driver.
   evidence: [.ekumen/research/R1-acp.md]

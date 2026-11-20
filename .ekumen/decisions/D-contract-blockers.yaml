@@ -1,0 +1,25 @@
+id: D-contract-blockers
+title: Give contracts blockers and a planned state in events
+tier: 2
+raised_by: {task: T-import, session: t-import, on: 2026-11-20}
+question: >
+  registry.yaml gives contracts blocked_by (e.g. C-adapter on D-013..D-017) and used to give a
+  `planned` status. C-event-log has no field for either, so the import keeps them as
+  legacy data on ContractDrafted, where nothing reads them. Should events carry them?
+options:
+  - {id: optional-fields, tradeoff: "Add optional blocked_by[] to ContractDrafted plus a ContractBlockersChanged event (orchestrator lane); blockers then count in status and priority. Minor change (§9)."}
+  - {id: move-to-tasks, tradeoff: "No contract change: drop contract blockers and put the gates on the tasks that produce the contract. Loses the 'contract waits on decision' edge in the graph."}
+  - {id: keep-legacy, tradeoff: "Leave it as legacy data; the build map can't show contract blockers."}
+recommendation: optional-fields
+default_if_no_answer: null
+deadline: null
+blocks: []
+contract_impact: [C-event-log]
+context:
+  summary: >
+    Found while importing registry.yaml, whose own comment says "until contracts carry their
+    own blockers (FRICTION)". Today no task status depends on it: every task blocked by a
+    draft contract is blocked by the contract itself. Not blocking T-import.
+  evidence: [.ekumen/registry.yaml, internal/legacyimport/build.go]
+status: pending
+answer: null

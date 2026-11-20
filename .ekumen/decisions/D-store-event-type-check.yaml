@@ -4,7 +4,7 @@ tier: 1
 raised_by:
   task: T-file-store
   session: t-file-store
-  true: 2026-11-20
+  on: 2026-11-20
 question: Should Append refuse event types not listed in C-event-log §6, or check
   only that the type is a safe PascalCase name?
 options:

@@ -8,6 +8,9 @@ options:
   - {id: python, tradeoff: Quick to script; harder distribution}
   - {id: typescript, tradeoff: Same language as the UI; needs a Node runtime}
 recommendation: go
+context:
+  summary: >
+    From the vision discussion. The lead knows Go, and a single binary suits a developer tool.
 status: decided
 answer: go
 decided_by: lead
