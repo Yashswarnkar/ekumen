@@ -16,7 +16,7 @@ import (
 var contractLanes = map[event.Role][]event.Type{
 	event.RoleLead: {event.TaskApprovedType, event.DecisionDecidedType, event.DecisionSupersededType, event.ContractFrozenType,
 		event.DecisionRaisedType, event.SpineApprovedType},
-	event.RoleOrchestrator: {event.TaskDraftedType, event.TaskAmendedType, event.TaskBlockersChangedType, event.TaskDeferredType,
+	event.RoleOrchestrator: {event.TaskDraftedType, event.TaskAmendedType, event.TaskBlockersChangedType, event.TaskDeferredType, event.TaskUpdatedType,
 		event.TaskSessionAttachedType, event.ContractDraftedType, event.ContractBlockersChangedType, event.ContractVersionedType,
 		event.ExternalAddedType, event.ExternalUpdatedType, event.ExternalResolvedType, event.DecisionRaisedType},
 	event.RoleSession:    {event.TaskHandoffType, event.DecisionRaisedType},

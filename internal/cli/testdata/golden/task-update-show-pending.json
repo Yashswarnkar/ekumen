@@ -1,0 +1,17 @@
+{
+  "current": {
+    "base_branch": "",
+    "repo": "",
+    "title": "ekumen CLI"
+  },
+  "events": [
+    "01M7W44P30000000000000000P",
+    "01M7W46GP0000000000000000Q"
+  ],
+  "fields": {
+    "base_branch": "main",
+    "repo": "ekumen",
+    "title": "The CLI"
+  },
+  "reason": "and the base"
+}

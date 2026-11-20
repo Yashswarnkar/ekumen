@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "validation",
+    "field": "worktree",
+    "message": "--worktree: must not be empty"
+  }
+}

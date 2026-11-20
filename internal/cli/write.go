@@ -576,16 +576,27 @@ func (r *run) taskApprove(args []string) error {
 		return err
 	}
 	t := s.State.Tasks[id]
-	if t.Approved {
+	if t.Approved && t.PendingUpdate == nil {
 		return fieldErr(CodeValidation, "id", "%s was approved on %s; §A is frozen (amend it instead)", id, t.ApprovedOn)
 	}
 	brief, err := s.BriefPath(id)
+	moved := false
+	if u := t.PendingUpdate; u != nil && err == nil {
+		if nb, ok := u.Fields["brief"]; ok {
+			var p string
+			p, err = s.ResolvePath(nb)
+			moved, brief = p != brief, p
+		}
+	}
 	if err != nil {
 		return fieldErr(CodeValidation, "brief", "%s: %v", id, err)
 	}
 	sum, err := files.HashFile(brief)
 	if err != nil {
 		return fieldErr(CodeNotFound, "brief", "%s: cannot hash the brief: %v", id, err)
+	}
+	if t.Approved && !moved && sum != t.ApprovedSHA256 {
+		return fieldErr(CodeValidation, "brief", "%s: §A changed since approval (frozen-text-changed); approving its update does not re-approve §A", id)
 	}
 	final := t.TierGrants
 	if flagSet(fs, "grants") {
@@ -596,7 +607,11 @@ func (r *run) taskApprove(args []string) error {
 	if err != nil {
 		return err
 	}
-	return r.commit(s, []event.Event{e}, nil, "approved "+id)
+	human := "approved " + id
+	if t.Approved {
+		human = "approved the update to " + id + ": " + project.FormatUpdate(t.PendingUpdate.Fields)
+	}
+	return r.commit(s, []event.Event{e}, nil, human)
 }
 
 func flagSet(fs *flag.FlagSet, name string) bool {

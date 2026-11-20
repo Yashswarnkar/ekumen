@@ -376,7 +376,9 @@ Write (need --as <role>:<id> or EKUMEN_ACTOR):
   question ask <subject id> --text t [--to x]
   question answer <question id> --text t   (question and route ids take a unique prefix)
   task draft --file <t.yaml>
-  task approve <id> [--grants a,b]
+  task approve <id> [--grants a,b]       (also accepts a pending task update)
+  task update <id> [--repo r] [--base-branch b] [--branch b] [--worktree w]
+              [--brief p] [--title t] --reason t
   task amend <id> --text-file f [--note t]
   task handoff <id> --text-file f
   task block <id> [--add x] [--remove y] --reason t
@@ -463,6 +465,8 @@ func (r *run) dispatch(args []string) error {
 			return r.taskDraft(a)
 		case "approve":
 			return r.taskApprove(a)
+		case "update":
+			return r.taskUpdate(a)
 		case "amend":
 			return r.taskEntry(a, true)
 		case "handoff":

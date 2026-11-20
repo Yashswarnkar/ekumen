@@ -30,12 +30,16 @@ type LeadAction struct {
 	Reason string `json:"reason"`
 	// Command is the ekumen command that takes the action.
 	Command string `json:"command"`
+	// Update is the pending update an approve action accepts, if any.
+	Update *PendingUpdate `json:"update,omitempty"`
 }
 
 // LeadActions lists the lead's next moves, in this order (each by id):
 //
 //  1. approve: tasks drafted, not approved or deferred, whose brief exists
-//     (hasBrief) and that have no open blockers (OpenBlockers);
+//     (hasBrief) and that have no open blockers (OpenBlockers); then
+//     approved tasks, not deferred or done, with a pending update
+//     (D-placeholder-task-fields), which `task approve` accepts;
 //  2. freeze: draft contracts with no open blockers (ContractOpenBlockers),
 //     and frozen contracts with a newer version recorded by
 //     ContractVersioned that is not frozen yet;
@@ -58,6 +62,16 @@ func LeadActions(s *State, obs Observed, now time.Time, hasBrief func(taskID str
 		out = append(out, LeadAction{Action: ActionApprove, Subject: event.Subject{Kind: event.KindTask, ID: id},
 			Event: t.Drafts[0].Event, Reason: "drafted with a brief and no open blockers",
 			Command: "ekumen task approve " + id})
+	}
+	for _, id := range sortedKeys(s.Tasks) {
+		t := s.Tasks[id]
+		if !t.Approved || t.PendingUpdate == nil || t.Deferred || obs.task(id).PR == PRMerged {
+			continue
+		}
+		u := t.PendingUpdate
+		out = append(out, LeadAction{Action: ActionApprove, Subject: event.Subject{Kind: event.KindTask, ID: id},
+			Event: u.Events[len(u.Events)-1], Reason: "update proposed after approval",
+			Command: "ekumen task approve " + id, Update: u})
 	}
 	for _, id := range sortedKeys(s.Contracts) {
 		c := s.Contracts[id]

@@ -1,0 +1,49 @@
+{
+  "for": "lead",
+  "items": [
+    {
+      "kind": "decision",
+      "id": "D-new-choice",
+      "title": "Which YAML library the CLI uses",
+      "priority": 5,
+      "reason": "blocks 1 task, due 2026-11-20",
+      "created_at": "2026-11-20T09:14:00Z"
+    },
+    {
+      "kind": "decision",
+      "id": "D-claim-lane",
+      "title": "Who writes RoleClaimed",
+      "priority": 3,
+      "reason": "blocks 3 tasks",
+      "created_at": "2026-11-20T09:12:00Z"
+    },
+    {
+      "kind": "action",
+      "id": "T-cli",
+      "title": "Approve update to T-cli: repo ekumen, base_branch main, title The CLI (and the base)",
+      "priority": 0,
+      "reason": "update proposed after approval",
+      "created_at": "2026-11-20T09:22:00Z",
+      "subject": {
+        "kind": "task",
+        "id": "T-cli"
+      },
+      "action": "approve",
+      "command": "ekumen task approve T-cli"
+    },
+    {
+      "kind": "action",
+      "id": "C-cli-json",
+      "title": "Freeze C-cli-json: CLI commands and JSON output",
+      "priority": 0,
+      "reason": "draft contract with no open blockers",
+      "created_at": "2026-11-20T09:01:00Z",
+      "subject": {
+        "kind": "contract",
+        "id": "C-cli-json"
+      },
+      "action": "freeze",
+      "command": "ekumen contract freeze C-cli-json"
+    }
+  ]
+}

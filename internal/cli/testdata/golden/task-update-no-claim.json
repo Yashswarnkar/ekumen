@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "lane",
+    "message": "orchestrator writes need a live role claim: other is not holding it; the orchestrator role is held by main"
+  }
+}

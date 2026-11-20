@@ -2,6 +2,8 @@ package event
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 )
@@ -73,6 +75,70 @@ type TaskHandoff struct {
 	HasFollowups  bool   `json:"has_followups"`
 	HasDecisions  bool   `json:"has_decisions"`
 	HasDeviations bool   `json:"has_deviations"`
+}
+
+// TaskUpdated proposes new values for a task's location fields and title
+// (C-event-log v5 §6, D-placeholder-task-fields). A nil field is
+// unchanged. On an approved task it is pending until the lead's next
+// TaskApproved.
+type TaskUpdated struct {
+	Title      *string `json:"title,omitempty"`
+	Brief      *string `json:"brief,omitempty"`
+	Repo       *string `json:"repo,omitempty"`
+	BaseBranch *string `json:"base_branch,omitempty"`
+	Branch     *string `json:"branch,omitempty"`
+	Worktree   *string `json:"worktree,omitempty"`
+	Reason     string  `json:"reason"`
+}
+
+// TaskUpdateFields are the fields TaskUpdated may set, in contract order.
+var TaskUpdateFields = []string{"repo", "base_branch", "branch", "worktree", "brief", "title"}
+
+// Fields returns the fields the update sets, by name.
+func (u TaskUpdated) Fields() map[string]string {
+	out := map[string]string{}
+	for _, f := range TaskUpdateFields {
+		if v := u.Field(f); v != nil {
+			out[f] = *v
+		}
+	}
+	return out
+}
+
+// Check refuses an update that sets no field or sets one to "".
+func (u TaskUpdated) Check() error {
+	n := 0
+	for _, f := range TaskUpdateFields {
+		if v := u.Field(f); v != nil {
+			if *v == "" {
+				return fmt.Errorf("%s: empty value", f)
+			}
+			n++
+		}
+	}
+	if n == 0 {
+		return errors.New("no field to update")
+	}
+	return nil
+}
+
+// Field returns the value set for a field name, or nil.
+func (u TaskUpdated) Field(name string) *string {
+	switch name {
+	case "title":
+		return u.Title
+	case "brief":
+		return u.Brief
+	case "repo":
+		return u.Repo
+	case "base_branch":
+		return u.BaseBranch
+	case "branch":
+		return u.Branch
+	case "worktree":
+		return u.Worktree
+	}
+	return nil
 }
 
 // TaskDeferred parks a task.
@@ -280,6 +346,8 @@ func NewPayload(t Type) any {
 		return new(TaskHandoff)
 	case TaskDeferredType:
 		return new(TaskDeferred)
+	case TaskUpdatedType:
+		return new(TaskUpdated)
 	case DecisionRaisedType:
 		return new(DecisionRaised)
 	case DecisionDecidedType:
