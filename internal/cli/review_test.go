@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -120,5 +121,29 @@ func TestHelpWithJSONKeepsStdoutJSON(t *testing.T) {
 	}
 	if e := decodeJSON(t, out)["error"].(map[string]any); e["code"] != CodeUsage {
 		t.Errorf("no command: %v", e)
+	}
+}
+
+func TestMapReplacesOutputAtomically(t *testing.T) {
+	h := gapsFixture(t)
+	p := h.write("map.html", "old map\n")
+	f, err := os.Open(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	h.must("map", "--out", "map.html")
+	b, err := io.ReadAll(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(b) != "old map\n" {
+		t.Errorf("a reader of the old map saw %d bytes of the new one; the file was rewritten in place", len(b))
+	}
+	if left, _ := filepath.Glob(filepath.Join(h.root, ".map.html.*")); len(left) > 0 {
+		t.Errorf("temp files left: %v", left)
+	}
+	if fi, err := os.Stat(p); err != nil || fi.Mode().Perm() != 0o644 || fi.Size() < 100 {
+		t.Errorf("map file %v, %v", fi, err)
 	}
 }

@@ -404,7 +404,7 @@ func (r *run) mapCmd(args []string) error {
 	if !filepath.IsAbs(p) {
 		p = filepath.Join(r.env.Dir, p)
 	}
-	if err := os.WriteFile(p, page, 0o644); err != nil {
+	if err := writeFileAtomic(p, page); err != nil {
 		return errf(CodeInternal, "write map: %v", err)
 	}
 	r.out(struct {
@@ -414,6 +414,28 @@ func (r *run) mapCmd(args []string) error {
 		fmt.Fprintf(w, "wrote %s: %d nodes, %d edges, %d inbox items\n", s.Rel(p), len(nodes), len(edges), len(s.Inbox(string(event.RoleLead))))
 	})
 	return nil
+}
+
+func writeFileAtomic(p string, data []byte) error {
+	f, err := os.CreateTemp(filepath.Dir(p), "."+filepath.Base(p)+".*.tmp")
+	if err != nil {
+		return err
+	}
+	tmp := f.Name()
+	_, err = f.Write(data)
+	if err == nil {
+		err = f.Chmod(0o644)
+	}
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Rename(tmp, p)
+	}
+	if err != nil {
+		os.Remove(tmp)
+	}
+	return err
 }
 
 // mapLinks builds the map's links to source files under base (paths
