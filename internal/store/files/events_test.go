@@ -283,7 +283,7 @@ func TestReadWarnsOnStrayFiles(t *testing.T) {
 	write("task/t-lower/"+otherID+".TaskDrafted.json", good)                            // bad subject id
 	write("task/D-wrong/"+otherID+".TaskDrafted.json", good)                            // id letter mismatch
 	write("task/T-a/notes.md", []byte("x"))                                             // bad event name
-	write("task/T-a/.tmp-123", []byte("{"))                                             // leftover temp
+	write("task/T-a/.tmp-123", []byte("{"))                                             // temp file, skipped silently
 	write("task/T-a/"+otherID+".TaskDrafted.json", good)                                // envelope id != name
 	write("task/T-a/"+newULID(t)+".TaskDrafted.json", []byte("{broken"))                // bad JSON
 	write("task/T-a/"+newULID(t)+".TaskApproved.json", event(t, "X", "Y", "task", "T")) // id mismatch too
@@ -298,18 +298,18 @@ func TestReadWarnsOnStrayFiles(t *testing.T) {
 	if len(all) != 1 || !bytes.Equal(all[0], good) {
 		t.Fatalf("ReadAll returned %d events", len(all))
 	}
-	if len(warns) != 11 {
+	if len(warns) != 10 {
 		for _, w := range warns {
 			t.Log(w)
 		}
-		t.Fatalf("got %d warnings, want 11", len(warns))
+		t.Fatalf("got %d warnings, want 10", len(warns))
 	}
 	_, warns, err = s.ReadSubject("task", "T-a")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(warns) != 6 {
-		t.Fatalf("ReadSubject got %d warnings, want 6: %v", len(warns), warns)
+	if len(warns) != 5 {
+		t.Fatalf("ReadSubject got %d warnings, want 5: %v", len(warns), warns)
 	}
 }
 
@@ -431,13 +431,13 @@ func TestInjectedFailureLeavesNoPartialEvent(t *testing.T) {
 		t.Fatal(all, warns, err)
 	}
 
-	// A hard crash would leave the temp file behind; readers never return
-	// it as an event and report it.
+	// A hard crash, or a write in flight, leaves a temp file; readers
+	// neither return it as an event nor report it.
 	if err := os.WriteFile(filepath.Join(dir, ".tmp-999"), raw[:len(raw)/2], 0o600); err != nil {
 		t.Fatal(err)
 	}
 	all, warns, err = s.ReadAll()
-	if err != nil || len(all) != 0 || len(warns) != 1 {
+	if err != nil || len(all) != 0 || len(warns) != 0 {
 		t.Fatal(all, warns, err)
 	}
 

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 // eventsDir is the top-level folder for events (C-event-log §8).
@@ -111,7 +112,9 @@ type rawEvent struct {
 //
 // Files and directories that don't match the layout of C-event-log §8, or
 // whose envelope disagrees with their path, are skipped and reported as
-// warnings. A missing events folder is an empty log.
+// warnings. Temp files of writes in flight, and files removed between
+// listing and reading, are skipped silently. A missing events folder is an
+// empty log.
 func (s *Store) ReadAll() ([][]byte, []Warning, error) {
 	root := filepath.Join(s.root, eventsDir)
 	kinds, err := os.ReadDir(root)
@@ -178,6 +181,8 @@ func (s *Store) ReadSubject(kind, id string) ([][]byte, []Warning, error) {
 	return sortEvents(evs), warns, nil
 }
 
+var readFile = os.ReadFile
+
 func readSubjectDir(dir, kind, id string) ([]rawEvent, []Warning, error) {
 	ents, err := os.ReadDir(dir)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -190,6 +195,9 @@ func readSubjectDir(dir, kind, id string) ([]rawEvent, []Warning, error) {
 	var warns []Warning
 	for _, de := range ents {
 		p := filepath.Join(dir, de.Name())
+		if strings.HasPrefix(de.Name(), tempPrefix) {
+			continue
+		}
 		if !de.Type().IsRegular() {
 			warns = append(warns, Warning{p, "not a regular file"})
 			continue
@@ -199,7 +207,10 @@ func readSubjectDir(dir, kind, id string) ([]rawEvent, []Warning, error) {
 			warns = append(warns, Warning{p, "name is not <event id>.<type>.json"})
 			continue
 		}
-		data, err := os.ReadFile(p)
+		data, err := readFile(p)
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
 		if err != nil {
 			return nil, nil, err
 		}
