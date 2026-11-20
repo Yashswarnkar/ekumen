@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/Yashswarnkar/ekumen/internal/core"
@@ -190,8 +191,13 @@ func (r *run) executeAction(s *project.Snapshot, a event.Actor, act core.LoopAct
 		if doneElsewhere(&s.State, act) {
 			return ra, heldByOther, nil
 		}
-		if d := s.State.Decisions[act.Subject.ID]; act.Kind == core.LoopApply && d != nil && d.Status == core.StatusPending {
-			return ra, heldNotDecided, nil
+		if d := s.State.Decisions[act.Subject.ID]; act.Kind == core.LoopApply && d != nil {
+			switch {
+			case d.Status == core.StatusPending:
+				return ra, heldNotDecided, nil
+			case core.Contested(d):
+				return ra, core.HeldContested, nil
+			}
 		}
 		if act.Kind == core.LoopApply {
 			var err error
@@ -317,23 +323,41 @@ func fillAmendment(evs []event.Event, id, file, sum string) error {
 	return errf(CodeInternal, "planned amendment %s has no event", id)
 }
 
-// report fills what the pass reports but does not do. Ready and
+// report fills what the pass reports but does not do. A dry run reports
+// what the plan expects. A pass reports what it did: ready and
+// not-startable tasks from the log as written, unblocked tasks and
+// sessions to notify from the DecisionApplied events it wrote. Ready and
 // not_startable are unknown (null) when pull requests were not fully
 // observed.
 func (r *run) report(s *project.Snapshot, plan core.Plan, res *reconcileResult) {
-	if plan.Ready == nil {
+	ready, waiting := plan.Ready, plan.NotStartable
+	if !res.DryRun {
+		res.Unblocked, res.Notify = written(s, res.Events)
+		if ready != nil {
+			ready, waiting = []string{}, []string{}
+			for _, id := range s.TaskIDs() {
+				switch s.TaskStatus(id) {
+				case core.TaskReady:
+					ready = append(ready, id)
+				case core.TaskApproved:
+					waiting = append(waiting, id)
+				}
+			}
+		}
+	}
+	if ready == nil {
 		r.warn("pull requests %s: applies held, ready and not-startable tasks unknown", s.PRsObserved)
 	} else {
 		res.Ready = []readyTask{}
-		for _, id := range plan.Ready {
+		for _, id := range ready {
 			t := s.State.Tasks[id]
 			v := s.TaskView(id)
 			res.Ready = append(res.Ready, readyTask{ID: id, Branch: t.Branch, Worktree: t.Worktree, Session: v.Session, Brief: v.Brief})
 		}
 	}
-	if plan.NotStartable != nil {
+	if waiting != nil {
 		res.NotStartable = []notStartable{}
-		for _, id := range plan.NotStartable {
+		for _, id := range waiting {
 			t := s.State.Tasks[id]
 			var missing []string
 			if t.Branch == "" {
@@ -348,6 +372,35 @@ func (r *run) report(s *project.Snapshot, plan core.Plan, res *reconcileResult) 
 	if len(res.Notify) > 0 && !res.DryRun {
 		r.warn("no session messaging exists yet; tell %s yourself", strings.Join(res.Notify, ", "))
 	}
+}
+
+// written lists, sorted, the tasks unblocked by the DecisionApplied events
+// among ids, and the sessions of the tasks they amended.
+func written(s *project.Snapshot, ids []string) (unblocked, notify []string) {
+	unblocked, notify = []string{}, []string{}
+	for _, id := range ids {
+		e, ok := s.Event(id)
+		if !ok || e.Type != event.DecisionAppliedType {
+			continue
+		}
+		var d event.DecisionApplied
+		if json.Unmarshal(e.Data, &d) != nil {
+			continue
+		}
+		for _, t := range d.UnblockedTasks {
+			if !slices.Contains(unblocked, t) {
+				unblocked = append(unblocked, t)
+			}
+		}
+		for _, t := range d.AmendedTasks {
+			if task, ok := s.State.Tasks[t]; ok && task.Session != "" && !slices.Contains(notify, task.Session) {
+				notify = append(notify, task.Session)
+			}
+		}
+	}
+	slices.Sort(unblocked)
+	slices.Sort(notify)
+	return unblocked, notify
 }
 
 func actionView(act core.LoopAction) reconcileAction {

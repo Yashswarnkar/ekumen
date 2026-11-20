@@ -391,3 +391,120 @@ func TestReconcileRecordsConflict_EventLog5(t *testing.T) {
 		t.Errorf("%s not in the lead's inbox: %s", id, inbox)
 	}
 }
+
+func readyIDs(m map[string]any) []string {
+	out := []string{}
+	for _, r := range m["ready"].([]any) {
+		out = append(out, r.(map[string]any)["id"].(string))
+	}
+	return out
+}
+
+func heldReasons(m map[string]any) map[string]string {
+	out := map[string]string{}
+	for _, x := range m["held"].([]any) {
+		x := x.(map[string]any)
+		out[x["subject"].(map[string]any)["id"].(string)] = x["reason"].(string)
+	}
+	return out
+}
+
+// Review: a pass reports what it did, not what it planned. Ready comes
+// from the log as written and unblocked from the DecisionApplied events
+// written, so a failed or held apply never shows its task as ready or
+// unblocked.
+func TestReconcileReportsTheLogAsWritten(t *testing.T) {
+	cases := []struct {
+		name   string
+		hook   func(h *harness) func(core.LoopAction) error
+		code   int
+		held   map[string]string
+		gated  string
+		unblkd int
+	}{
+		{"every apply fails", func(*harness) func(core.LoopAction) error {
+			return func(a core.LoopAction) error {
+				if a.Kind == core.LoopApply {
+					return errors.New("injected failure")
+				}
+				return nil
+			}
+		}, ExitInternal, map[string]string{}, "blocked", 0},
+		{"default fails, its apply is held", func(*harness) func(core.LoopAction) error {
+			return func(a core.LoopAction) error {
+				if a.Kind == core.LoopDefault {
+					return errors.New("injected failure")
+				}
+				return nil
+			}
+		}, ExitInternal, map[string]string{"D-late-default": heldNotDecided}, "blocked", 0},
+		{"contested before its apply", func(h *harness) func(core.LoopAction) error {
+			return func(a core.LoopAction) error {
+				if a.Kind == core.LoopApply && a.Subject.ID == "D-gate" {
+					h.raw(event.DecisionDecidedType, event.RoleLead, "yash", event.KindDecision, "D-gate", event.DecisionDecided{Answer: "stop"})
+				}
+				return nil
+			}
+		}, ExitOK, map[string]string{"D-gate": core.HeldContested}, "blocked", 0},
+		{"applied by another writer", func(h *harness) func(core.LoopAction) error {
+			return func(a core.LoopAction) error {
+				if a.Kind == core.LoopApply && a.Subject.ID == "D-gate" {
+					h.run("--as", "loop:other", "decision", "apply", "D-gate")
+				}
+				return nil
+			}
+		}, ExitOK, map[string]string{"D-gate": heldByOther}, "ready", 1},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			h := reconcileFixture(t)
+			h.beforeAction = c.hook(h)
+			code, out, _ := h.run("--as", "loop:main", "reconcile", "--json")
+			h.beforeAction = nil
+			h.tick()
+			m := decodeJSON(t, out)
+			if code != c.code {
+				t.Fatalf("exit %d, want %d: %s", code, c.code, out)
+			}
+			if got := heldReasons(m); !reflect.DeepEqual(got, c.held) {
+				t.Errorf("held %v, want %v", got, c.held)
+			}
+			st := taskStatus(t, h, "T-gated")
+			if st != c.gated {
+				t.Errorf("T-gated is %s, want %s", st, c.gated)
+			}
+			if slices.Contains(readyIDs(m), "T-gated") != (st == "ready") {
+				t.Errorf("ready %v but T-gated is %s", readyIDs(m), st)
+			}
+			if u := m["unblocked"].([]any); len(u) != c.unblkd {
+				t.Errorf("unblocked %v", u)
+			}
+		})
+	}
+}
+
+// C-cli-json §1 (review): a write whose events were recorded but whose
+// projections could not be written exits 5 with error.details {events,
+// paths}.
+func TestReconcileProjectionFailureDetails_CLIJSON1(t *testing.T) {
+	h := reconcileFixture(t)
+	reg := filepath.Join(h.root, ".ekumen", "registry.yaml")
+	if err := os.Remove(reg); err != nil {
+		t.Fatal(err)
+	}
+	h.write(".ekumen/registry.yaml/keep", "x")
+	code, out, _ := h.run("--as", "loop:main", "reconcile", "--json")
+	if code != ExitInternal {
+		t.Fatalf("exit %d: %s", code, out)
+	}
+	e := decodeJSON(t, out)["error"].(map[string]any)
+	d, ok := e["details"].(map[string]any)
+	if !ok || e["code"] != CodeInternal || len(d["events"].([]any)) == 0 || len(d["paths"].([]any)) == 0 {
+		t.Fatalf("error %v", e)
+	}
+	for _, id := range d["events"].([]any) {
+		if !strings.Contains(e["message"].(string), id.(string)) {
+			t.Errorf("message does not name %s", id)
+		}
+	}
+}

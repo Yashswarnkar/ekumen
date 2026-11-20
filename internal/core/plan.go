@@ -281,7 +281,11 @@ func (p *planner) routes() {
 
 func (p *planner) conflicts() {
 	for _, c := range Conflicts(&p.state, p.events, p.in.Conflicts) {
-		rec := ConflictDecision(&p.state, p.events, c, p.in.Loop.ID, p.in.Now)
+		rec, err := ConflictDecision(&p.state, p.events, c, p.in.Loop.ID, p.in.Now)
+		if err != nil {
+			p.skip(LoopConflict, event.Subject{Kind: event.KindProject, ID: event.ProjectSubjectID}, err)
+			continue
+		}
 		sub := event.Subject{Kind: event.KindDecision, ID: rec.ID}
 		a := LoopAction{Kind: LoopConflict, Subject: sub, Detail: fmt.Sprintf("conflict %s: %s", c.Rule, c.Detail)}
 		if err := p.conflictEvents(&a, rec, c); err != nil {
@@ -367,32 +371,35 @@ const (
 // sha256("<rule>|<sorted event ids, comma-joined>")>. It depends only on
 // the conflict, never on the order conflicts are found. The suffix grows
 // by 2 digits only when the id is taken by a decision raised for another
-// conflict (a hash collision). A conflict whose event set grows (a third
+// conflict (a hash collision); when 10 digits are taken too it is an
+// error, and the planner skips the conflict rather than misattribute it. A conflict whose event set grows (a third
 // answer to a decision decided twice) is a new conflict, with a new
 // decision.
-func ConflictDecisionID(s *State, events []event.Event, c Conflict) string {
+func ConflictDecisionID(s *State, events []event.Event, c Conflict) (string, error) {
 	evs := slices.Clone(c.Events)
 	slices.Sort(evs)
 	sum := sha256.Sum256([]byte(c.Rule + "|" + strings.Join(evs, ",")))
 	h := hex.EncodeToString(sum[:])
 	want := conflictEvidence(events, c)
-	id := ""
 	for n := 6; n <= 10; n += 2 {
-		id = "D-conflict-" + c.Rule + "-" + h[:n]
+		id := "D-conflict-" + c.Rule + "-" + h[:n]
 		d, ok := s.Decisions[id]
 		if !ok || len(d.Raises) == 0 || slices.Equal(d.Context.Evidence, want) {
-			return id
+			return id, nil
 		}
 	}
-	return id
+	return "", fmt.Errorf("every id for this %s conflict (D-conflict-%s-%s…) is taken by another conflict's decision", c.Rule, c.Rule, h[:10])
 }
 
 // ConflictDecision is the tier-2 decision the loop raises for a conflict
 // (C-event-log §5): options fix and accept, no recommendation, no blocks,
 // the conflict's event files as evidence, raised by the loop session for
 // no task.
-func ConflictDecision(s *State, events []event.Event, c Conflict, session string, now time.Time) event.DecisionRaised {
-	id := ConflictDecisionID(s, events, c)
+func ConflictDecision(s *State, events []event.Event, c Conflict, session string, now time.Time) (event.DecisionRaised, error) {
+	id, err := ConflictDecisionID(s, events, c)
+	if err != nil {
+		return event.DecisionRaised{}, err
+	}
 	summary := fmt.Sprintf("The control loop found a %s conflict (C-event-log §5) in events %s: %s",
 		c.Rule, strings.Join(c.Events, ", "), c.Detail)
 	if w := strings.Fields(summary); len(w) > MaxSummaryWords {
@@ -409,7 +416,7 @@ func ConflictDecision(s *State, events []event.Event, c Conflict, session string
 		},
 		Blocks: []string{}, ContractImpact: []string{},
 		Context: event.DecisionContext{Summary: summary, Evidence: conflictEvidence(events, c)},
-	}
+	}, nil
 }
 
 func lowestEvent(c Conflict) string {
