@@ -26,7 +26,28 @@ type harness struct {
 	now  time.Time
 	n    int
 	prs  observe.Observer
-	git  GitInfo
+	git  gitInfo
+	// commit is what Env.Commit answers.
+	commit string
+}
+
+// gitInfo is what the fake Env.Git answers.
+type gitInfo struct {
+	Remote, DefaultBranch, Prefix string
+}
+
+func (g gitInfo) run(args ...string) string {
+	switch strings.Join(args, " ") {
+	case "remote get-url origin":
+		return g.Remote
+	case "symbolic-ref --short refs/remotes/origin/HEAD":
+		if g.DefaultBranch != "" {
+			return "origin/" + g.DefaultBranch
+		}
+	case "rev-parse --show-prefix":
+		return g.Prefix
+	}
+	return ""
 }
 
 func newHarness(t *testing.T) *harness {
@@ -35,7 +56,7 @@ func newHarness(t *testing.T) *harness {
 	if err := os.MkdirAll(filepath.Join(root, ".ekumen"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	return &harness{t: t, root: root, now: time.Date(2026, 11, 20, 9, 0, 0, 0, time.UTC), prs: observe.Static{}}
+	return &harness{t: t, root: root, now: time.Date(2026, 11, 20, 9, 0, 0, 0, time.UTC), prs: observe.Static{}, commit: "abc1234"}
 }
 
 func (h *harness) env(stdin string, stdout, stderr *bytes.Buffer) Env {
@@ -51,9 +72,8 @@ func (h *harness) env(stdin string, stdout, stderr *bytes.Buffer) Env {
 			return event.ULIDFromParts(uint64(t.UnixMilli()), ent)
 		},
 		Observer: func(string) observe.Observer { return h.prs },
-		Commit:   func(string) string { return "abc1234" },
-		Git:      func(string) GitInfo { return h.git },
-		Remote:   func(string) string { return h.git.Remote },
+		Commit:   func(string) string { return h.commit },
+		Git:      func(_ string, args ...string) string { return h.git.run(args...) },
 	}
 }
 

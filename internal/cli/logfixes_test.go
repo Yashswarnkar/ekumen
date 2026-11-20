@@ -172,7 +172,7 @@ func TestProjectCheck_DProjectionsInGit(t *testing.T) {
 	mustExit(t, h, 0, "project", "--check")
 	// The project name: the remote's repository at the repository top,
 	// the folder in a subfolder (no .git), config.yaml above both.
-	h.git = GitInfo{Remote: "git@github.com:o/ekumen.git"}
+	h.git = gitInfo{Remote: "git@github.com:o/ekumen.git"}
 	if _, out, _ := h.run("status", "--json"); decodeJSON(t, out)["project"] != "demo" {
 		t.Errorf("project name without .git at the root: %s", out)
 	}
@@ -362,9 +362,19 @@ func TestMapLinks_TLogFixes8(t *testing.T) {
 		return string(out) + "\n"
 	}
 	golden(t, "map-links-no-remote.json", links())
-	h.git = GitInfo{Remote: "git@github.com:o/r.git", DefaultBranch: "trunk"}
+	h.git = gitInfo{Remote: "git@github.com:o/r.git", DefaultBranch: "trunk"}
 	golden(t, "map-links-github.json", links())
-	h.git = GitInfo{Remote: "https://git.example.com/o/r.git"}
+	// No commit: origin's default branch; neither: no links (no guessed branch).
+	h.commit = ""
+	if got := links(); !strings.Contains(got, `"https://github.com/o/r/blob/trunk/.ekumen/decisions/D-gate.yaml"`) {
+		t.Errorf("no commit, default branch: %s", got)
+	}
+	h.git.DefaultBranch = ""
+	if got := links(); got != "{}\n" {
+		t.Errorf("no commit and no origin/HEAD gave links: %s", got)
+	}
+	h.commit = "abc1234"
+	h.git = gitInfo{Remote: "https://git.example.com/o/r.git"}
 	if got := links(); got != "{}\n" {
 		t.Errorf("unknown host gave links: %s", got)
 	}

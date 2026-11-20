@@ -17,14 +17,15 @@ var hostPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`^https?://(?:[^@/]+@)?(github\.com)/([^/]+)/([^/]+?)(?:\.git)?/?$`),
 }
 
-// LinkBase returns the URL prefix for files on branch, e.g.
-// "https://github.com/o/r/blob/main/", built from a git remote URL
+// LinkBase returns the URL prefix for files at ref (a commit or a branch),
+// e.g. "https://github.com/o/r/blob/<ref>/", built from a git remote URL
 // (git@github.com:o/r.git or https://github.com/o/r(.git)). It returns ""
-// for a remote it does not recognize. An empty branch means "main".
+// for a remote it does not recognize, or an empty ref: it never guesses a
+// branch.
 func LinkBase(remote, branch string) string {
 	remote = strings.TrimSpace(remote)
 	if branch == "" {
-		branch = "main"
+		return ""
 	}
 	for _, re := range hostPatterns {
 		if m := re.FindStringSubmatch(remote); m != nil {

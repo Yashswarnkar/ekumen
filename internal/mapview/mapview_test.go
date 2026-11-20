@@ -1,6 +1,8 @@
 package mapview
 
 import (
+	"encoding/json"
+	"os/exec"
 	"regexp"
 	"strings"
 	"testing"
@@ -37,7 +39,8 @@ func TestRenderSelfContained(t *testing.T) {
 func TestLinkBase_TLogFixes8(t *testing.T) {
 	cases := []struct{ remote, branch, want string }{
 		{"git@github.com:o/r.git", "main", "https://github.com/o/r/blob/main/"},
-		{"git@github.com:o/r", "", "https://github.com/o/r/blob/main/"},
+		{"git@github.com:o/r", "", ""},
+		{"git@github.com:o/r", "abc1234", "https://github.com/o/r/blob/abc1234/"},
 		{"https://github.com/o/r.git", "trunk", "https://github.com/o/r/blob/trunk/"},
 		{"https://github.com/o/r", "main", "https://github.com/o/r/blob/main/"},
 		{"https://token@github.com/o/r.git", "main", "https://github.com/o/r/blob/main/"},
@@ -97,5 +100,61 @@ func TestRenderFragment_TLogFixes7(t *testing.T) {
 	}
 	if regexp.MustCompile(`\sid="[a-z]`).MatchString(s) || strings.Contains(s, "getElementById") {
 		t.Error("fragment uses fixed element ids")
+	}
+}
+
+var scriptRe = regexp.MustCompile(`(?s)<script>(.*?)</script>`)
+
+// Re-review finding 2: two fragments on one page declare nothing at the
+// top level of a script, so they don't clash. With node installed, both
+// fragments' scripts run in one global scope against a stub DOM.
+func TestTwoFragmentsOnOnePage_TLogFixes7(t *testing.T) {
+	d := Data{Project: "demo", Nodes: []project.Node{{ID: "T-a", Kind: "task", Title: "a", Status: "ready"}},
+		Edges: []project.Edge{}, Tasks: []project.Task{}, Decisions: []project.Decision{}, Inbox: []project.InboxItem{}}
+	f, err := RenderFragment(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := "<!doctype html><html><body>" + string(f) + string(f) + "</body></html>"
+	scripts := scriptRe.FindAllStringSubmatch(page, -1)
+	if len(scripts) != 4 {
+		t.Fatalf("%d scripts, want 4", len(scripts))
+	}
+	for i, m := range scripts {
+		var code []string
+		for _, l := range strings.Split(strings.TrimSpace(m[1]), "\n") {
+			if !strings.HasPrefix(l, "//") && !strings.HasPrefix(l, "/*!") {
+				code = append(code, l)
+			}
+		}
+		body := strings.TrimSpace(strings.Join(code, "\n"))
+		iife := strings.HasPrefix(body, "(() => {") && strings.HasSuffix(body, "})();")
+		umd := strings.HasPrefix(body, "(function(") // dagre's UMD wrapper
+		if !iife && !umd {
+			t.Errorf("script %d is not wrapped in a function: %.60q", i, body)
+		}
+	}
+	node, err := exec.LookPath("node")
+	if err != nil {
+		return
+	}
+	var js strings.Builder
+	js.WriteString(`const vm = require("vm"); const els = []; let cur;
+const mk = () => ({innerHTML: ""});
+const root = () => { const m = {}; els.push(m); return {querySelector: q => (m[q] ??= mk())}; };
+const ctx = {console}; ctx.window = ctx; ctx.self = ctx; vm.createContext(ctx);
+const run = (src, r) => { ctx.document = {currentScript: {closest: () => r}}; vm.runInContext(src, ctx); };
+const scripts = JSON.parse(process.argv[1]);
+for (let i = 0; i < scripts.length; i += 2) { const r = root(); run(scripts[i], r); run(scripts[i + 1], r); }
+if (els.length !== 2 || !els[1]['[data-ek="graph"]'].innerHTML.includes("T-a")) { console.error("second map not drawn"); process.exit(1); }
+`)
+	var srcs []string
+	for _, m := range scripts {
+		srcs = append(srcs, m[1])
+	}
+	arg, _ := json.Marshal(srcs)
+	out, err := exec.Command(node, "-e", js.String(), string(arg)).CombinedOutput()
+	if err != nil {
+		t.Errorf("two fragments on one page: %v\n%s", err, out)
 	}
 }

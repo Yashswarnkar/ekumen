@@ -136,6 +136,55 @@ func TestOrphanStepExemptions_DImportedEventTimeOrder(t *testing.T) {
 	}
 }
 
+// D-imported-event-time-order (re-review finding 1): a later step moves only
+// after its own prerequisite; otherwise time order holds. decide → apply →
+// supersede keeps the applied info, even if the apply was stamped before the
+// decide.
+func TestDecideApplySupersede_DImportedEventTimeOrder(t *testing.T) {
+	for _, applyFirst := range []bool{false, true} {
+		b := newLog(t)
+		b.raise(record("D-x", "T-a", "s1", 2), "s1")
+		decided := b.decide("D-x", "a")
+		applied := b.apply("D-x")
+		b.add(event.DecisionSupersededType, event.RoleLead, "lead", event.KindDecision, "D-x", event.DecisionSuperseded{By: "D-y"})
+		if applyFirst { // apply stamped before its decide; supersede still last
+			b.events[1] = restamp(t, decided, t0.Add(3*time.Minute+30*time.Second))
+			b.events[2] = restamp(t, applied, t0.Add(2*time.Minute+30*time.Second))
+		}
+		s := b.state()
+		d := s.Decisions["D-x"]
+		if d.Status != StatusSuperseded || d.AppliedOn == "" || d.Applied == nil {
+			t.Errorf("applyFirst=%v: status=%s applied_on=%q", applyFirst, d.Status, d.AppliedOn)
+		}
+		var types []event.Type
+		for _, e := range SortEvents(b.events) {
+			types = append(types, e.Type)
+		}
+		want := []event.Type{event.DecisionRaisedType, event.DecisionDecidedType, event.DecisionAppliedType, event.DecisionSupersededType}
+		if !slices.Equal(types, want) {
+			t.Errorf("applyFirst=%v: order %v, want %v", applyFirst, types, want)
+		}
+	}
+	// Aliases are per kind (re-review finding 6): task T-new and decision
+	// D-new both declare alias OLD; a decide addressed to decision OLD,
+	// stamped before D-new was raised, still follows D-new's raise.
+	b := newLog(t)
+	b.lax = true
+	b.add(event.TaskDraftedType, event.RoleOrchestrator, "orch", event.KindTask, "T-new",
+		event.TaskDrafted{Title: "t", Kind: event.TaskKindBuild, Aliases: []string{"OLD"}})
+	dec := b.decide("OLD", "a")
+	rec := record("D-new", "T-new", "s1", 2)
+	rec.Aliases = []string{"OLD"}
+	raise := b.raise(rec, "s1")
+	var pos = map[string]int{}
+	for i, e := range SortEvents(b.events) {
+		pos[e.ID] = i
+	}
+	if pos[dec.ID] < pos[raise.ID] {
+		t.Error("a decision event addressed to an alias was grouped under the task's alias")
+	}
+}
+
 // D-imported-event-time-order: a step whose prerequisite never exists is
 // reported by rule orphan-step, never silently dropped.
 func TestOrphanStep_DImportedEventTimeOrder(t *testing.T) {
@@ -194,6 +243,16 @@ func TestContractVersioned_DContractVersionRecording(t *testing.T) {
 	acts := LeadActions(&s, Observed{}, t0, nil)
 	if len(acts) != 1 || acts[0].Action != ActionFreeze || acts[0].Subject.ID != "C-a" {
 		t.Errorf("actions %+v, want freeze C-a", acts)
+	}
+	// Re-review finding 4: no freeze action while the contract has open blockers.
+	blocked := newLog(t)
+	blocked.events = append(blocked.events, b.events...)
+	blocked.n = b.n
+	blocked.add(event.ContractBlockersChangedType, event.RoleOrchestrator, "orch", event.KindContract, "C-a",
+		event.ContractBlockersChanged{Added: []string{"D-open"}})
+	bs := blocked.state()
+	if acts := LeadActions(&bs, Observed{}, t0, nil); len(acts) != 0 {
+		t.Errorf("blocked pending version: actions %+v", acts)
 	}
 	b.freeze("C-a", 5, "h5")
 	s = b.state()

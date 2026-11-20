@@ -270,15 +270,19 @@ func (s *Snapshot) ProjectName() string {
 	return filepath.Base(s.Root)
 }
 
-// Lead is the lead's handle: the latest lead actor in the log, else the
-// `lead` field of an existing registry.yaml.
+// Lead is the lead's handle: `lead:` in .ekumen/config.yaml, else the
+// latest lead actor in the log. registry.yaml is not read: it is a local
+// projection (D-projections-in-git).
 func (s *Snapshot) Lead() string {
+	if v := s.yamlField(ConfigFile, "lead"); v != "" {
+		return v
+	}
 	for i := len(s.Events) - 1; i >= 0; i-- {
 		if s.Events[i].Actor.Role == event.RoleLead {
 			return s.Events[i].Actor.ID
 		}
 	}
-	return s.yamlField(RegistryFile, "lead")
+	return ""
 }
 
 // yamlField reads a top-level string field of a YAML file in .ekumen/.

@@ -50,7 +50,6 @@ var (
 	orchestrator = []event.Role{event.RoleOrchestrator}
 	loop         = []event.Role{event.RoleLoop}
 	orchOrLoop   = []event.Role{event.RoleOrchestrator, event.RoleLoop}
-	loopRole     = []event.Role{event.RoleLoop}
 	taskSessions = []event.Role{event.RoleSession, event.RoleIntegrator}
 	raisers      = []event.Role{event.RoleLead, event.RoleOrchestrator, event.RoleSession, event.RoleIntegrator, event.RoleLoop}
 )
@@ -66,7 +65,7 @@ var Lanes = map[event.Type]Lane{
 	event.SpineApprovedType:      {Roles: lead, Subjects: projectOnly},
 
 	event.TaskDraftedType:             {Roles: orchestrator, Subjects: taskOnly},
-	event.TaskAmendedType:             {Roles: orchOrLoop, ByDecision: loopRole, Subjects: taskOnly},
+	event.TaskAmendedType:             {Roles: orchOrLoop, ByDecision: loop, Subjects: taskOnly},
 	event.TaskBlockersChangedType:     {Roles: orchestrator, Subjects: taskOnly},
 	event.TaskDeferredType:            {Roles: orchestrator, Subjects: taskOnly},
 	event.ContractDraftedType:         {Roles: orchestrator, Subjects: contractOnly},

@@ -375,11 +375,16 @@ func (r *run) mapCmd(args []string) error {
 	if r.env.Commit != nil {
 		commit = r.env.Commit(s.Root)
 	}
+	// Links point at the commit the map was made from, or else at origin's
+	// default branch; with neither, no links (never a guessed branch).
 	base := *linkBase
 	if base == "" {
-		g := r.git(s.Root)
-		if base = mapview.LinkBase(g.Remote, g.DefaultBranch); base != "" {
-			base += g.Prefix
+		ref := commit
+		if ref == "" {
+			ref = strings.TrimPrefix(r.git(s.Root, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"), "origin/")
+		}
+		if base = mapview.LinkBase(r.remote(s.Root), ref); base != "" {
+			base += r.git(s.Root, "rev-parse", "--show-prefix")
 		}
 	}
 	render := mapview.Render

@@ -765,9 +765,12 @@ func (r *run) contractFreeze(args []string) error {
 	if err != nil {
 		return fieldErr(CodeNotFound, "path", "read %s: %v", c.Path, err)
 	}
-	sum, _ := files.HashFile(s.ResolvePath(c.Path))
+	sum := files.HashBytes(text)
 	version := frontMatterVersion(text)
 	if version == 0 {
+		if c.Status == core.ContractFrozen {
+			return fieldErr(CodeValidation, "version", "%s has no `version:` in its front matter: add `version: %d` (frozen is %d), then record it with `ekumen contract version %s --by <decision>`", s.RootPath(c.Path), c.Version+1, c.Version, id)
+		}
 		version = c.Version + 1
 	}
 	for _, f := range c.Freezes {
@@ -783,7 +786,7 @@ func (r *run) contractFreeze(args []string) error {
 	// decision (D-contract-version-recording).
 	if c.Status == core.ContractFrozen {
 		if version < c.Version {
-			return fieldErr(CodeValidation, "version", "%s is frozen at version %d; front matter says %d", id, c.Version, version)
+			return fieldErr(CodeValidation, "version", "%s is frozen at version %d, but its front matter says `version: %d`: set it to %d or higher", id, c.Version, version, c.Version+1)
 		}
 		recorded := slices.ContainsFunc(c.Versions, func(f core.Freeze) bool { return f.Version == version && f.TextSHA256 == sum })
 		if !recorded {
@@ -848,13 +851,13 @@ func (r *run) contractVersion(args []string) error {
 	if err != nil {
 		return fieldErr(CodeNotFound, "path", "read %s: %v", c.Path, err)
 	}
-	sum, _ := files.HashFile(s.ResolvePath(c.Path))
+	sum := files.HashBytes(text)
 	version := frontMatterVersion(text)
 	switch {
 	case version == 0:
-		return fieldErr(CodeValidation, "version", "%s has no `version:` in its front matter", s.RootPath(c.Path))
+		return fieldErr(CodeValidation, "version", "%s has no `version:` in its front matter: add `version: %d`", s.RootPath(c.Path), c.Version+1)
 	case version <= c.Version:
-		return fieldErr(CodeValidation, "version", "%s front matter says version %d; it must be higher than the frozen version %d", id, version, c.Version)
+		return fieldErr(CodeValidation, "version", "%s front matter says `version: %d`; set it to %d or higher (frozen is %d)", id, version, c.Version+1, c.Version)
 	case sum == c.TextSHA256:
 		return fieldErr(CodeValidation, "version", "%s text is unchanged since version %d", id, c.Version)
 	}

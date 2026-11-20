@@ -105,7 +105,7 @@ wrote /tmp/ekumen-map.html: 7 nodes, 6 edges, 2 inbox items
 One self-contained HTML file (inbox, pull requests, task graph, decided list) built from the same data as `graph` and `inbox --for lead`. It makes no network requests: dagre 0.8.5 (MIT) is inlined for the layout.
 
 - `--fragment` writes the page without `<!doctype>`, `<html>`, `<head>` and `<body>`, for embedding in another page. Every style rule (custom properties and dark mode included) is scoped to the wrapping `<div class="ekumen-map">`, and the page uses no fixed element ids: its script finds elements inside its own wrapper, and SVG marker ids are unique per page, so several maps can share one host page.
-- **Links.** Every item links to its full text on the git host, in a new tab: decisions to `.ekumen/decisions/<id>.yaml`, tasks to their `brief.md` and latest handoff, contracts to their body, PRs to the PR. The link base comes from the `origin` remote: `git@github.com:o/r.git`, `ssh://git@github.com/o/r.git` and `https://github.com/o/r(.git)` give `https://github.com/o/r/blob/<default branch>/` (the default branch is `origin/HEAD`, else `main`). GitHub is the only built-in host; for any other, pass `--link-base` (e.g. `--link-base https://git.example.com/o/r/src/branch/main/`). With no remote and no `--link-base`, ids are plain text.
+- **Links.** Every item links to its full text on the git host, in a new tab: decisions to `.ekumen/decisions/<id>.yaml`, tasks to their `brief.md` and latest handoff, contracts to their body, PRs to the PR. The link base comes from the `origin` remote: `git@github.com:o/r.git`, `ssh://git@github.com/o/r.git` and `https://github.com/o/r(.git)` give `https://github.com/o/r/blob/<commit>/`, at the commit the map was generated from, so links show the text the map shows. Without a commit it uses origin's default branch (`origin/HEAD`); with neither, no links: no branch is guessed. GitHub is the only built-in host; for any other, pass `--link-base` (e.g. `--link-base https://git.example.com/o/r/src/branch/main/`). With no remote and no `--link-base`, ids are plain text.
 
 ### `ekumen check`
 
@@ -119,7 +119,7 @@ $ echo $?
 Validates event and brief files (layout, envelope, payload), checks that files recorded by events still exist and that every amendment and handoff file is recorded by an event (`invalid[].error` starting `orphan-entry:` otherwise), and runs the C-event-log §5 rules:
 
 - `frozen-text-changed` against the current text of approved briefs and frozen contracts (a contract's text may also match a newer version recorded by `contract version` and not yet frozen);
-- `orphan-step`: a lifecycle step whose prerequisite is nowhere in the log, e.g. a `DecisionApplied` with no `DecisionDecided`. Steps whose prerequisite exists are never dropped for being stamped earlier than it: within one item the log is ordered by lifecycle step, then time (D-imported-event-time-order);
+- `orphan-step`: a lifecycle step whose prerequisite is nowhere in the log, e.g. a `DecisionApplied` with no `DecisionDecided`. Steps whose prerequisite exists are never dropped for being stamped earlier than it: within one item the log keeps time order, except that an event stamped before its own prerequisite (an apply before its decide, an answer before its question, anything before the item's creating event) is moved to right after it (D-imported-event-time-order);
 - `spine-unapproved`: `.ekumen/spine.md` does not match the latest `ekumen spine approve`. Nothing is reported before the first approval.
 
 Exit `4` with conflicts, `2` with invalid files only.
@@ -421,6 +421,6 @@ After the switch point nobody edits `.ekumen/` by hand, with these exceptions (D
 | `.ekumen/contracts/<id>.md` | orchestrator | Draft: free to edit. Frozen: changed only through a decided tier-2 decision, `contract version` and `contract freeze`; `check` reports `frozen-text-changed` otherwise. |
 | `.ekumen/briefs/<id>/brief.md` (§A) | orchestrator | Only before `task approve`, which hashes it; afterwards `check` reports `frozen-text-changed`. Changes go in §B (`task amend`). |
 | `.ekumen/research/*.md` | the research task's session | Cited as evidence; no hash yet. |
-| `.ekumen/config.yaml` (optional) | orchestrator | `project:` names the project. |
+| `.ekumen/config.yaml` (optional) | orchestrator | `project:` names the project; `lead:` is the lead's handle (else the latest lead in the log). |
 
 Everything else (events, amendments, handoffs, generated files) is written by `ekumen`. An amendment or handoff file with no event is reported by `check` as `orphan-entry`.

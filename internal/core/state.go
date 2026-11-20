@@ -322,15 +322,48 @@ func LifecycleRank(t event.Type) int {
 	return 4
 }
 
-// step is an event's position within its subject: its LifecycleRank,
-// except for project-wide events (role claims and releases, spine
-// approvals, conflicts), which are not one item's lifecycle and keep plain
-// time order.
-func step(e event.Event) int {
-	if e.Subject.Kind == event.KindProject {
-		return 0
+// Prerequisite keys for causal order within a subject
+// (D-imported-event-time-order). provides lists what an event makes true;
+// needs is what must come first.
+const (
+	keyCreated = "created" // TaskDrafted, DecisionRaised, ContractDrafted, ExternalAdded
+	keyDecided = "decided" // DecisionDecided, DecisionDefaulted
+)
+
+func provides(e event.Event) []string {
+	switch e.Type {
+	case event.TaskDraftedType, event.DecisionRaisedType, event.ContractDraftedType, event.ExternalAddedType:
+		return []string{keyCreated}
+	case event.DecisionDecidedType, event.DecisionDefaultedType:
+		return []string{keyDecided}
+	case event.QuestionAskedType:
+		if p, err := e.Payload(); err == nil {
+			return []string{"asked:" + p.(*event.QuestionAsked).QuestionID}
+		}
 	}
-	return LifecycleRank(e.Type)
+	return nil
+}
+
+// needs is the one prerequisite an event must follow within its subject:
+// an apply its decide (or default), an answer its question, and any other
+// event about an item the event that creates the item. Project-wide
+// events, and routing and conflict events, need nothing.
+func needs(e event.Event) string {
+	if e.Subject.Kind == event.KindProject {
+		return ""
+	}
+	switch e.Type {
+	case event.TaskDraftedType, event.DecisionRaisedType, event.ContractDraftedType, event.ExternalAddedType,
+		event.RoutedToOwnerType, event.RouteResolvedType, event.ConflictDetectedType:
+		return ""
+	case event.DecisionAppliedType:
+		return keyDecided
+	case event.QuestionAnsweredType:
+		if p, err := e.Payload(); err == nil {
+			return "asked:" + p.(*event.QuestionAnswered).QuestionID
+		}
+	}
+	return keyCreated
 }
 
 // ulidTime is the millisecond-timestamp part of a ULID (its first 10
@@ -345,11 +378,14 @@ func ulidTime(id string) string {
 // SortEvents returns a copy of events in log order (C-event-log v5 §2,
 // D-imported-event-time-order: causal within a subject):
 //
-//   - Within one subject (kind and id), events are ordered by lifecycle
-//     step first (see step), then by the timestamp in the id. An apply
-//     therefore always comes after its decide, and an approval after its
-//     draft, whatever their clocks said (backdated imports, clock skew).
-//     Events of one step keep time order.
+//   - Within one subject (kind and id; an alias counts as the item that
+//     declares it, per kind), events keep time order, except that an event
+//     stamped before its own prerequisite (see needs: an apply its decide or
+//     default, an answer its question, anything else the item's creating
+//     event) is moved to right after it. An apply therefore always comes
+//     after its decide, whatever their clocks said (backdated imports,
+//     clock skew), and nothing else moves: decide → apply → supersede stays
+//     in that order.
 //   - Across subjects, events are ordered by time: the subjects' sequences
 //     are merged by always taking the earliest next event.
 //
@@ -394,11 +430,12 @@ func SortEvents(events []event.Event) []event.Event {
 		kind event.SubjectKind
 		id   string
 	}
-	aliases := map[string]string{}
+	aliases := map[subjectKey]string{} // (kind, alias) → id
 	for _, k := range uniq {
 		for _, a := range creatingAliases(k.e) {
-			if _, taken := aliases[a]; !taken && a != k.e.Subject.ID {
-				aliases[a] = k.e.Subject.ID
+			ak := subjectKey{k.e.Subject.Kind, a}
+			if _, taken := aliases[ak]; !taken && a != k.e.Subject.ID {
+				aliases[ak] = k.e.Subject.ID
 			}
 		}
 	}
@@ -406,7 +443,7 @@ func SortEvents(events []event.Event) []event.Event {
 	seqs := map[subjectKey][]keyed{}
 	for _, k := range uniq {
 		id := k.e.Subject.ID
-		if to, ok := aliases[id]; ok {
+		if to, ok := aliases[subjectKey{k.e.Subject.Kind, id}]; ok {
 			id = to
 		}
 		sk := subjectKey{k.e.Subject.Kind, id}
@@ -415,10 +452,43 @@ func SortEvents(events []event.Event) []event.Event {
 		}
 		seqs[sk] = append(seqs[sk], k)
 	}
+	// Within a subject: time order, except that an event whose prerequisite
+	// (needs) comes later in time is moved to right after it. Events whose
+	// prerequisite is not in the log stay in time order (orphan-step).
 	for _, sk := range order {
-		slices.SortStableFunc(seqs[sk], func(a, b keyed) int {
-			return cmp.Or(cmp.Compare(step(a.e), step(b.e)), byTime(a, b))
-		})
+		seq := seqs[sk] // already in time order
+		present := map[string]bool{}
+		for _, k := range seq {
+			for _, p := range provides(k.e) {
+				present[p] = true
+			}
+		}
+		done := map[string]bool{}
+		waiting := map[string][]keyed{}
+		causal := make([]keyed, 0, len(seq))
+		var emit func(k keyed)
+		emit = func(k keyed) {
+			causal = append(causal, k)
+			for _, p := range provides(k.e) {
+				if done[p] {
+					continue
+				}
+				done[p] = true
+				ws := waiting[p]
+				delete(waiting, p)
+				for _, w := range ws {
+					emit(w)
+				}
+			}
+		}
+		for _, k := range seq {
+			if n := needs(k.e); n != "" && present[n] && !done[n] {
+				waiting[n] = append(waiting[n], k)
+				continue
+			}
+			emit(k)
+		}
+		seqs[sk] = causal
 	}
 	// Merge: repeatedly take the earliest head (a binary heap of subjects).
 	out := make([]event.Event, 0, len(uniq))

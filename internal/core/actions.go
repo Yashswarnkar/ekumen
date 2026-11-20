@@ -66,7 +66,7 @@ func LeadActions(s *State, obs Observed, now time.Time, hasBrief func(taskID str
 		case c.Status == ContractDraft && len(ContractOpenBlockers(s, obs, id)) == 0:
 			out = append(out, LeadAction{Action: ActionFreeze, Subject: sub, Event: c.DraftedEvent,
 				Reason: "draft contract with no open blockers", Command: "ekumen contract freeze " + id})
-		case c.Pending != nil:
+		case c.Pending != nil && c.Status == ContractFrozen && len(ContractOpenBlockers(s, obs, id)) == 0:
 			out = append(out, LeadAction{Action: ActionFreeze, Subject: sub, Event: c.Pending.Event,
 				Reason:  fmt.Sprintf("version %d recorded by %s, not frozen yet", c.Pending.Version, c.Pending.ByDecision),
 				Command: "ekumen contract freeze " + id})

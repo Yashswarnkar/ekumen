@@ -95,24 +95,11 @@ type Env struct {
 	Observer func(root string) observe.Observer
 	// Commit returns the short commit of the project root, or "".
 	Commit func(root string) string
-	// Remote returns the URL of the project root's `origin` remote, or "".
-	// Every command uses it for the project name.
-	Remote func(root string) string
-	// Git returns what `ekumen map` reads from git for its links: the
-	// remote, the default branch and the root's prefix in the repository.
-	// Nil or empty fields mean unknown.
-	Git func(root string) GitInfo
-}
-
-// GitInfo is what the CLI reads from git about a project root.
-type GitInfo struct {
-	// Remote is the URL of the `origin` remote, or "".
-	Remote string
-	// DefaultBranch is origin's default branch (origin/HEAD), or "".
-	DefaultBranch string
-	// Prefix is the project root's path inside the repository, with a
-	// trailing slash, or "" at the top.
-	Prefix string
+	// Git runs `git -C root <args>` and returns its trimmed output, or ""
+	// on any failure. The CLI reads the origin remote (once per run, for the
+	// project name and map links), and `ekumen map` also reads origin/HEAD
+	// and the root's prefix in the repository.
+	Git func(root string, args ...string) string
 }
 
 func gitOut(root string, args ...string) string {
@@ -137,36 +124,35 @@ func DefaultEnv() Env {
 			return observe.GH{Dir: root}
 		},
 		Commit: func(root string) string { return gitOut(root, "rev-parse", "--short", "HEAD") },
-		Remote: func(root string) string { return gitOut(root, "remote", "get-url", "origin") },
-		Git: func(root string) GitInfo {
-			return GitInfo{
-				Remote:        gitOut(root, "remote", "get-url", "origin"),
-				DefaultBranch: strings.TrimPrefix(gitOut(root, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"), "origin/"),
-				Prefix:        gitOut(root, "rev-parse", "--show-prefix"),
-			}
-		},
+		Git:    gitOut,
 	}
 }
 
-// git returns the GitInfo of the project root (for `ekumen map`).
-func (r *run) git(root string) GitInfo {
+// git runs a git command at root through Env.Git ("" when unavailable).
+func (r *run) git(root string, args ...string) string {
 	if r.env.Git == nil {
-		return GitInfo{}
+		return ""
 	}
-	return r.env.Git(root)
+	return r.env.Git(root, args...)
+}
+
+// remote is the origin remote's URL, read once per run.
+func (r *run) remote(root string) string {
+	if r.remoteURL == nil {
+		u := r.git(root, "remote", "get-url", "origin")
+		r.remoteURL = &u
+	}
+	return *r.remoteURL
 }
 
 // repoName is the origin remote's repository name when root is the top of
 // a git repository (it holds .git), else "" (ProjectName then falls back
 // to the folder name, which suits a project in a monorepo subfolder).
 func (r *run) repoName(root string) string {
-	if r.env.Remote == nil {
-		return ""
-	}
 	if _, err := os.Stat(filepath.Join(root, ".git")); err != nil {
 		return ""
 	}
-	return mapview.RepoName(r.env.Remote(root))
+	return mapview.RepoName(r.remote(root))
 }
 
 // globals are the flags every command accepts (C-cli-json §1).
@@ -188,6 +174,8 @@ type run struct {
 	g      globals
 	ctx    context.Context
 	warned map[string]bool
+
+	remoteURL *string
 }
 
 // Run executes one ekumen command and returns its exit status.
