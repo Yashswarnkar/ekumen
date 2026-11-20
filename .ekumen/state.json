@@ -2695,6 +2695,18 @@
           "kind": "task",
           "id": "T-cli-gaps"
         }
+      },
+      {
+        "kind": "route",
+        "id": "route-01M7VZHF7J3134NNPGCWN21S6M",
+        "title": "T-audit handoff: Done: the audit is complete, but `ekumen` refused to record it, so this file was written by hand (FRICTION 1). Audited main at `ef94825` (branch `audit/2026-11-20`). `ekumen check --json`: `{\"ok\": true, \"conflicts\": [], \"invalid\": []}`, exit 0. `go vet ./...` and `go test ./...` pass (12 packages). Following `docs/development.md`, `make lint` and `make build` pass, and `bin/ekumen version` prints `ef94825`. All six areas are covered. Area 5 (question patterns) had nothing to inspect: `ekumen question list` is empty. 17 findings: 2 high, 7 medium, 8 low. Friction backlog: 80 items from 8 handoffs. 29 are addressed, 9 are in progress in T-cli-gaps, 8 are partly addressed and 34 are open. Three tier-2 decision drafts are below; `ekumen decision raise` refused them.",
+        "priority": 0,
+        "reason": "handoff has follow-ups, decisions raised or deviations",
+        "created_at": "2026-11-20T08:00:36Z",
+        "subject": {
+          "kind": "task",
+          "id": "T-audit"
+        }
       }
     ]
   },
@@ -2706,7 +2718,7 @@
       "ready": 2
     },
     "decisions_open": 0,
-    "routes_open": 1,
+    "routes_open": 2,
     "conflicts": 0
   }
 }
