@@ -215,3 +215,68 @@ func ParseHandoff(text string) Handoff {
 	h.HasDeviations = len(content["DEVIATIONS"]) > 0
 	return h
 }
+
+// EntryFront is the YAML front matter of an amendment or handoff file
+// (docs/cli.md, "Entry front matter"). Every key is optional; other keys
+// are kept in the file and ignored.
+type EntryFront struct {
+	// Present: the file starts with a front-matter block.
+	Present bool
+	// Task is the task id (or alias) the entry is about.
+	Task string
+	// Author is the writer: the actor's id, its file-name slug, or
+	// <role>:<id>.
+	Author string
+	// Date is the UTC date the entry was written, YYYY-MM-DD.
+	Date string
+}
+
+// ParseEntryFront reads the front matter of an entry: a first line of
+// "---", YAML, and a closing "---" line.
+func ParseEntryFront(text string) (EntryFront, error) {
+	var f EntryFront
+	lines := strings.SplitAfter(text, "\n")
+	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
+		return f, nil
+	}
+	var block strings.Builder
+	closed := false
+	for _, l := range lines[1:] {
+		if strings.TrimSpace(l) == "---" {
+			closed = true
+			break
+		}
+		block.WriteString(l)
+	}
+	if !closed {
+		return f, fmt.Errorf("front matter has no closing ---")
+	}
+	f.Present = true
+	if strings.TrimSpace(block.String()) == "" {
+		return f, nil
+	}
+	v, err := yamlToJSON([]byte(block.String()))
+	if err != nil {
+		return f, fmt.Errorf("front matter: %v", err)
+	}
+	m, ok := v.(map[string]any)
+	if !ok {
+		return f, fmt.Errorf("front matter is not a YAML mapping")
+	}
+	for key, dst := range map[string]*string{"task": &f.Task, "author": &f.Author, "date": &f.Date} {
+		switch x := m[key].(type) {
+		case nil:
+		case string:
+			*dst = strings.TrimSpace(x)
+		default:
+			return f, fmt.Errorf("front matter %s: want a string, got %v", key, x)
+		}
+	}
+	return f, nil
+}
+
+// withEntryFront puts generated front matter on an entry that has none.
+func withEntryFront(body []byte, task, author, date string) []byte {
+	head := fmt.Sprintf("---\ntask: %s\nauthor: %s\ndate: %s\n---\n\n", task, author, date)
+	return append([]byte(head), body...)
+}

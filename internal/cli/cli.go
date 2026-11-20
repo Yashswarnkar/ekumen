@@ -313,14 +313,20 @@ Write (need --as <role>:<id> or EKUMEN_ACTOR):
   decision raise --file <d.yaml>
   decision answer <id> <option|other> [--note t]
   decision supersede <id> --by <id> [--note t]
+  decision apply <id> [--amend-text-file f]   (as loop:<orchestrator session>)
   question ask <subject id> --text t [--to x]
-  question answer <question id> --text t
+  question answer <question id> --text t   (question and route ids take a unique prefix)
   task draft --file <t.yaml>
   task approve <id> [--grants a,b]
   task amend <id> --text-file f [--note t]
   task handoff <id> --text-file f
   task block <id> [--add x] [--remove y] --reason t
+  task defer <id> --reason t
+  task attach <id> --session s [--adapter a]
+  contract draft --file <c.yaml> [--text-file body.md]
+  contract block <id> [--add x] [--remove y] --reason t
   contract freeze <id>
+  external add --file f | external update <id> --file f | external resolve <id> --note t
   route resolve <route id> --note t
   claim <role> | release <role>
   project                                 regenerate projections
@@ -392,6 +398,10 @@ func (r *run) dispatch(args []string) error {
 			return r.taskEntry(a, false)
 		case "block":
 			return r.taskBlock(a)
+		case "defer":
+			return r.taskDefer(a)
+		case "attach":
+			return r.taskAttach(a)
 		}
 	case "decision":
 		s, a := sub()
@@ -406,6 +416,8 @@ func (r *run) dispatch(args []string) error {
 			return r.decisionAnswer(a)
 		case "supersede":
 			return r.decisionSupersede(a)
+		case "apply":
+			return r.decisionApply(a)
 		}
 	case "question":
 		s, a := sub()
@@ -419,8 +431,23 @@ func (r *run) dispatch(args []string) error {
 		}
 	case "contract":
 		s, a := sub()
-		if s == "freeze" {
+		switch s {
+		case "freeze":
 			return r.contractFreeze(a)
+		case "draft":
+			return r.contractDraft(a)
+		case "block":
+			return r.contractBlock(a)
+		}
+	case "external":
+		s, a := sub()
+		switch s {
+		case "add":
+			return r.externalAdd(a)
+		case "update":
+			return r.externalUpdate(a)
+		case "resolve":
+			return r.externalResolve(a)
 		}
 	case "route":
 		s, a := sub()

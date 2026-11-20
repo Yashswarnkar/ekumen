@@ -144,6 +144,20 @@ func (l *strList) Set(v string) error {
 	return nil
 }
 
+// matchID resolves a question or route id given in full or as a unique
+// prefix (C-cli-json v2 §1). An ambiguous prefix is a usage error that
+// lists the matches.
+func (r *run) matchID(kind string, ids []string, in string) (string, error) {
+	id, matches := project.MatchPrefix(ids, in)
+	if id != "" {
+		return id, nil
+	}
+	if len(matches) > 1 {
+		return "", fieldErr(CodeUsage, "id", "%s id %q is ambiguous; it matches %s", kind, in, strings.Join(matches, ", "))
+	}
+	return "", fieldErr(CodeNotFound, "id", "no %s %q", kind, in)
+}
+
 func validationFrom(err error) error {
 	var ve core.ValidationError
 	if errors.As(err, &ve) && len(ve) > 0 {
@@ -376,7 +390,11 @@ func (r *run) questionAnswer(args []string) error {
 	if err != nil {
 		return err
 	}
-	sub, q, ok := s.FindQuestion(pos[0])
+	qid, err := r.matchID("question", s.QuestionIDs(), pos[0])
+	if err != nil {
+		return err
+	}
+	sub, q, ok := s.FindQuestion(qid)
 	if !ok {
 		return fieldErr(CodeNotFound, "id", "no question %q", pos[0])
 	}
@@ -611,7 +629,10 @@ func (r *run) taskEntry(args []string, amend bool) error {
 	if author == "" {
 		return errf(CodeValidation, "actor id %q gives an empty file-name slug", a.ID)
 	}
-	path, sum, err := s.Store.WriteEntry(id, kind, author, body)
+	if body, err = r.entryBody(s, a, id, body); err != nil {
+		return err
+	}
+	path, sum, err := s.Store.WriteEntryAt(id, kind, author, r.now(), body) // the name matches the event time
 	if err != nil {
 		return errf(CodeInternal, "write %s: %v", kind, err)
 	}
@@ -631,6 +652,31 @@ func (r *run) taskEntry(args []string, amend bool) error {
 		verb = "amendment"
 	}
 	return r.commit(s, []event.Event{e}, []string{path}, fmt.Sprintf("%s recorded for %s", verb, id))
+}
+
+// entryBody checks an entry's front matter (task, author, date) against
+// the write, or adds it when the file has none (docs/cli.md, "Entry front
+// matter").
+func (r *run) entryBody(s *project.Snapshot, a event.Actor, task string, body []byte) ([]byte, error) {
+	f, err := ParseEntryFront(string(body))
+	if err != nil {
+		return nil, fieldErr(CodeValidation, "front_matter", "%v", err)
+	}
+	if !f.Present {
+		return withEntryFront(body, task, a.ID, r.now().Format(time.DateOnly)), nil
+	}
+	if f.Task != "" && s.State.Resolve(f.Task) != task {
+		return nil, fieldErr(CodeValidation, "task", "front matter names task %q, but this entry is for %s", f.Task, task)
+	}
+	if f.Author != "" && f.Author != a.ID && f.Author != authorSlug(a.ID) && f.Author != project.ActorString(a) {
+		return nil, fieldErr(CodeValidation, "author", "front matter names author %q, but %s is writing", f.Author, project.ActorString(a))
+	}
+	if f.Date != "" {
+		if _, err := time.Parse(time.DateOnly, f.Date); err != nil {
+			return nil, fieldErr(CodeValidation, "date", "front matter date %q is not YYYY-MM-DD", f.Date)
+		}
+	}
+	return body, nil
 }
 
 func (r *run) taskBlock(args []string) error {
@@ -664,38 +710,9 @@ func (r *run) taskBlock(args []string) error {
 	if err := r.probe(s, a, event.TaskBlockersChangedType, event.Subject{Kind: event.KindTask, ID: id}); err != nil {
 		return err
 	}
-	current := map[string]string{} // resolved → as written
-	for _, b := range s.State.Tasks[id].BlockedBy {
-		current[s.State.Resolve(b)] = b
-	}
-	added, removed := []string{}, []string{}
-	for _, x := range add {
-		rx := s.State.Resolve(x)
-		if event.ValidateID(rx) != nil {
-			return fieldErr(CodeValidation, "add", "%q is not an id or known alias", x)
-		}
-		if rx == id {
-			return fieldErr(CodeValidation, "add", "a task cannot block itself")
-		}
-		if _, ok := current[rx]; ok {
-			r.warn("%s already blocks %s", rx, id)
-			continue
-		}
-		if !s.State.Has(rx) {
-			r.warn("%s names nothing yet; it blocks until it exists and clears", x)
-		}
-		added = append(added, rx)
-	}
-	for _, x := range remove {
-		rx := s.State.Resolve(x)
-		w, ok := current[rx]
-		if !ok {
-			return fieldErr(CodeValidation, "remove", "%s is not in %s's blocked_by", x, id)
-		}
-		removed = append(removed, w)
-	}
-	if len(added) == 0 && len(removed) == 0 {
-		return errf(CodeValidation, "nothing to change")
+	added, removed, err := r.blockerChange(s, id, s.State.Tasks[id].BlockedBy, add, remove)
+	if err != nil {
+		return err
 	}
 	e, err := r.mkEvent(a, event.TaskBlockersChangedType, event.Subject{Kind: event.KindTask, ID: id},
 		event.TaskBlockersChanged{Added: added, Removed: removed, Reason: *reason})
@@ -795,10 +812,11 @@ func (r *run) routeResolve(args []string) error {
 	if err != nil {
 		return err
 	}
-	rt, ok := s.Routes()[pos[0]]
-	if !ok {
-		return fieldErr(CodeNotFound, "id", "no route %q", pos[0])
+	rid, err := r.matchID("route", s.RouteIDs(), pos[0])
+	if err != nil {
+		return err
 	}
+	rt := s.Routes()[rid]
 	if !rt.Open {
 		return fieldErr(CodeValidation, "id", "route %s is already closed", rt.ID)
 	}

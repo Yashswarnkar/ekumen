@@ -29,7 +29,7 @@
           "title": "T-cli"
         }
       },
-      "brief": "briefs/T-cli/brief.md"
+      "brief": ".ekumen/briefs/T-cli/brief.md"
     },
     {
       "id": "T-core",
@@ -55,7 +55,7 @@
           "title": "T-core"
         }
       },
-      "brief": "briefs/T-core/brief.md"
+      "brief": ".ekumen/briefs/T-core/brief.md"
     },
     {
       "id": "T-skills",
@@ -77,7 +77,7 @@
       "observed": {
         "pr": null
       },
-      "brief": "briefs/T-skills/brief.md"
+      "brief": ".ekumen/briefs/T-skills/brief.md"
     }
   ]
 }

@@ -289,7 +289,7 @@ func (s *Snapshot) RegistryYAML() ([]byte, error) {
 		}
 		pairs = append(pairs,
 			kv{"kind", str(t.Kind)},
-			kv{"brief", optStr(t.Brief, false)},
+			kv{"brief", optStr(ptr(raw.Brief), false)}, // as recorded, relative to .ekumen/
 			kv{"approved", optStr(t.ApprovedOn, true)},
 			kv{"blocked_by", strs(t.BlockedBy)},
 			kv{"repo", optStr(ptr(raw.Repo), false)},

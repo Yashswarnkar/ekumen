@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-          cache: false # stdlib only: no go.sum to key a cache on
+          cache: true # keyed on go.sum (go.yaml.in/yaml/v3)
       - name: Build
         run: go build ./...
       - name: Vet
@@ -26,7 +26,14 @@ jobs:
           out=$(gofmt -l .)
           if [ -n "$out" ]; then echo "gofmt needed:"; echo "$out"; exit 1; fi
       - name: Test
-        run: go test ./...
+        run: go test -race ./...
+      - name: ekumen check
+        # Fails on invalid records, lane violations or conflicts in .ekumen/,
+        # and on an empty event log once .ekumen/events/ exists.
+        # See docs/development.md.
+        run: |
+          go build -o bin/ekumen ./cmd/ekumen
+          scripts/ci-check.sh .
 
   ui-and-binary:
     name: UI + embedded binary
@@ -38,7 +45,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-          cache: false
+          cache: true
       - uses: actions/setup-node@v5
         with:
           node-version: "24"

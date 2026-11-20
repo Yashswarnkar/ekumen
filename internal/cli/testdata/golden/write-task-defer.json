@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "events": [
+    "01M7W5B4J00000000000000016"
+  ],
+  "paths": [
+    ".ekumen/events/task/T-skills/01M7W5B4J00000000000000016.TaskDeferred.json",
+    ".ekumen/registry.yaml",
+    ".ekumen/state.json"
+  ]
+}

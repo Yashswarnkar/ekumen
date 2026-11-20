@@ -11,7 +11,7 @@
       ],
       "title": "Agent Client Protocol (ACP) as the agent adapter base",
       "kind": "research",
-      "status": "done",
+      "status": "ready",
       "blocked_by": [],
       "blocked_by_open": [],
       "approved_on": "2026-11-20",
@@ -25,18 +25,20 @@
         "open_draft_pr"
       ],
       "observed": null,
-      "brief": "briefs/T-acp-research/brief.md"
+      "brief": ".ekumen/briefs/T-acp-research/brief.md"
     },
     {
       "id": "T-audit",
       "aliases": [],
       "title": "Recurring read-only audit",
       "kind": "research",
-      "status": "ready",
+      "status": "blocked",
       "blocked_by": [
         "T-core-align"
       ],
-      "blocked_by_open": [],
+      "blocked_by_open": [
+        "T-core-align"
+      ],
       "approved_on": "2026-11-20",
       "branch": "audit/run",
       "session": null,
@@ -45,7 +47,7 @@
         "open_draft_pr"
       ],
       "observed": null,
-      "brief": "briefs/T-audit/brief.md"
+      "brief": ".ekumen/briefs/T-audit/brief.md"
     },
     {
       "id": "T-claude-adapter",
@@ -58,7 +60,8 @@
         "T-core"
       ],
       "blocked_by_open": [
-        "C-adapter"
+        "C-adapter",
+        "T-core"
       ],
       "approved_on": null,
       "branch": null,
@@ -72,14 +75,17 @@
       "aliases": [],
       "title": "ekumen CLI with --json, incl. ekumen map",
       "kind": "build",
-      "status": "done",
+      "status": "blocked",
       "blocked_by": [
         "C-cli-json",
         "T-core",
         "T-file-store",
         "D-yaml-library"
       ],
-      "blocked_by_open": [],
+      "blocked_by_open": [
+        "T-core",
+        "T-file-store"
+      ],
       "approved_on": "2026-11-20",
       "branch": "build/t-cli",
       "session": "t-cli",
@@ -89,21 +95,24 @@
         "restack"
       ],
       "observed": null,
-      "brief": "briefs/T-cli/brief.md"
+      "brief": ".ekumen/briefs/T-cli/brief.md"
     },
     {
       "id": "T-cli-gaps",
       "aliases": [],
       "title": "CLI commands the orchestrator needs after the switch",
       "kind": "build",
-      "status": "running",
+      "status": "blocked",
       "blocked_by": [
         "T-cli",
         "T-core-align",
         "D-apply-before-loop",
         "D-cli-missing-writes"
       ],
-      "blocked_by_open": [],
+      "blocked_by_open": [
+        "T-cli",
+        "T-core-align"
+      ],
       "approved_on": "2026-11-20",
       "branch": "build/t-cli-gaps",
       "session": "t-cli-gaps",
@@ -113,14 +122,14 @@
         "restack"
       ],
       "observed": null,
-      "brief": "briefs/T-cli-gaps/brief.md"
+      "brief": ".ekumen/briefs/T-cli-gaps/brief.md"
     },
     {
       "id": "T-core",
       "aliases": [],
       "title": "Core domain: events, lanes, reducer, conflicts",
       "kind": "build",
-      "status": "done",
+      "status": "ready",
       "blocked_by": [
         "C-event-log",
         "C-decision-record"
@@ -135,21 +144,23 @@
         "restack"
       ],
       "observed": null,
-      "brief": "briefs/T-core/brief.md"
+      "brief": ".ekumen/briefs/T-core/brief.md"
     },
     {
       "id": "T-core-align",
       "aliases": [],
       "title": "Align core and file store with C-event-log v3",
       "kind": "build",
-      "status": "done",
+      "status": "blocked",
       "blocked_by": [
         "T-import",
         "D-contract-blockers",
         "D-claim-lane",
         "D-apply-before-loop"
       ],
-      "blocked_by_open": [],
+      "blocked_by_open": [
+        "T-import"
+      ],
       "approved_on": "2026-11-20",
       "branch": "build/t-core-align",
       "session": "t-core-align",
@@ -159,7 +170,7 @@
         "restack"
       ],
       "observed": null,
-      "brief": "briefs/T-core-align/brief.md"
+      "brief": ".ekumen/briefs/T-core-align/brief.md"
     },
     {
       "id": "T-decision-views",
@@ -185,7 +196,7 @@
       "aliases": [],
       "title": "File store for events and entries",
       "kind": "build",
-      "status": "done",
+      "status": "ready",
       "blocked_by": [
         "C-event-log"
       ],
@@ -199,7 +210,7 @@
         "restack"
       ],
       "observed": null,
-      "brief": "briefs/T-file-store/brief.md"
+      "brief": ".ekumen/briefs/T-file-store/brief.md"
     },
     {
       "id": "T-graph-view",
@@ -225,12 +236,15 @@
       "aliases": [],
       "title": "Import hand-written records into events",
       "kind": "build",
-      "status": "done",
+      "status": "blocked",
       "blocked_by": [
         "T-core",
         "T-file-store"
       ],
-      "blocked_by_open": [],
+      "blocked_by_open": [
+        "T-core",
+        "T-file-store"
+      ],
       "approved_on": "2026-11-20",
       "branch": "build/t-import",
       "session": "t-import",
@@ -240,7 +254,7 @@
         "restack"
       ],
       "observed": null,
-      "brief": "briefs/T-import/brief.md"
+      "brief": ".ekumen/briefs/T-import/brief.md"
     },
     {
       "id": "T-landscape-research",
@@ -249,7 +263,7 @@
       ],
       "title": "Landscape of agent-supervisor tools",
       "kind": "research",
-      "status": "done",
+      "status": "ready",
       "blocked_by": [],
       "blocked_by_open": [],
       "approved_on": "2026-11-20",
@@ -263,7 +277,7 @@
         "open_draft_pr"
       ],
       "observed": null,
-      "brief": "briefs/T-landscape-research/brief.md"
+      "brief": ".ekumen/briefs/T-landscape-research/brief.md"
     },
     {
       "id": "T-reconcile",
@@ -276,7 +290,11 @@
         "T-file-store",
         "T-cli"
       ],
-      "blocked_by_open": [],
+      "blocked_by_open": [
+        "T-cli",
+        "T-core",
+        "T-file-store"
+      ],
       "approved_on": null,
       "branch": null,
       "session": null,
@@ -291,7 +309,7 @@
       ],
       "title": "Repo scaffold",
       "kind": "build",
-      "status": "done",
+      "status": "ready",
       "blocked_by": [],
       "blocked_by_open": [],
       "approved_on": "2026-11-20",
@@ -304,7 +322,7 @@
         "add_listed_dependencies"
       ],
       "observed": null,
-      "brief": "briefs/T-scaffold/brief.md"
+      "brief": ".ekumen/briefs/T-scaffold/brief.md"
     },
     {
       "id": "T-server",
@@ -318,7 +336,9 @@
         "T-file-store"
       ],
       "blocked_by_open": [
-        "C-http-api"
+        "C-http-api",
+        "T-core",
+        "T-file-store"
       ],
       "approved_on": null,
       "branch": null,
@@ -336,7 +356,9 @@
       "blocked_by": [
         "T-cli"
       ],
-      "blocked_by_open": [],
+      "blocked_by_open": [
+        "T-cli"
+      ],
       "approved_on": null,
       "branch": null,
       "session": null,
@@ -548,6 +570,77 @@
       "applied_on": null,
       "applied": null,
       "priority": 0,
+      "holds_up": [
+        "C-event-log",
+        "T-audit",
+        "T-claude-adapter",
+        "T-cli",
+        "T-cli-gaps",
+        "T-core",
+        "T-core-align",
+        "T-decision-views",
+        "T-file-store",
+        "T-graph-view",
+        "T-import",
+        "T-reconcile",
+        "T-server",
+        "T-skills"
+      ]
+    },
+    {
+      "id": "D-apply-amend-lane",
+      "aliases": [],
+      "title": "Who writes the §B amendments that decision apply adds",
+      "tier": 2,
+      "raised_by": {
+        "task": "T-cli-gaps",
+        "session": "t-cli-gaps",
+        "on": "2026-11-20"
+      },
+      "question": "Applying a decision adds a §B amendment (TaskAmended) to each task in `blocks` (C-decision-record §3), but C-event-log §3 puts TaskAmended in the orchestrator's lane only, while DecisionApplied is the loop's. Who writes those TaskAmended events, now and once the loop exists?\n",
+      "options": [
+        {
+          "id": "orchestrator-same-session",
+          "tradeoff": "Implemented in T-cli-gaps. `decision apply`, run as loop:\u003cs\u003e, records the amendments as orchestrator:\u003cs\u003e and refuses unless \u003cs\u003e holds the orchestrator claim. No contract change, check stays clean, but one command writes as two actors, and the real loop (T-reconcile) could not apply a decision that blocks tasks without also holding the orchestrator claim."
+        },
+        {
+          "id": "loop-lane",
+          "tradeoff": "Add TaskAmended to the loop's lane in C-event-log §3 (only for amendments made by applying a decision, note `applies D-…`). The loop applies on its own; a minor lane widening, but it needs a contract version."
+        },
+        {
+          "id": "applied-carries-files",
+          "tradeoff": "No TaskAmended for applies: DecisionApplied records the amendment files and their hashes. Keeps lanes, but changes the DecisionApplied payload and the brief view must read two event types."
+        }
+      ],
+      "recommendation": "loop-lane",
+      "default_if_no_answer": null,
+      "deadline": null,
+      "blocks": [],
+      "contract_impact": [
+        "C-event-log"
+      ],
+      "context": {
+        "summary": "Found while building `ekumen decision apply` (D-apply-before-loop). The contracts disagree on who may write the amendment that applying adds. The CLI implements orchestrator-same-session, which works today because the orchestrator runs apply as loop:\u003cits session\u003e. T-reconcile will hit this when the loop applies decisions by itself.\n",
+        "evidence": [
+          ".ekumen/contracts/C-event-log.md",
+          ".ekumen/contracts/C-decision-record.md",
+          "internal/cli/write_more.go"
+        ],
+        "prior_decisions": [
+          "D-apply-before-loop",
+          "D-claim-lane"
+        ]
+      },
+      "status": "pending",
+      "questions": [],
+      "answer": null,
+      "answer_note": null,
+      "decided_by": null,
+      "decided_on": null,
+      "superseded_by": null,
+      "applied_on": null,
+      "applied": null,
+      "priority": 13,
       "holds_up": [
         "C-event-log",
         "T-audit",
@@ -2564,6 +2657,14 @@
     "lead": [
       {
         "kind": "decision",
+        "id": "D-apply-amend-lane",
+        "title": "Who writes the §B amendments that decision apply adds",
+        "priority": 13,
+        "reason": "blocks 13 tasks",
+        "created_at": "2026-11-20T07:18:11Z"
+      },
+      {
+        "kind": "decision",
         "id": "D-contract-version-recording",
         "title": "Define how a frozen contract's new version is recorded",
         "priority": 13,
@@ -2587,18 +2688,30 @@
         "created_at": "2026-11-20T07:20:58Z"
       }
     ],
-    "orchestrator": []
+    "orchestrator": [
+      {
+        "kind": "route",
+        "id": "route-01M7VX58XKH77SJ0CNKQHDDM75",
+        "title": "T-cli-gaps handoff: Done, in review (draft PR #10). Every command in the brief, as amended, is implemented with golden `--json` tests and lane tests. `ekumen check` runs in CI. `go test -race ./...`, `go vet ./...` and `gofmt -l .` are clean, and `bin/ekumen check` is clean on the branch.",
+        "priority": 0,
+        "reason": "handoff has follow-ups, decisions raised or deviations",
+        "created_at": "2026-11-20T07:18:59Z",
+        "subject": {
+          "kind": "task",
+          "id": "T-cli-gaps"
+        }
+      }
+    ]
   },
   "conflicts": [],
   "counts": {
     "tasks_by_status": {
-      "done": 8,
+      "blocked": 5,
       "draft": 6,
-      "ready": 1,
-      "running": 1
+      "ready": 5
     },
-    "decisions_open": 3,
-    "routes_open": 0,
+    "decisions_open": 4,
+    "routes_open": 1,
     "conflicts": 0
   }
 }

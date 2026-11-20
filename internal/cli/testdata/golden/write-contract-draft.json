@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "events": [
+    "01M7W4TN700000000000000010"
+  ],
+  "paths": [
+    ".ekumen/contracts/C-http-api.md",
+    ".ekumen/events/contract/C-http-api/01M7W4TN700000000000000010.ContractDrafted.json",
+    ".ekumen/registry.yaml",
+    ".ekumen/state.json"
+  ]
+}

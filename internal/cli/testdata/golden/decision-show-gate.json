@@ -1,0 +1,55 @@
+{
+  "decision": {
+    "id": "D-gate",
+    "aliases": [],
+    "title": "Gate for T-gated",
+    "tier": 2,
+    "raised_by": {
+      "task": null,
+      "session": "main",
+      "on": "2026-11-20"
+    },
+    "question": "Go or stop?",
+    "options": [
+      {
+        "id": "go",
+        "tradeoff": "moves"
+      },
+      {
+        "id": "stop",
+        "tradeoff": "waits"
+      }
+    ],
+    "recommendation": "go",
+    "default_if_no_answer": null,
+    "deadline": null,
+    "blocks": [
+      "T-gated"
+    ],
+    "contract_impact": [],
+    "context": {
+      "summary": "A gate to apply.",
+      "evidence": [],
+      "prior_decisions": []
+    },
+    "status": "decided",
+    "questions": [],
+    "answer": "go",
+    "answer_note": "As recommended.",
+    "decided_by": "yash",
+    "decided_on": "2026-11-20",
+    "superseded_by": null,
+    "applied_on": "2026-11-20",
+    "applied": {
+      "amended_tasks": [
+        "T-gated"
+      ],
+      "unblocked_tasks": [],
+      "notified_sessions": []
+    },
+    "priority": 0,
+    "holds_up": [
+      "T-gated"
+    ]
+  }
+}

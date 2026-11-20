@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "events": [
+    "01M7W4YAD00000000000000012"
+  ],
+  "paths": [
+    ".ekumen/events/external/X-sandbox-creds/01M7W4YAD00000000000000012.ExternalAdded.json",
+    ".ekumen/registry.yaml",
+    ".ekumen/state.json"
+  ]
+}

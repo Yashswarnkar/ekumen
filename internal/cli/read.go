@@ -391,8 +391,8 @@ func (r *run) mapCmd(args []string) error {
 	r.out(struct {
 		OK    bool     `json:"ok"`
 		Paths []string `json:"paths"`
-	}{true, []string{*outPath}}, func(w io.Writer) {
-		fmt.Fprintf(w, "wrote %s: %d nodes, %d edges, %d inbox items\n", *outPath, len(nodes), len(edges), len(s.Inbox(string(event.RoleLead))))
+	}{true, []string{s.Rel(p)}}, func(w io.Writer) {
+		fmt.Fprintf(w, "wrote %s: %d nodes, %d edges, %d inbox items\n", s.Rel(p), len(nodes), len(edges), len(s.Inbox(string(event.RoleLead))))
 	})
 	return nil
 }
@@ -426,7 +426,7 @@ func (r *run) check(args []string) error {
 		t := s.State.Tasks[id]
 		for _, f := range append(entryFiles(t.Amendments), handoffFiles(t.Handoffs)...) {
 			if _, err := os.Stat(s.ResolvePath(f)); err != nil {
-				invalid = append(invalid, project.Invalid{Path: f, Error: "recorded by an event but missing"})
+				invalid = append(invalid, project.Invalid{Path: s.RootPath(f), Error: "recorded by an event but missing"})
 			}
 		}
 	}

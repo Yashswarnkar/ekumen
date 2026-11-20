@@ -239,7 +239,18 @@ func (s *Snapshot) TaskIDs() []string {
 	return out
 }
 
-// TaskView builds the Task shape for a drafted task.
+// RootPath turns a path recorded in an event (relative to .ekumen/, or to
+// the project root) into the form CLI output uses: relative to the
+// project root, e.g. ".ekumen/briefs/T-core/brief.md" (C-cli-json v2 §1).
+func (s *Snapshot) RootPath(p string) string {
+	if p == "" {
+		return ""
+	}
+	return s.rel(s.ResolvePath(p))
+}
+
+// TaskView builds the Task shape for a drafted task. Its brief path is
+// relative to the project root.
 func (s *Snapshot) TaskView(id string) Task {
 	t := s.State.Tasks[id]
 	v := Task{
@@ -247,7 +258,7 @@ func (s *Snapshot) TaskView(id string) Task {
 		Status: string(s.TaskStatus(id)), BlockedBy: s.resolveAll(t.BlockedBy),
 		BlockedByOpen: list(core.OpenBlockers(&s.State, s.Observed, id)),
 		ApprovedOn:    ptr(t.ApprovedOn), Branch: ptr(t.Branch), Session: ptr(t.Session),
-		TierGrants: list(t.TierGrants), Brief: ptr(t.Brief),
+		TierGrants: list(t.TierGrants), Brief: ptr(s.RootPath(t.Brief)),
 	}
 	if s.PRs != nil {
 		v.Observed = &ObservedView{}

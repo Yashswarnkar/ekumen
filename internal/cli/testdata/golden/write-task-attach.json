@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "events": [
+    "01M7W57FC00000000000000015"
+  ],
+  "paths": [
+    ".ekumen/events/task/T-gated/01M7W57FC00000000000000015.TaskSessionAttached.json",
+    ".ekumen/registry.yaml",
+    ".ekumen/state.json"
+  ]
+}

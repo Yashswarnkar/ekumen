@@ -26,7 +26,7 @@
         "restack"
       ],
       "observed": null,
-      "brief": "briefs/T-cli/brief.md"
+      "brief": ".ekumen/briefs/T-cli/brief.md"
     },
     {
       "id": "T-core",
@@ -45,7 +45,7 @@
         "push_own_branch"
       ],
       "observed": null,
-      "brief": "briefs/T-core/brief.md"
+      "brief": ".ekumen/briefs/T-core/brief.md"
     },
     {
       "id": "T-skills",
@@ -65,7 +65,7 @@
       "session": null,
       "tier_grants": [],
       "observed": null,
-      "brief": "briefs/T-skills/brief.md"
+      "brief": ".ekumen/briefs/T-skills/brief.md"
     }
   ],
   "decisions": [
