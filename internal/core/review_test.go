@@ -47,3 +47,24 @@ func TestKindlessAliasResolvesPerKind(t *testing.T) {
 		t.Error("a decision event on R1 landed on task T-a's id")
 	}
 }
+
+func TestBlockersCompareResolvedIDs(t *testing.T) {
+	b := newLog(t)
+	b.draftTask("T-x", "T0", "C1")
+	b.draftTaskAs("orch", "T-dep", []string{"T0"})
+	b.add(event.ContractDraftedType, event.RoleOrchestrator, "orch", event.KindContract, "C-y",
+		event.ContractDrafted{Title: "y", Path: "contracts/C-y.md", BlockedBy: []string{"T0"}})
+	b.add(event.ContractDraftedType, event.RoleOrchestrator, "orch", event.KindContract, "C-x",
+		event.ContractDrafted{Title: "x", Path: "contracts/C-x.md", Aliases: []string{"C1"}})
+	b.add(event.TaskBlockersChangedType, event.RoleOrchestrator, "orch", event.KindTask, "T-x",
+		event.TaskBlockersChanged{Added: []string{"T-dep"}, Removed: []string{"T-dep"}, Reason: "done"})
+	b.add(event.ContractBlockersChangedType, event.RoleOrchestrator, "orch", event.KindContract, "C-y",
+		event.ContractBlockersChanged{Removed: []string{"T-dep"}, Reason: "done"})
+	s := b.state()
+	if got := s.Tasks["T-x"].BlockedBy; len(got) != 1 || got[0] != "C-x" {
+		t.Errorf("T-x blocked_by = %v, want [C-x]", got)
+	}
+	if got := s.Contracts["C-y"].BlockedBy; len(got) != 0 {
+		t.Errorf("C-y blocked_by = %v, want []", got)
+	}
+}

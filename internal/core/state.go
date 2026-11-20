@@ -32,8 +32,9 @@ const (
 )
 
 // State is everything derived from the event log. Build it with Reduce.
-// Maps are keyed by slug id. Id lists inside records (blocked_by, blocks,
-// ...) are kept as written; use Resolve to follow aliases.
+// Maps are keyed by slug id. blocked_by lists hold resolved ids; other id
+// lists inside records (blocks, ...) are kept as written; use Resolve to
+// follow aliases.
 type State struct {
 	Tasks     map[string]*Task     `json:"tasks"`
 	Decisions map[string]*Decision `json:"decisions"`
@@ -829,7 +830,7 @@ func (s *State) apply(e event.Event) {
 		t.Aliases = d.Aliases
 		t.Title, t.Kind, t.Brief, t.Repo = d.Title, d.Kind, d.Brief, d.Repo
 		t.BaseBranch, t.Branch, t.Worktree = d.BaseBranch, d.Branch, d.Worktree
-		t.BlockedBy = appendUnique(t.BlockedBy, d.BlockedBy...)
+		t.BlockedBy = s.changeBlockers(t.BlockedBy, d.BlockedBy, nil)
 		t.TierGrants = orEmpty(d.TierGrants)
 		t.DraftSession = d.Session
 		if t.Session == "" {
@@ -848,8 +849,7 @@ func (s *State) apply(e event.Event) {
 		t.Amendments = append(t.Amendments, Entry{Event: e.ID, At: stamp(e.At), File: d.File, TextSHA256: d.TextSHA256, Note: d.Note, ByDecision: d.ByDecision})
 	case *event.TaskBlockersChanged:
 		t := s.task(e.Subject.ID)
-		t.BlockedBy = appendUnique(t.BlockedBy, d.Added...)
-		t.BlockedBy = slices.DeleteFunc(t.BlockedBy, func(b string) bool { return slices.Contains(d.Removed, b) })
+		t.BlockedBy = s.changeBlockers(t.BlockedBy, d.Added, d.Removed)
 	case *event.TaskSessionAttached:
 		t := s.task(e.Subject.ID)
 		t.Session, t.Adapter = d.Session, d.Adapter
@@ -942,11 +942,10 @@ func (s *State) apply(e event.Event) {
 			return
 		}
 		c.DraftedEvent, c.Title, c.Path, c.Aliases = e.ID, d.Title, d.Path, d.Aliases
-		c.BlockedBy = appendUnique(c.BlockedBy, d.BlockedBy...)
+		c.BlockedBy = s.changeBlockers(c.BlockedBy, d.BlockedBy, nil)
 	case *event.ContractBlockersChanged:
 		c := s.contract(e.Subject.ID)
-		c.BlockedBy = appendUnique(c.BlockedBy, d.Added...)
-		c.BlockedBy = slices.DeleteFunc(c.BlockedBy, func(b string) bool { return slices.Contains(d.Removed, b) })
+		c.BlockedBy = s.changeBlockers(c.BlockedBy, d.Added, d.Removed)
 	case *event.ContractFrozen:
 		c := s.contract(e.Subject.ID)
 		c.Freezes = append(c.Freezes, Freeze{Event: e.ID, Version: d.Version, TextSHA256: d.TextSHA256})
@@ -1031,6 +1030,12 @@ func (s *State) apply(e event.Event) {
 // finish computes values that depend on the whole log.
 func (s *State) finish() {
 	s.created = nil
+	for _, t := range s.Tasks {
+		t.BlockedBy = s.changeBlockers([]string{}, t.BlockedBy, nil)
+	}
+	for _, c := range s.Contracts {
+		c.BlockedBy = s.changeBlockers([]string{}, c.BlockedBy, nil)
+	}
 	for _, c := range s.Contracts {
 		var best *Freeze
 		for _, f := range c.Freezes {
@@ -1048,6 +1053,17 @@ func (s *State) finish() {
 			}
 		}
 	}
+}
+
+// changeBlockers adds and removes blockers, comparing and storing resolved
+// ids.
+func (s *State) changeBlockers(list, added, removed []string) []string {
+	for _, a := range added {
+		list = appendUnique(list, s.Resolve(a))
+	}
+	return slices.DeleteFunc(list, func(b string) bool {
+		return slices.ContainsFunc(removed, func(r string) bool { return s.Resolve(r) == s.Resolve(b) })
+	})
 }
 
 func appendUnique(list []string, add ...string) []string {
