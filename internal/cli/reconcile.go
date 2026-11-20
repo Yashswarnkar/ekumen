@@ -25,9 +25,11 @@ type reconcileResult struct {
 	NotStartable []notStartable    `json:"not_startable"`
 	Unblocked    []string          `json:"unblocked"`
 	Notify       []string          `json:"notify"`
-	Events       []string          `json:"events"`
-	Paths        []string          `json:"paths"`
-	Planned      []event.Event     `json:"planned,omitempty"`
+	// OrchestratorActions are the orchestrator's action items (brief).
+	OrchestratorActions []project.InboxItem `json:"orchestrator_actions"`
+	Events              []string            `json:"events"`
+	Paths               []string            `json:"paths"`
+	Planned             []event.Event       `json:"planned,omitempty"`
 }
 
 type reconcileObserved struct {
@@ -369,6 +371,7 @@ func (r *run) report(s *project.Snapshot, plan core.Plan, res *reconcileResult) 
 			res.NotStartable = append(res.NotStartable, notStartable{ID: id, Missing: missing, Decision: core.PlaceholderDecision})
 		}
 	}
+	res.OrchestratorActions = s.OrchestratorActions()
 	if len(res.Notify) > 0 && !res.DryRun {
 		r.warn("no session messaging exists yet; tell %s yourself", strings.Join(res.Notify, ", "))
 	}
@@ -452,6 +455,9 @@ func printReconcile(w io.Writer, res reconcileResult) {
 	}
 	fmt.Fprintf(w, "unblocked: %s\n", orNone(res.Unblocked))
 	fmt.Fprintf(w, "notify: %s\n", orNone(res.Notify))
+	for _, a := range res.OrchestratorActions {
+		fmt.Fprintf(w, "orchestrator: %s (%s)\n", a.Title, a.Command)
+	}
 	for _, p := range res.Paths {
 		fmt.Fprintf(w, "  %s\n", p)
 	}

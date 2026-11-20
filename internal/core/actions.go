@@ -13,6 +13,7 @@ const (
 	ActionApprove = "approve" // a drafted task awaiting approval
 	ActionFreeze  = "freeze"  // a draft contract, or a recorded new version, awaiting freeze
 	ActionApply   = "apply"   // a decided decision not applied after a day
+	ActionBrief   = "brief"   // a drafted task with no brief.md (the orchestrator's)
 )
 
 // ApplyAfter is how long a decided or defaulted decision may wait for
@@ -39,11 +40,11 @@ type LeadAction struct {
 //     and frozen contracts with a newer version recorded by
 //     ContractVersioned that is not frozen yet;
 //  3. apply: decided or defaulted decisions not applied ApplyAfter or more
-//     after they were decided.
+//     after they were decided. The command runs the loop, which applies
+//     every such decision.
 //
 // They rank after decisions in the lead's inbox (C-cli-json v3). Applying
-// is the loop's lane; until the loop exists the orchestrator runs it for
-// the lead (D-apply-before-loop).
+// is the loop's lane: `ekumen reconcile` as loop:<session>.
 func LeadActions(s *State, obs Observed, now time.Time, hasBrief func(taskID string) bool) []LeadAction {
 	out := []LeadAction{}
 	for _, id := range sortedKeys(s.Tasks) {
@@ -84,7 +85,41 @@ func LeadActions(s *State, obs Observed, now time.Time, hasBrief func(taskID str
 		}
 		out = append(out, LeadAction{Action: ActionApply, Subject: event.Subject{Kind: event.KindDecision, ID: id},
 			Event: d.DecidedEvent, Reason: fmt.Sprintf("%s on %s, not applied yet", d.Status, d.DecidedOn),
-			Command: "ekumen decision apply " + id + " --as loop:<orchestrator session>"})
+			Command: "ekumen reconcile --as loop:<session>"})
+	}
+	return out
+}
+
+// BriefLookup says where a task's brief.md is (as a path to show), whether
+// it exists, and err when the recorded brief path is refused.
+type BriefLookup func(taskID string) (path string, exists bool, err error)
+
+// OrchestratorActions lists the orchestrator's next moves that are not
+// routed entries, by id: brief, for each task drafted, not approved,
+// deferred or done, whose brief does not exist, so it can never reach the
+// lead's approve action. A refused recorded brief path is named in the
+// reason. Like LeadActions, they are derived, not stored.
+func OrchestratorActions(s *State, obs Observed, brief BriefLookup) []LeadAction {
+	out := []LeadAction{}
+	if brief == nil {
+		return out
+	}
+	for _, id := range sortedKeys(s.Tasks) {
+		t := s.Tasks[id]
+		if !t.Drafted() || t.Approved || t.Deferred || obs.task(id).PR == PRMerged {
+			continue
+		}
+		path, exists, err := brief(id)
+		if exists && err == nil {
+			continue
+		}
+		a := LeadAction{Action: ActionBrief, Subject: event.Subject{Kind: event.KindTask, ID: id},
+			Event: t.Drafts[0].Event, Reason: "drafted without a brief", Command: "write " + path}
+		if err != nil {
+			a.Reason = fmt.Sprintf("drafted without a usable brief: the recorded brief path is refused (%v)", err)
+			a.Command = "write .ekumen/briefs/" + id + "/brief.md, and fix the recorded brief path"
+		}
+		out = append(out, a)
 	}
 	return out
 }

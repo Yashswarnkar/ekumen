@@ -57,7 +57,7 @@
         "id": "D-gate"
       },
       "action": "apply",
-      "command": "ekumen decision apply D-gate --as loop:\u003corchestrator session\u003e"
+      "command": "ekumen reconcile --as loop:\u003csession\u003e"
     },
     {
       "kind": "action",
@@ -71,7 +71,7 @@
         "id": "D-gate-two"
       },
       "action": "apply",
-      "command": "ekumen decision apply D-gate-two --as loop:\u003corchestrator session\u003e"
+      "command": "ekumen reconcile --as loop:\u003csession\u003e"
     }
   ]
 }

@@ -441,7 +441,8 @@ func NormalizeOwner(o string) string {
 // Inbox lists what waits on owner (a role name or session name), ranked:
 // for the lead, pending decisions by priority (core.PendingDecisions), then
 // unrecorded conflicts, then the lead's next moves (kind "action",
-// core.LeadActions: approve, freeze, apply); then, for everyone, open
+// core.LeadActions: approve, freeze, apply); for the orchestrator, its
+// next moves (core.OrchestratorActions: brief); then, for everyone, open
 // routed items (questions and handoffs), oldest first.
 func (s *Snapshot) Inbox(owner string) []InboxItem {
 	out := []InboxItem{}
@@ -459,11 +460,10 @@ func (s *Snapshot) Inbox(owner string) []InboxItem {
 			out = append(out, InboxItem{Kind: "conflict", ID: "conflict-" + c.Rule + "-" + strings.ToLower(first(c.Events)),
 				Title: c.Detail, Reason: "rule " + c.Rule, CreatedAt: s.atOf(last(c.Events))})
 		}
-		for _, a := range core.LeadActions(&s.State, s.Observed, s.Now, s.hasBrief) {
-			out = append(out, InboxItem{Kind: "action", ID: a.Subject.ID, Title: s.actionTitle(a), Reason: a.Reason,
-				CreatedAt: s.atOf(a.Event), Subject: &Subject{string(a.Subject.Kind), a.Subject.ID},
-				Action: a.Action, Command: a.Command})
-		}
+		out = append(out, s.actionItems(core.LeadActions(&s.State, s.Observed, s.Now, s.hasBrief))...)
+	}
+	if owner == string(event.RoleOrchestrator) {
+		out = append(out, s.OrchestratorActions()...)
 	}
 	var routes []InboxItem
 	for _, r := range s.Routes() {
@@ -494,6 +494,30 @@ func (s *Snapshot) Inbox(owner string) []InboxItem {
 		return cmp.Or(cmp.Compare(a.CreatedAt, b.CreatedAt), cmp.Compare(a.ID, b.ID))
 	})
 	return append(out, routes...)
+}
+
+// OrchestratorActions are the orchestrator's action items
+// (core.OrchestratorActions): tasks drafted without a brief.
+func (s *Snapshot) OrchestratorActions() []InboxItem {
+	return s.actionItems(core.OrchestratorActions(&s.State, s.Observed, s.briefLookup))
+}
+
+func (s *Snapshot) actionItems(as []core.LeadAction) []InboxItem {
+	out := []InboxItem{}
+	for _, a := range as {
+		out = append(out, InboxItem{Kind: "action", ID: a.Subject.ID, Title: s.actionTitle(a), Reason: a.Reason,
+			CreatedAt: s.atOf(a.Event), Subject: &Subject{string(a.Subject.Kind), a.Subject.ID},
+			Action: a.Action, Command: a.Command})
+	}
+	return out
+}
+
+func (s *Snapshot) briefLookup(id string) (string, bool, error) {
+	p, err := s.BriefPath(id)
+	if err != nil {
+		return "", false, err
+	}
+	return s.rel(p), exists(p), nil
 }
 
 // hasBrief reports whether a task's brief file exists.
@@ -529,7 +553,8 @@ func (s *Snapshot) actionTitle(a core.LeadAction) string {
 	case event.KindDecision:
 		title = s.State.Decisions[a.Subject.ID].Title
 	}
-	verb := map[string]string{core.ActionApprove: "Approve", core.ActionFreeze: "Freeze", core.ActionApply: "Apply"}[a.Action]
+	verb := map[string]string{core.ActionApprove: "Approve", core.ActionFreeze: "Freeze", core.ActionApply: "Apply",
+		core.ActionBrief: "Write the brief for"}[a.Action]
 	return fmt.Sprintf("%s %s: %s", verb, a.Subject.ID, title)
 }
 
