@@ -269,9 +269,9 @@ func ActorIs(a event.Actor, to string) bool {
 }
 
 // Addressee returns who a question is addressed to: its `to` if set,
-// otherwise the owner it was routed to, otherwise the default of
-// C-event-log §4 (see DefaultAddressee). The result is a role name or a
-// session name.
+// otherwise the owner it was routed to, otherwise the owner Route would
+// give it (C-event-log §4: DefaultAddressee, or the orchestrator when no
+// session is known). The result is a role name or a session name.
 func (s *State) Addressee(sub event.Subject, q Question) string {
 	if q.To != "" {
 		return q.To
@@ -279,7 +279,8 @@ func (s *State) Addressee(sub event.Subject, q Question) string {
 	if r, ok := s.Routes[RouteID(q.Event)]; ok {
 		return r.To
 	}
-	return s.DefaultAddressee(sub)
+	to, _ := s.questionRoute(sub, "")
+	return to
 }
 
 // DefaultAddressee is where a question with an empty `to` goes

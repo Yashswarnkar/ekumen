@@ -101,3 +101,19 @@ func TestActorIsRoleNamesMatchRoleOnly(t *testing.T) {
 		t.Error("session:lead answered the lead's question")
 	}
 }
+
+func TestAddresseeMatchesRouteOwnerWithoutSession(t *testing.T) {
+	b := newLog(t)
+	b.draftTask("T-x")
+	q := b.add(event.QuestionAskedType, event.RoleLead, "lead", event.KindTask, "T-x", event.QuestionAsked{QuestionID: "q1", Text: "?"})
+	ans := b.add(event.QuestionAnsweredType, event.RoleOrchestrator, "main", event.KindTask, "T-x", event.QuestionAnswered{QuestionID: "q1", Text: "!"})
+	s := Reduce(b.events[:2])
+	owner, _ := s.RouteOwner(RouteID(q.ID))
+	question, _ := s.FindQuestion(q.Subject, "q1")
+	if got := s.Addressee(q.Subject, question); got != owner {
+		t.Errorf("Addressee = %q, RouteOwner = %q", got, owner)
+	}
+	if err := CheckLaneIn(&s, ans); err != nil {
+		t.Errorf("the route owner could not answer: %v", err)
+	}
+}
