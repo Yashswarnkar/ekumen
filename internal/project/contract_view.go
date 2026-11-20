@@ -44,8 +44,8 @@ type ContractDetail struct {
 }
 
 // ContractShow returns a drafted contract and its file's body (the text
-// after the front matter). A missing file gives an empty body and an error
-// the caller may report as a warning.
+// after the front matter). A contract with no path has an empty body; a
+// path that cannot be read, or bad front matter, is an error.
 func (s *Snapshot) ContractShow(id string) (ContractDetail, string, error) {
 	c := s.State.Contracts[id]
 	v := ContractDetail{

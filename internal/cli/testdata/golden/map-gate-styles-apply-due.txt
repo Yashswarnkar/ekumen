@@ -1,0 +1,3 @@
+decision decided lead | D-claim-lane · decided, apply is yours
+decision pending lead | D-new-choice · decision, tier 2, needs you
+gate edges: 2

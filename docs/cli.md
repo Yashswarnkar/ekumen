@@ -120,7 +120,7 @@ pending: version 4 (D-claim-lane) waits for `ekumen contract freeze C-event-log`
 …
 ```
 
-With `--json`: `{contract: {id, title, aliases, status, version, frozen_on, path, consumers, producers, blocked_by, freezes: [{version, text_sha256, at}], versions: [{version, by_decision, text_sha256, at}], pending}, text}`. `status`, `version`, `frozen_on` (the date of the freeze that recorded the current version), the freezes, versions and `pending` (a version recorded by `contract version`, not frozen yet, else `null`) come from events; `consumers` and `producers` from the file's front matter; `text` is the file's body after the front matter. A missing file is a warning and an empty `text`.
+With `--json`: `{contract: {id, title, aliases, status, version, frozen_on, path, consumers, producers, blocked_by, freezes: [{version, text_sha256, at}], versions: [{version, by_decision, text_sha256, at}], pending}, text}`. `status`, `version`, `frozen_on` (the date of the freeze that recorded the current version), the freezes, versions and `pending` (a version recorded by `contract version`, not frozen yet, else `null`) come from events; `consumers` and `producers` from the file's front matter; `text` is the file's body after the front matter. A contract with no path has an empty `text`; a path that cannot be read, or front matter that does not parse, exits `3` (`not_found`, `field: path`).
 
 ### `ekumen question list [--for x] [--open]`
 
@@ -135,7 +135,7 @@ q-01m7w3vh40000000000000000h on task T-cli, lead:yash → session:t-cli: Is the 
 $ ekumen graph --json      # {nodes: [{id, kind, title, status, waiting_on?}], edges: [{from, to}]}
 ```
 
-Nodes are tasks, contracts, external dependencies, and decisions that still gate (not applied, not superseded). An edge `{from: A, to: B}` means B needs A. Decision nodes carry `waiting_on`: `lead` for a pending decision (the same set as the decisions in `inbox --for lead`), `loop` for one decided or defaulted and not applied yet.
+Nodes are tasks, contracts, external dependencies, and decisions that still gate (not applied, not superseded). An edge `{from: A, to: B}` means B needs A. Decision nodes carry `waiting_on`: `lead` for a pending decision, or for a decided one whose apply is already an `apply` action in the lead's inbox (a day after deciding); `loop` for one decided or defaulted, not applied, and not yet the lead's. So the `lead` nodes are exactly the decisions and `apply` actions in `inbox --for lead`.
 
 ### `ekumen map --out <file.html> [--fragment] [--link-base url]`
 
@@ -144,7 +144,7 @@ $ ekumen map --out /tmp/ekumen-map.html
 wrote /tmp/ekumen-map.html: 7 nodes, 6 edges, 2 inbox items
 ```
 
-One self-contained HTML file (inbox, pull requests, task graph, decided list) built from the same data as `graph` and `inbox --for lead`. It makes no network requests: dagre 0.8.5 (MIT) is inlined for the layout. In the graph, decisions waiting on the lead are drawn as solid gates with gate-coloured arrows; decisions waiting on the loop (decided, not applied) are muted, dashed and labelled "apply pending", with plain arrows. The legend names both.
+One self-contained HTML file (inbox, pull requests, task graph, decided list) built from the same data as `graph` and `inbox --for lead`. It makes no network requests: dagre 0.8.5 (MIT) is inlined for the layout. In the graph, decisions waiting on the lead are drawn as solid gates with gate-coloured arrows; decisions waiting on the loop (decided, not applied, under a day old) are muted, dashed and labelled "apply pending", with plain arrows. A decision whose apply has reached the lead's inbox is drawn as a gate again, labelled "apply is yours". The legend names both.
 
 - `--fragment` writes the page without `<!doctype>`, `<html>`, `<head>` and `<body>`, for embedding in another page. Every style rule (custom properties and dark mode included) is scoped to the wrapping `<div class="ekumen-map">`, and the page uses no fixed element ids: its script finds elements inside its own wrapper, and SVG marker ids are unique per page, so several maps can share one host page.
 - **Links.** Every item links to its full text on the git host, in a new tab: decisions to `.ekumen/decisions/<id>.yaml`, tasks to their `brief.md` and latest handoff, contracts to their body, PRs to the PR. The link base comes from the `origin` remote: `git@github.com:o/r.git`, `ssh://git@github.com/o/r.git` and `https://github.com/o/r(.git)` give `https://github.com/o/r/blob/<commit>/`, at the commit the map was generated from, so links show the text the map shows. Without a commit it uses origin's default branch (`origin/HEAD`); with neither, no links: no branch is guessed. GitHub is the only built-in host; for any other, pass `--link-base`, an `http` or `https` URL (anything else is a usage error; e.g. `--link-base https://git.example.com/o/r/src/branch/main/`). With no remote and no `--link-base`, ids are plain text.

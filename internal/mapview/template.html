@@ -157,7 +157,7 @@ body { margin: 0; background: #f6f7f5; }
     <div class="sechead"><h2>Task graph</h2><span class="sub" style="font-size:13px">Arrows point from what is needed to what needs it</span></div>
     <div class="gkey">
       <span><i style="border-color:var(--gate);background:var(--gate-soft);border-width:2.5px"></i>Decision waiting on you (gate)</span>
-      <span><i style="border-color:var(--plan);border-style:dashed"></i>Decided, apply pending (waits on the loop, not you)</span>
+      <span><i style="border-color:var(--plan);border-style:dashed"></i>Decided, apply pending (waits on the loop, not you; after a day it is yours)</span>
       <span><i style="border-color:var(--review);background:var(--review-soft)"></i>In review</span>
       <span><i style="border-color:var(--accent)"></i>Contract frozen / task ready</span>
       <span><i style="border-color:var(--plan);border-style:dashed;background:var(--plan-soft)"></i>Draft or blocked</span>
@@ -288,7 +288,7 @@ $("prs").innerHTML = prs.map(t => {
     const lines = wrap(info.title, 27);
     const t = tasks[id];
     const pr = t && t.observed && t.observed.pr;
-    const sub = info.kind === "task" ? info.status.replace("_", " ") : info.kind === "decision" ? (info.waiting_on === "loop" ? `${info.status}, apply pending` : `decision, tier ${decisions[id] ? decisions[id].tier : "?"}, needs you`) : `${info.kind}, ${info.status}`;
+    const sub = info.kind === "task" ? info.status.replace("_", " ") : info.kind === "decision" ? (info.waiting_on === "loop" ? `${info.status}, apply pending` : info.status !== "pending" ? `${info.status}, apply is yours` : `decision, tier ${decisions[id] ? decisions[id].tier : "?"}, needs you`) : `${info.kind}, ${info.status}`;
     const node = `<g class="n ${esc(cls)}"><title>${esc(label(id))}</title>${shape}
       <text class="nid" x="${x + 12}" y="${y + 16}">${esc(id)} · ${esc(sub)}</text>
       ${lines.map((l, i) => `<text class="ntitle" x="${x + 12}" y="${y + 33 + i * 15}">${esc(l)}</text>`).join("")}</g>`;

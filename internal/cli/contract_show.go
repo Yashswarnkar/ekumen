@@ -26,7 +26,7 @@ func (r *run) contractShow(args []string) error {
 	}
 	c, text, err := s.ContractShow(id)
 	if err != nil {
-		r.warn("%v", err)
+		return fieldErr(CodeNotFound, "path", "%v", err)
 	}
 	r.out(struct {
 		Contract project.ContractDetail `json:"contract"`

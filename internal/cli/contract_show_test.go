@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestContractShowGolden(t *testing.T) {
@@ -59,20 +60,22 @@ func TestShowKindHint(t *testing.T) {
 	}
 }
 
-func TestGraphWaitingOn(t *testing.T) {
-	h := newHarness(t)
-	buildFixture(h)
-	h.must("--as", "lead:yash", "decision", "answer", "D-claim-lane", "claiming-session")
+type graphNodes struct {
+	Nodes []struct {
+		ID        string `json:"id"`
+		Kind      string `json:"kind"`
+		Status    string `json:"status"`
+		WaitingOn string `json:"waiting_on"`
+	} `json:"nodes"`
+}
+
+// decisionWaits returns status/waiting_on per decision node, and checks
+// that the graph's lead gates are exactly the decisions and apply actions
+// in the lead's inbox.
+func decisionWaits(t *testing.T, h *harness) (map[string]string, string) {
+	t.Helper()
 	_, out, _ := h.run("graph", "--json")
-	golden(t, "graph-waiting-on.json", out)
-	var g struct {
-		Nodes []struct {
-			ID        string `json:"id"`
-			Kind      string `json:"kind"`
-			Status    string `json:"status"`
-			WaitingOn string `json:"waiting_on"`
-		} `json:"nodes"`
-	}
+	var g graphNodes
 	if err := json.Unmarshal([]byte(out), &g); err != nil {
 		t.Fatal(err)
 	}
@@ -86,27 +89,43 @@ func TestGraphWaitingOn(t *testing.T) {
 			leadGates = append(leadGates, n.ID)
 		}
 	}
+	_, inboxOut, _ := h.run("inbox", "--for", "lead", "--json")
+	var inbox struct {
+		Items []struct{ Kind, ID, Action string } `json:"items"`
+	}
+	if err := json.Unmarshal([]byte(inboxOut), &inbox); err != nil {
+		t.Fatal(err)
+	}
+	var waiting []string
+	for _, i := range inbox.Items {
+		if i.Kind == "decision" || i.Action == "apply" {
+			waiting = append(waiting, i.ID)
+		}
+	}
+	slices.Sort(leadGates)
+	slices.Sort(waiting)
+	if !slices.Equal(leadGates, waiting) {
+		t.Errorf("graph lead gates %v, lead inbox %v", leadGates, waiting)
+	}
+	return got, out
+}
+
+func TestGraphWaitingOn(t *testing.T) {
+	h := newHarness(t)
+	buildFixture(h)
+	h.must("--as", "lead:yash", "decision", "answer", "D-claim-lane", "claiming-session")
+	got, out := decisionWaits(t, h)
+	golden(t, "graph-waiting-on.json", out)
 	want := map[string]string{"D-claim-lane": "decided/loop", "D-new-choice": "pending/lead"}
 	if !maps.Equal(got, want) {
 		t.Errorf("decision nodes %v, want %v (D-yaml-library is applied, so not a gate)", got, want)
 	}
-	_, out, _ = h.run("inbox", "--for", "lead", "--json")
-	var inbox struct {
-		Items []struct{ Kind, ID string } `json:"items"`
-	}
-	if err := json.Unmarshal([]byte(out), &inbox); err != nil {
-		t.Fatal(err)
-	}
-	var pending []string
-	for _, i := range inbox.Items {
-		if i.Kind == "decision" {
-			pending = append(pending, i.ID)
-		}
-	}
-	slices.Sort(leadGates)
-	slices.Sort(pending)
-	if !slices.Equal(leadGates, pending) {
-		t.Errorf("graph lead gates %v, inbox decisions %v", leadGates, pending)
+
+	h.now = h.now.Add(25 * time.Hour)
+	got, _ = decisionWaits(t, h)
+	want["D-claim-lane"] = "decided/lead"
+	if !maps.Equal(got, want) {
+		t.Errorf("a day after deciding: %v, want %v", got, want)
 	}
 }
 
@@ -114,14 +133,8 @@ var mapNodeRe = regexp.MustCompile(`<g class="n ([^"]*)"><title>[^<]*</title>`)
 var mapNidRe = regexp.MustCompile(`<text class="nid"[^>]*>([^<]*)</text>`)
 var mapEdgeRe = regexp.MustCompile(`<path class="e ?([^"]*)"`)
 
-func TestMapGateStyles(t *testing.T) {
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not installed")
-	}
-	h := newHarness(t)
-	buildFixture(h)
-	h.must("--as", "lead:yash", "decision", "answer", "D-claim-lane", "claiming-session")
+func mapDecisions(t *testing.T, h *harness, node string) string {
+	t.Helper()
 	page := filepath.Join(t.TempDir(), "map.html")
 	h.must("map", "--out", page)
 	b, err := os.ReadFile(page)
@@ -134,9 +147,8 @@ func TestMapGateStyles(t *testing.T) {
 			t.Errorf("legend lacks %q", want)
 		}
 	}
-	scripts := scriptRe.FindAllStringSubmatch(html, -1)
 	var srcs []string
-	for _, m := range scripts {
+	for _, m := range scriptRe.FindAllStringSubmatch(html, -1) {
 		srcs = append(srcs, m[1])
 	}
 	arg, _ := json.Marshal(srcs)
@@ -167,7 +179,32 @@ process.stdout.write(m['[data-ek="graph"]'].innerHTML);`
 		}
 	}
 	slices.Sort(lines)
-	golden(t, "map-gate-styles.txt", fmt.Sprintf("%s\ngate edges: %d\n", strings.Join(lines, "\n"), gates))
+	return fmt.Sprintf("%s\ngate edges: %d\n", strings.Join(lines, "\n"), gates)
+}
+
+func TestMapGateStyles(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node not installed")
+	}
+	h := newHarness(t)
+	buildFixture(h)
+	h.must("--as", "lead:yash", "decision", "answer", "D-claim-lane", "claiming-session")
+	golden(t, "map-gate-styles.txt", mapDecisions(t, h, node))
+	h.now = h.now.Add(25 * time.Hour)
+	golden(t, "map-gate-styles-apply-due.txt", mapDecisions(t, h, node))
+}
+
+func TestContractShowMissingFile(t *testing.T) {
+	h := newHarness(t)
+	buildFixture(h)
+	if err := os.Remove(filepath.Join(h.root, ".ekumen/contracts/C-cli-json.md")); err != nil {
+		t.Fatal(err)
+	}
+	code, out, _ := h.run("contract", "show", "C-cli-json", "--json")
+	if code != ExitNotFound || !strings.Contains(out, `"field": "path"`) {
+		t.Errorf("exit %d: %s", code, out)
+	}
 }
 
 var scriptRe = regexp.MustCompile(`(?s)<script>(.*?)</script>`)

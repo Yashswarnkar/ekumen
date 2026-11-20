@@ -159,8 +159,9 @@ type Node struct {
 	Kind   string `json:"kind"`
 	Title  string `json:"title"`
 	Status string `json:"status"`
-	// WaitingOn is set on decision nodes: "lead" for a pending decision,
-	// "loop" for one decided or defaulted and not applied yet.
+	// WaitingOn is set on decision nodes: "lead" for a pending decision or
+	// one whose apply is in the lead's inbox (core.LeadActions), "loop" for
+	// one decided or defaulted, not applied, and not yet the lead's.
 	WaitingOn string `json:"waiting_on,omitempty"`
 }
 
@@ -655,13 +656,19 @@ func (s *Snapshot) Graph() ([]Node, []Edge) {
 		c := s.State.Contracts[id]
 		addNode(Node{ID: id, Kind: "contract", Title: c.Title, Status: c.Status})
 	}
+	applyDue := map[string]bool{}
+	for _, a := range core.LeadActions(&s.State, s.Observed, s.Now, s.hasBrief) {
+		if a.Action == core.ActionApply {
+			applyDue[a.Subject.ID] = true
+		}
+	}
 	var gating []string
 	for _, id := range s.DecisionIDs() {
 		d := s.State.Decisions[id]
 		if d.AppliedOn == "" && d.Status != core.StatusSuperseded {
 			gating = append(gating, id)
 			waiting := WaitingOnLoop
-			if d.Status == core.StatusPending {
+			if d.Status == core.StatusPending || applyDue[id] {
 				waiting = WaitingOnLead
 			}
 			addNode(Node{ID: id, Kind: "decision", Title: d.Title, Status: d.Status, WaitingOn: waiting})
