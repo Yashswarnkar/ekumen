@@ -22,6 +22,9 @@ const (
 	// RuleSpineUnapproved: spine.md does not match the latest SpineApproved
 	// (C-event-log v5, D-post-switch-hand-edits).
 	RuleSpineUnapproved = "spine-unapproved"
+	// RuleUpdateAfterClose: a TaskUpdated after the task's TaskDeferred
+	// (C-event-log v5, D-placeholder-task-fields).
+	RuleUpdateAfterClose = "update-after-close"
 )
 
 // SpineFile is the spine's path relative to .ekumen/. Its hash is passed in
@@ -30,7 +33,7 @@ const SpineFile = "spine.md"
 
 // ConflictRules lists every rule in the order of C-event-log §5.
 var ConflictRules = []string{RuleLane, RuleRole, RuleDecidedTwice, RuleFrozenTwice, RuleFrozenTextChanged, RuleIDCollision,
-	RuleOrphanStep, RuleSpineUnapproved}
+	RuleOrphanStep, RuleSpineUnapproved, RuleUpdateAfterClose}
 
 // Conflict is a contradiction to report with ConflictDetected {rule,
 // events}. Detail explains it for the decision the loop raises.
@@ -67,6 +70,7 @@ func Conflicts(s *State, events []event.Event, in ConflictInputs) []Conflict {
 	all = append(all, IDCollisionConflicts(s)...)
 	all = append(all, OrphanStepConflicts(s, events)...)
 	all = append(all, SpineUnapprovedConflicts(s, in.TextSHA256)...)
+	all = append(all, UpdateAfterCloseConflicts(s)...)
 
 	seen := map[string]bool{}
 	for _, r := range s.Conflicts {
@@ -343,4 +347,20 @@ func SpineUnapprovedConflicts(s *State, current map[string]string) []Conflict {
 	}
 	return []Conflict{newConflict(RuleSpineUnapproved,
 		fmt.Sprintf("%s changed since the lead approved it (run `ekumen spine approve` once the lead has)", SpineFile), last.Event)}
+}
+
+// UpdateAfterCloseConflicts is rule `update-after-close` (C-event-log v5,
+// D-placeholder-task-fields): a TaskUpdated that comes after the task's
+// TaskDeferred in log order. The CLI refuses it; it arrives by merge. A
+// done task is not checked: done is observed and has no time in the log,
+// so an update proposed before the merge is legitimate history (`task
+// approve` refuses it and the inbox does not offer it).
+func UpdateAfterCloseConflicts(s *State) []Conflict {
+	var out []Conflict
+	for _, id := range sortedKeys(s.Tasks) {
+		for _, ev := range s.Tasks[id].RefusedUpdates {
+			out = append(out, newConflict(RuleUpdateAfterClose, fmt.Sprintf("task %s: TaskUpdated %s after it was deferred", id, ev), ev))
+		}
+	}
+	return out
 }

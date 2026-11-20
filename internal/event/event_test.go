@@ -222,8 +222,8 @@ func TestNewAndValidate_EventLog2(t *testing.T) {
 
 // C-event-log §6: every v1 type has a typed payload.
 func TestEveryTypeHasPayload_EventLog6(t *testing.T) {
-	if len(Types) != 27 {
-		t.Errorf("C-event-log v5 §6 lists 27 types, Types has %d", len(Types))
+	if len(Types) != 28 {
+		t.Errorf("C-event-log v5 §6 lists 28 types, Types has %d", len(Types))
 	}
 	for _, typ := range Types {
 		if !typ.Known() || NewPayload(typ) == nil {

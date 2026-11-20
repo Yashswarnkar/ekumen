@@ -68,6 +68,7 @@ var Lanes = map[event.Type]Lane{
 	event.TaskAmendedType:             {Roles: orchOrLoop, ByDecision: loop, Subjects: taskOnly},
 	event.TaskBlockersChangedType:     {Roles: orchestrator, Subjects: taskOnly},
 	event.TaskDeferredType:            {Roles: orchestrator, Subjects: taskOnly},
+	event.TaskUpdatedType:             {Roles: orchestrator, Subjects: taskOnly},
 	event.ContractDraftedType:         {Roles: orchestrator, Subjects: contractOnly},
 	event.ContractBlockersChangedType: {Roles: orchestrator, Subjects: contractOnly},
 	event.ContractVersionedType:       {Roles: orchestrator, Subjects: contractOnly},

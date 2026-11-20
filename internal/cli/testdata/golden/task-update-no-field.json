@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "usage",
+    "message": "task update: give at least one field (usage: ekumen task update \u003cid\u003e [--repo r] [--base-branch b] [--branch b] [--worktree w] [--brief p] [--title t] --reason t)"
+  }
+}

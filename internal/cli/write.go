@@ -576,16 +576,38 @@ func (r *run) taskApprove(args []string) error {
 		return err
 	}
 	t := s.State.Tasks[id]
-	if t.Approved {
+	if t.Approved && t.PendingUpdate == nil {
 		return fieldErr(CodeValidation, "id", "%s was approved on %s; §A is frozen (amend it instead)", id, t.ApprovedOn)
 	}
-	brief, err := s.BriefPath(id)
-	if err != nil {
-		return fieldErr(CodeValidation, "brief", "%s: %v", id, err)
+	updating := t.Approved
+	if updating {
+		if st := s.TaskStatus(id); st == core.TaskDone {
+			return fieldErr(CodeValidation, "id", "%s is done; its pending update can no longer be approved", id)
+		}
 	}
-	sum, err := files.HashFile(brief)
-	if err != nil {
-		return fieldErr(CodeNotFound, "brief", "%s: cannot hash the brief: %v", id, err)
+	moved := false
+	if nb, ok := pendingBrief(t); updating && ok {
+		moved = core.BriefFile(id, nb) != core.BriefFile(id, t.Brief)
+	}
+	var sum string
+	if updating && !moved {
+		sum = t.ApprovedSHA256
+		if p, err := s.BriefPath(id); err == nil {
+			if cur, err := files.HashFile(p); err == nil && cur != sum {
+				r.warn("%s: §A changed since approval; this accepts the update only, and check still reports frozen-text-changed", id)
+			}
+		}
+	} else {
+		brief, err := s.ResolvePath(core.BriefFile(id, t.Brief))
+		if nb, ok := pendingBrief(t); ok && err == nil {
+			brief, err = s.ResolvePath(nb)
+		}
+		if err != nil {
+			return fieldErr(CodeValidation, "brief", "%s: %v", id, err)
+		}
+		if sum, err = files.HashFile(brief); err != nil {
+			return fieldErr(CodeNotFound, "brief", "%s: cannot hash the brief: %v", id, err)
+		}
 	}
 	final := t.TierGrants
 	if flagSet(fs, "grants") {
@@ -596,7 +618,19 @@ func (r *run) taskApprove(args []string) error {
 	if err != nil {
 		return err
 	}
-	return r.commit(s, []event.Event{e}, nil, "approved "+id)
+	human := "approved " + id
+	if t.Approved {
+		human = "approved the update to " + id + ": " + project.FormatUpdate(t.PendingUpdate.Fields)
+	}
+	return r.commit(s, []event.Event{e}, nil, human)
+}
+
+func pendingBrief(t *core.Task) (string, bool) {
+	if t.PendingUpdate == nil {
+		return "", false
+	}
+	b, ok := t.PendingUpdate.Fields["brief"]
+	return b, ok
 }
 
 func flagSet(fs *flag.FlagSet, name string) bool {

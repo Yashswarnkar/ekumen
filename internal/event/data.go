@@ -2,8 +2,12 @@ package event
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"path"
 	"reflect"
 	"strings"
+	"unicode"
 )
 
 // Payloads: one struct per event type (C-event-log v4 §6). Field names
@@ -73,6 +77,129 @@ type TaskHandoff struct {
 	HasFollowups  bool   `json:"has_followups"`
 	HasDecisions  bool   `json:"has_decisions"`
 	HasDeviations bool   `json:"has_deviations"`
+}
+
+// TaskUpdated proposes new values for a task's location fields and title
+// (C-event-log v5 §6, D-placeholder-task-fields). A nil field is
+// unchanged. On an approved task it is pending until the lead's next
+// TaskApproved.
+type TaskUpdated struct {
+	Title      *string `json:"title,omitempty"`
+	Brief      *string `json:"brief,omitempty"`
+	Repo       *string `json:"repo,omitempty"`
+	BaseBranch *string `json:"base_branch,omitempty"`
+	Branch     *string `json:"branch,omitempty"`
+	Worktree   *string `json:"worktree,omitempty"`
+	Reason     string  `json:"reason"`
+}
+
+// TaskUpdateFields are the fields TaskUpdated may set, in contract order.
+var TaskUpdateFields = []string{"repo", "base_branch", "branch", "worktree", "brief", "title"}
+
+// Fields returns the fields the update sets, by name.
+func (u TaskUpdated) Fields() map[string]string {
+	out := map[string]string{}
+	for _, f := range TaskUpdateFields {
+		if v := u.Field(f); v != nil {
+			out[f] = *v
+		}
+	}
+	return out
+}
+
+// Check refuses an update that sets no field, sets one to "", or gives a
+// value of the wrong form (see CheckTaskField).
+func (u TaskUpdated) Check() error {
+	n := 0
+	for _, f := range TaskUpdateFields {
+		if v := u.Field(f); v != nil {
+			if err := CheckTaskField(f, *v); err != nil {
+				return &FieldError{Field: f, Err: err}
+			}
+			n++
+		}
+	}
+	if n == 0 {
+		return errors.New("no field to update")
+	}
+	return nil
+}
+
+// FieldError names the payload field a check refused.
+type FieldError struct {
+	Field string
+	Err   error
+}
+
+func (e *FieldError) Error() string { return e.Field + ": " + e.Err.Error() }
+func (e *FieldError) Unwrap() error { return e.Err }
+
+// CheckTaskField checks one TaskUpdated value: none may be blank; branch
+// and base_branch are git branch names; worktree is a relative path inside
+// the repository; brief is a relative path inside .ekumen/ (it may start
+// with ".ekumen/"); repo has no whitespace.
+func CheckTaskField(field, v string) error {
+	if strings.TrimSpace(v) == "" {
+		return errors.New("must not be empty")
+	}
+	switch field {
+	case "branch", "base_branch":
+		return CheckBranch(v)
+	case "worktree", "brief":
+		return checkRelPath(v)
+	case "repo":
+		if strings.ContainsFunc(v, unicode.IsSpace) {
+			return errors.New("must not contain spaces")
+		}
+	}
+	return nil
+}
+
+// CheckBranch applies git's branch-name rules (git check-ref-format).
+func CheckBranch(b string) error {
+	bad := b == "HEAD" || b == "@" || strings.ContainsAny(b, " ~^:?*[\\") ||
+		strings.ContainsFunc(b, func(r rune) bool { return r < 0x20 || r == 0x7f }) ||
+		strings.Contains(b, "..") || strings.Contains(b, "@{") ||
+		strings.HasPrefix(b, "-") || strings.HasSuffix(b, ".")
+	for _, c := range strings.Split(b, "/") {
+		if c == "" || strings.HasPrefix(c, ".") || strings.HasSuffix(c, ".lock") {
+			bad = true
+		}
+	}
+	if bad {
+		return fmt.Errorf("not a valid branch name: %q", b)
+	}
+	return nil
+}
+
+func checkRelPath(p string) error {
+	clean := path.Clean(p)
+	switch {
+	case strings.HasPrefix(p, "/"), strings.ContainsAny(p, "\\\n"), len(p) > 1 && p[1] == ':':
+		return errors.New("must be a relative, slash-separated path")
+	case clean == ".." || strings.HasPrefix(clean, "../") || clean == "." || clean == ".ekumen":
+		return errors.New("must name a file or folder inside the repository")
+	}
+	return nil
+}
+
+// Field returns the value set for a field name, or nil.
+func (u TaskUpdated) Field(name string) *string {
+	switch name {
+	case "title":
+		return u.Title
+	case "brief":
+		return u.Brief
+	case "repo":
+		return u.Repo
+	case "base_branch":
+		return u.BaseBranch
+	case "branch":
+		return u.Branch
+	case "worktree":
+		return u.Worktree
+	}
+	return nil
 }
 
 // TaskDeferred parks a task.
@@ -280,6 +407,8 @@ func NewPayload(t Type) any {
 		return new(TaskHandoff)
 	case TaskDeferredType:
 		return new(TaskDeferred)
+	case TaskUpdatedType:
+		return new(TaskUpdated)
 	case DecisionRaisedType:
 		return new(DecisionRaised)
 	case DecisionDecidedType:

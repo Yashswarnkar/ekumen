@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "events": [
+    "01M7W46GP0000000000000000Q"
+  ],
+  "paths": [
+    ".ekumen/events/task/T-cli/01M7W46GP0000000000000000Q.TaskUpdated.json",
+    ".ekumen/state.json"
+  ]
+}

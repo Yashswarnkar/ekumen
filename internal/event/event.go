@@ -56,12 +56,16 @@ const (
 	// SpineApprovedType records the lead's approval of the spine's text
 	// (C-event-log v5, D-post-switch-hand-edits).
 	SpineApprovedType Type = "SpineApproved"
+
+	// TaskUpdatedType proposes new task fields (C-event-log v5,
+	// D-placeholder-task-fields).
+	TaskUpdatedType Type = "TaskUpdated"
 )
 
 // Types lists every event type in the order of C-event-log v5 §6.
 var Types = []Type{
 	TaskDraftedType, TaskApprovedType, TaskAmendedType, TaskBlockersChangedType,
-	TaskSessionAttachedType, TaskHandoffType, TaskDeferredType,
+	TaskSessionAttachedType, TaskHandoffType, TaskDeferredType, TaskUpdatedType,
 	DecisionRaisedType, DecisionDecidedType, DecisionDefaultedType,
 	DecisionSupersededType, DecisionAppliedType,
 	QuestionAskedType, QuestionAnsweredType,
@@ -326,8 +330,13 @@ func (e Event) Validate() error {
 		}
 	}
 	if e.Type.Known() {
-		if _, err := e.Payload(); err != nil {
+		p, err := e.Payload()
+		if err != nil {
 			errs = append(errs, fmt.Errorf("data: %w", err))
+		} else if u, ok := p.(*TaskUpdated); ok {
+			if err := u.Check(); err != nil {
+				errs = append(errs, fmt.Errorf("data: %w", err))
+			}
 		}
 	}
 	return errors.Join(errs...)

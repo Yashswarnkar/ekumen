@@ -132,6 +132,9 @@ func (r *run) taskList(args []string) error {
 			if len(t.BlockedByOpen) > 0 {
 				fmt.Fprintf(w, "  [blocked by %s]", strings.Join(t.BlockedByOpen, ", "))
 			}
+			if t.PendingUpdate != nil {
+				fmt.Fprint(w, "  [update pending]")
+			}
 			fmt.Fprintln(w)
 		}
 	})
@@ -231,6 +234,9 @@ func (r *run) taskShow(args []string) error {
 		fmt.Fprintf(w, "%s · %s\nstatus: %s\n", t.ID, t.Title, t.Status)
 		if len(t.BlockedByOpen) > 0 {
 			fmt.Fprintf(w, "blocked by: %s\n", strings.Join(t.BlockedByOpen, ", "))
+		}
+		if u := t.PendingUpdate; u != nil {
+			fmt.Fprintf(w, "pending update: %s (%s); the lead accepts it with `ekumen task approve %s`\n", project.FormatUpdate(u.Fields), u.Reason, t.ID)
 		}
 		fmt.Fprintf(w, "\n%s\n", brief.Text)
 		for _, e := range brief.Amendments {

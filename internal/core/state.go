@@ -10,6 +10,8 @@ package core
 import (
 	"cmp"
 	"encoding/json"
+	"maps"
+	"path"
 	"slices"
 	"strings"
 	"time"
@@ -149,7 +151,21 @@ type Task struct {
 	Deferred       bool   `json:"deferred"`
 	DeferredReason string `json:"deferred_reason,omitempty"`
 
+	// PendingUpdate holds TaskUpdated fields proposed after approval and
+	// not yet accepted by a later TaskApproved (D-placeholder-task-fields).
+	PendingUpdate *PendingUpdate `json:"pending_update,omitempty"`
+	// RefusedUpdates are TaskUpdated events written after TaskDeferred.
+	RefusedUpdates []string `json:"refused_updates,omitempty"`
+
 	Questions []Question `json:"questions"`
+}
+
+// PendingUpdate is the merged TaskUpdated fields waiting for the lead,
+// newest value per field, with the reason of the newest update.
+type PendingUpdate struct {
+	Fields map[string]string `json:"fields"`
+	Reason string            `json:"reason"`
+	Events []string          `json:"events"`
 }
 
 // Drafted reports whether a TaskDrafted was seen for the task.
@@ -317,7 +333,7 @@ func LifecycleRank(t event.Type) int {
 	case event.TaskAmendedType, event.QuestionAnsweredType, event.DecisionDecidedType,
 		event.DecisionDefaultedType, event.DecisionSupersededType, event.TaskBlockersChangedType,
 		event.ContractBlockersChangedType, event.ContractVersionedType, event.TaskHandoffType,
-		event.TaskDeferredType, event.ExternalUpdatedType, event.RoutedToOwnerType:
+		event.TaskDeferredType, event.ExternalUpdatedType, event.RoutedToOwnerType, event.TaskUpdatedType:
 		return 2
 	case event.DecisionAppliedType, event.ExternalResolvedType, event.RouteResolvedType,
 		event.RoleReleasedType, event.ConflictDetectedType:
@@ -855,6 +871,9 @@ func (s *State) apply(e event.Event) {
 	case *event.TaskApproved:
 		t := s.task(e.Subject.ID)
 		if t.Approved {
+			if t.PendingUpdate != nil {
+				s.acceptUpdate(t, e, d)
+			}
 			return
 		}
 		t.Approved, t.ApprovedEvent, t.ApprovedOn = true, e.ID, day(e.At)
@@ -880,6 +899,26 @@ func (s *State) apply(e event.Event) {
 	case *event.TaskDeferred:
 		t := s.task(e.Subject.ID)
 		t.Deferred, t.DeferredReason = true, d.Reason
+	case *event.TaskUpdated:
+		t := s.task(e.Subject.ID)
+		if err := d.Check(); err != nil {
+			s.skip(e, err.Error())
+			return
+		}
+		switch {
+		case t.Deferred:
+			t.RefusedUpdates = append(t.RefusedUpdates, e.ID)
+			s.skip(e, "task "+t.ID+" is deferred")
+		case !t.Approved:
+			t.setFields(d.Fields())
+		default:
+			if t.PendingUpdate == nil {
+				t.PendingUpdate = &PendingUpdate{Fields: map[string]string{}, Events: []string{}}
+			}
+			maps.Copy(t.PendingUpdate.Fields, d.Fields())
+			t.PendingUpdate.Reason = d.Reason
+			t.PendingUpdate.Events = append(t.PendingUpdate.Events, e.ID)
+		}
 	case *event.DecisionRaised:
 		dec := s.decision(e.Subject.ID)
 		s.addAliases(e, dec.ID, d.Aliases, len(dec.Raises) == 0)
@@ -1040,6 +1079,49 @@ func (s *State) apply(e event.Event) {
 		evs := slices.Clone(d.Events)
 		slices.Sort(evs)
 		s.Conflicts = append(s.Conflicts, RecordedConflict{Event: e.ID, Rule: d.Rule, Events: orEmpty(evs)})
+	}
+}
+
+// acceptUpdate applies a task's pending update on the lead's TaskApproved.
+// The approval's grants are taken; its hash only when the update moves the
+// brief (BriefFile differs), so a re-approval never re-baselines an
+// unchanged §A (frozen-text-changed still reports edits to it).
+func (s *State) acceptUpdate(t *Task, e event.Event, d *event.TaskApproved) {
+	before := BriefFile(t.ID, t.Brief)
+	t.setFields(t.PendingUpdate.Fields)
+	t.PendingUpdate = nil
+	t.TierGrants = orEmpty(d.TierGrants)
+	if BriefFile(t.ID, t.Brief) != before {
+		t.ApprovedEvent, t.ApprovedSHA256 = e.ID, d.TextSHA256
+	}
+}
+
+// BriefFile is the file a task's brief names, relative to .ekumen/ and
+// cleaned: a leading ".ekumen/" is dropped, and an empty brief is
+// briefs/<id>/brief.md.
+func BriefFile(id, brief string) string {
+	if brief == "" {
+		return "briefs/" + id + "/brief.md"
+	}
+	return strings.TrimPrefix(path.Clean(brief), ".ekumen/")
+}
+
+func (t *Task) setFields(f map[string]string) {
+	for k, v := range f {
+		switch k {
+		case "title":
+			t.Title = v
+		case "brief":
+			t.Brief = v
+		case "repo":
+			t.Repo = v
+		case "base_branch":
+			t.BaseBranch = v
+		case "branch":
+			t.Branch = v
+		case "worktree":
+			t.Worktree = v
+		}
 	}
 }
 

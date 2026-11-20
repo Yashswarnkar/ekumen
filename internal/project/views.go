@@ -44,6 +44,17 @@ type Task struct {
 	TierGrants    []string      `json:"tier_grants"`
 	Observed      *ObservedView `json:"observed"`
 	Brief         *string       `json:"brief"`
+	// PendingUpdate is a TaskUpdated waiting for the lead's `task approve`
+	// (D-placeholder-task-fields).
+	PendingUpdate *PendingUpdate `json:"pending_update,omitempty"`
+}
+
+// PendingUpdate shows the proposed fields next to their current values.
+type PendingUpdate struct {
+	Fields  map[string]string `json:"fields"`
+	Current map[string]string `json:"current"`
+	Reason  string            `json:"reason"`
+	Events  []string          `json:"events"`
 }
 
 // RaisedBy is raised_by with ids resolved.
@@ -269,6 +280,14 @@ func (s *Snapshot) TaskView(id string) Task {
 		BlockedByOpen: list(core.OpenBlockers(&s.State, s.Observed, id)),
 		ApprovedOn:    ptr(t.ApprovedOn), Branch: ptr(t.Branch), Session: ptr(t.Session),
 		TierGrants: list(t.TierGrants), Brief: ptr(s.RootPath(t.Brief)),
+	}
+	if u := t.PendingUpdate; u != nil {
+		cur := map[string]string{"title": t.Title, "brief": t.Brief, "repo": t.Repo,
+			"base_branch": t.BaseBranch, "branch": t.Branch, "worktree": t.Worktree}
+		v.PendingUpdate = &PendingUpdate{Fields: u.Fields, Current: map[string]string{}, Reason: u.Reason, Events: u.Events}
+		for k := range u.Fields {
+			v.PendingUpdate.Current[k] = cur[k]
+		}
 	}
 	if s.PRs != nil {
 		v.Observed = &ObservedView{}
@@ -553,9 +572,23 @@ func (s *Snapshot) actionTitle(a core.LeadAction) string {
 	case event.KindDecision:
 		title = s.State.Decisions[a.Subject.ID].Title
 	}
+	if a.Update != nil {
+		return fmt.Sprintf("Approve update to %s: %s (%s)", a.Subject.ID, FormatUpdate(a.Update.Fields), a.Update.Reason)
+	}
 	verb := map[string]string{core.ActionApprove: "Approve", core.ActionFreeze: "Freeze", core.ActionApply: "Apply",
 		core.ActionBrief: "Write the brief for"}[a.Action]
 	return fmt.Sprintf("%s %s: %s", verb, a.Subject.ID, title)
+}
+
+// FormatUpdate lists update fields as "name value", in contract order.
+func FormatUpdate(f map[string]string) string {
+	var parts []string
+	for _, k := range event.TaskUpdateFields {
+		if v, ok := f[k]; ok {
+			parts = append(parts, k+" "+v)
+		}
+	}
+	return strings.Join(parts, ", ")
 }
 
 func plural(n int) string {
