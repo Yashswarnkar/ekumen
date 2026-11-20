@@ -68,3 +68,36 @@ func TestBlockersCompareResolvedIDs(t *testing.T) {
 		t.Errorf("C-y blocked_by = %v, want []", got)
 	}
 }
+
+func TestActorIsRoleNamesMatchRoleOnly(t *testing.T) {
+	cases := []struct {
+		a    event.Actor
+		to   string
+		want bool
+	}{
+		{event.Actor{Role: event.RoleSession, ID: "lead"}, "lead", false},
+		{event.Actor{Role: event.RoleSession, ID: "orchestrator"}, "orchestrator", false},
+		{event.Actor{Role: event.RoleIntegrator, ID: "loop"}, "loop", false},
+		{event.Actor{Role: event.RoleLead, ID: "yash"}, "lead", true},
+		{event.Actor{Role: event.RoleSession, ID: "t-core"}, "t-core", true},
+		{event.Actor{Role: event.RoleIntegrator, ID: "t-e2e"}, "t-e2e", true},
+		{event.Actor{Role: event.RoleOrchestrator, ID: "main"}, "main", true},
+		{event.Actor{Role: event.RoleLoop, ID: "main"}, "main", true},
+		{event.Actor{Role: event.RoleLead, ID: "t-core"}, "t-core", false},
+		{event.Actor{Role: event.RoleLead, ID: ""}, "", false},
+	}
+	for _, c := range cases {
+		if got := ActorIs(c.a, c.to); got != c.want {
+			t.Errorf("ActorIs(%s:%s, %q) = %v, want %v", c.a.Role, c.a.ID, c.to, got, c.want)
+		}
+	}
+
+	b := newLog(t)
+	b.draftContract("C-x")
+	b.add(event.QuestionAskedType, event.RoleSession, "s1", event.KindContract, "C-x", event.QuestionAsked{QuestionID: "q1", Text: "?", To: "lead"})
+	ans := b.add(event.QuestionAnsweredType, event.RoleSession, "lead", event.KindContract, "C-x", event.QuestionAnswered{QuestionID: "q1", Text: "!"})
+	s := b.state()
+	if err := CheckLaneIn(&s, ans); err == nil {
+		t.Error("session:lead answered the lead's question")
+	}
+}

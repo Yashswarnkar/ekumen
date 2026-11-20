@@ -253,10 +253,19 @@ func checkApplyAmendment(s *State, e event.Event, d *event.TaskAmended) error {
 	return nil
 }
 
-// ActorIs reports whether an actor is the owner named by to: a role name or
-// a session name (C-event-log §4). An empty to matches nobody.
+// ActorIs reports whether an actor is the owner named by to (C-event-log
+// §4). A role name matches the actor's role only. A session name matches
+// the actor's id when the actor acts as a session: a session or integrator,
+// or the orchestrator or loop run by that session (§3: roles are claimed
+// by sessions; the loop runs as loop:<session>). An empty to matches nobody.
 func ActorIs(a event.Actor, to string) bool {
-	return to != "" && (string(a.Role) == to || a.ID == to)
+	switch {
+	case to == "":
+		return false
+	case event.Role(to).Known():
+		return string(a.Role) == to
+	}
+	return a.ID == to && a.Role != event.RoleLead
 }
 
 // Addressee returns who a question is addressed to: its `to` if set,
