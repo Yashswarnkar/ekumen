@@ -14,8 +14,8 @@ The CLI is how people, agents and scripts read and change Ekumen state. The comm
 | Ids | An id or an alias (`C1`, `D-012`) is accepted anywhere; output always uses the id. Question and route ids also take a unique prefix, in any case (`q-01m7w3`); an ambiguous prefix is a usage error (exit 1) that lists the matches. |
 | Paths | Every path the CLI prints (`paths` of a write, `Entry.path`, `Task.brief`, `check`'s `invalid[].path`, `map`'s output) is relative to the project root, e.g. `.ekumen/briefs/T-core/brief.md`. Paths recorded inside events (`file`, `path`, `brief`) and in `registry.yaml` stay relative to `.ekumen/`, as the event log records them. |
 | Exit codes | `0` ok · `1` usage · `2` refused (validation, lane, or role claim) · `3` not found · `4` conflict · `5` internal. |
-| Errors | With `--json`: `{"error": {"code": "lane\|validation\|not_found\|conflict\|usage\|internal", "message": "…", "field": "…"}}`. |
-| Writes | Print `{"ok": true, "events": [ids], "paths": [files written]}`. A write records all its events or none. After every write the projections are regenerated, and the changed ones are listed in `paths`; if that fails, the events stay recorded and the write exits `5` (`internal`, naming the recorded events): run `ekumen project`. The CLI never commits; `git add` the paths yourself (`registry.yaml` and `state.json` are git-ignored, see [Projections](#projections)). |
+| Errors | With `--json`: `{"error": {"code": "lane\|validation\|not_found\|conflict\|usage\|internal", "message": "…", "field": "…", "details": {…}}}`. `field` and `details` are optional; `details` is structured, e.g. `{events, paths}` already recorded when a write fails after recording them. |
+| Writes | Print `{"ok": true, "events": [ids], "paths": [files written]}`. A write records all its events or none. After every write the projections are regenerated, and the changed ones are listed in `paths`; if that fails, the events stay recorded and the write exits `5` (`internal`, naming the recorded events, which `--json` also gives as `error.details: {events, paths}`): run `ekumen project`. The CLI never commits; `git add` the paths yourself (`registry.yaml` and `state.json` are git-ignored, see [Projections](#projections)). |
 | Project name | `project:` in `.ekumen/config.yaml` if that committed, owner-edited file exists; else, when the project root is the top of a git repository, the `origin` remote's repository name; else the name of the folder holding `.ekumen/` (so a project in a monorepo subfolder is named after its folder). `registry.yaml` is not read. |
 | Observed state | `status`, `task`, `graph`, `map` and the projections read pull requests with `gh pr list` from the project root. Without `gh` (or with `EKUMEN_OBSERVE=off`) a task's `observed` is `null`, a warning goes to stderr, and statuses are derived from events alone. `gh pr list` is capped at 200 pull requests; when it returns exactly that many, a warning goes to stderr because older ones may be missing (issue #15). |
 
@@ -407,11 +407,11 @@ One pass of the control loop (D-control-loop, spine §6, §7). It compares the e
 | `kind` | When | Records |
 |---|---|---|
 | `default` | A pending tier-1 decision whose `deadline` is before today (UTC). The deadline day itself is still answerable. | `DecisionDefaulted {answer: default_if_no_answer, deadline}` |
-| `apply` | A decided or defaulted decision that is neither applied nor superseded, including one defaulted earlier in this pass. | What `decision apply` records: a §B amendment (generated line) per drafted task in `blocks` not yet amended for it, then `DecisionApplied` |
+| `apply` | A decided or defaulted decision that is neither applied nor superseded, including one defaulted earlier in this pass. **Held** (not taken, listed in `held`) while pull requests are not fully observed, because `DecisionApplied` records `unblocked_tasks` for good, and while the decision is contested (decided with different answers: the conflict goes to the lead first). | What `decision apply` records: a §B amendment (generated line) per drafted task in `blocks` not yet amended for it, then `DecisionApplied`. The effect is worked out again against the log just before writing. |
 | `route` | A handoff with follow-ups, decisions raised or deviations, or an unanswered question, not yet routed (C-event-log §4). | `RoutedToOwner` |
-| `conflict` | A C-event-log §5 conflict not yet recorded. | A tier-2 decision `D-conflict-<rule>-<last 6 characters of its lowest event id, lowercased>` (options `fix` and `accept`, no recommendation, no blocks, the events' files as evidence, raised by the loop for no task), then `ConflictDetected {rule, events}` on that decision |
+| `conflict` | A C-event-log §5 conflict not yet recorded. | A tier-2 decision `D-conflict-<rule>-<the first 6 hex digits of sha256("<rule>\|<sorted event ids, comma-joined>")>` (options `fix` and `accept`, no recommendation, no blocks, the events' files as evidence, raised by the loop for no task), then `ConflictDetected {rule, events}` on that decision. The suffix grows by 2 digits only on a hash collision. A conflict whose events grow (a third answer) is a new conflict with a new decision. |
 
-It also reports, without acting: `ready` tasks, tasks `not_startable` because branch or worktree is empty (D-placeholder-task-fields), the tasks this pass `unblocked`, and the sessions to `notify` of amended tasks. It never starts or messages sessions.
+It also reports, without acting: actions `held` and `skipped` (each `{kind, subject, reason}`, `skipped` with the error `code`), `ready` tasks, tasks `not_startable` because branch or worktree is empty (D-placeholder-task-fields), the tasks this pass `unblocked`, and the sessions to `notify` of amended tasks. It never starts or messages sessions.
 
 ```
 $ ekumen --as loop:main reconcile
@@ -434,18 +434,21 @@ notify: t-gated
               "events": ["01M7…", "01M7…"], "paths": [".ekumen/briefs/T-gated/amendments/…md", "…"]}],
  "ready": [{"id": "T-gated", "branch": "build/t-gated", "worktree": ".worktrees/t-gated",
             "session": "t-gated", "brief": ".ekumen/briefs/T-gated/brief.md"}],   // null when unknown
- "not_startable": [{"id": "T-skills", "missing": ["branch", "worktree"], "decision": "D-placeholder-task-fields"}],
+ "not_startable": [{"id": "T-skills", "missing": ["branch", "worktree"], "decision": "D-placeholder-task-fields"}],   // null when unknown
+ "held": [{"kind": "apply", "subject": {"kind": "decision", "id": "D-x"}, "reason": "contested: …"}],
+ "skipped": [],                                    // {kind, subject, reason, code}
  "unblocked": ["T-gated"], "notify": ["t-gated"],
  "events": ["01M7…"], "paths": ["…", ".ekumen/decisions/D-late.yaml", ".ekumen/registry.yaml", ".ekumen/state.json"]}
 ```
 
-- **Actor:** `--as loop:<session>`; any other role is refused (exit 2). `--dry-run` needs no actor.
-- **One pass:** the log is loaded and pull requests observed once. Each action is written as its own all-or-none write, in plan order, each admitted against the log including the actions already written. Projections are regenerated once at the end, from the same observation.
-- **Idempotent and closed:** every action's last event marks it done (`DecisionApplied` after the amendments, `ConflictDetected` after the conflict's decision), so a second pass right after records nothing. A pass that fails partway exits `5` and names the events it recorded; the next pass finishes the work without repeating any of it.
+- **Actor:** `--as loop:<session>`; any other role is refused (exit 2), with or without `--dry-run`. `--dry-run` alone needs no actor.
+- **One pass:** the log is loaded and pull requests observed once. Each action is written as its own all-or-none write, in plan order, each admitted against the log including the actions already written. Projections are regenerated once at the end, from the same observation. A pass that writes no events does not touch the projections; run `ekumen project` to refresh them.
+- **Idempotent and closed:** every action's last event marks it done (`DecisionApplied` after the amendments, `ConflictDetected` after the conflict's decision), so a second pass right after records nothing (held actions aside).
+- **Failures don't wedge the loop:** an action that cannot be planned or written is rolled back, listed in `skipped` with its reason and error `code`, and the pass goes on with the others. The next pass retries it, and reports it again if it fails again.
 - **`--dry-run`** writes nothing (no events, entries or projections). It prints the same report with `dry_run: true`, the planned event ids, and `planned`: the planned events in full. Amendment files and their hashes are only known once written, so planned `TaskAmended` events have an empty `file` and `text_sha256`.
-- **Observation:** when pull requests are `unavailable` or `truncated`, the pass still defaults, applies, routes and records conflicts (only `unblocked_tasks` depends on pull requests, and it is then derived from events alone, with a warning). `ready` is `null` (unknown).
-- **Exit codes:** `0` when the pass completed, including when it recorded conflicts: they are now decisions in the lead's inbox, and `ekumen check` stays the CI gate. Otherwise the C-cli-json codes.
-- **Run one pass at a time.** Two concurrent passes may both raise the same conflict decision; run as different `loop:<session>` actors, `check` reports that as `id-collision`; duplicate defaults, applies and routes are ignored by the reducer. A write lock waits for the decision on issue #12.
+- **Observation:** when pull requests are `unavailable` or `truncated`, the pass still defaults, routes and records conflicts, but holds every apply (`held`, reason "observation incomplete"), and `ready` and `not_startable` are `null` (unknown).
+- **Exit codes:** `0` when every action was taken or held, including when the pass recorded conflicts: they are now decisions in the lead's inbox, and `ekumen check` stays the CI gate. With anything in `skipped`, the full report is still printed, with `ok: false`, and the exit is `2` when every skip was a refusal (lane or validation), else `5`. If the events were recorded but the projections could not be written, the exit is `5` with the error shape, and `error.details` is `{events, paths}`: what was recorded.
+- **Run one pass at a time.** There is no write lock yet (issue #12). Before each default or apply, the pass reads the log again and drops the action (held, "already done by another writer") if another writer did it since the load. That narrows the window but does not close it. Two passes that both write an apply leave two §B amendments for good: the reducer ignores the second `DecisionApplied`, but not its amendment. Two passes run as different `loop:<session>` actors can also raise the same conflict decision, which `check` reports as `id-collision`.
 
 ## Skills commands
 

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Yashswarnkar/ekumen/internal/core"
 	"github.com/Yashswarnkar/ekumen/internal/event"
 	"github.com/Yashswarnkar/ekumen/internal/observe"
 	"github.com/Yashswarnkar/ekumen/internal/store/files"
@@ -30,7 +31,7 @@ type harness struct {
 	// commit is what Env.Commit answers.
 	commit string
 	// beforeAction is Env.beforeAction (reconcile tests).
-	beforeAction func(int) error
+	beforeAction func(core.LoopAction) error
 }
 
 // gitInfo is what the fake Env.Git answers.

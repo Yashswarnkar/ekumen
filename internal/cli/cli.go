@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Yashswarnkar/ekumen/internal/core"
 	"github.com/Yashswarnkar/ekumen/internal/event"
 	"github.com/Yashswarnkar/ekumen/internal/mapview"
 	"github.com/Yashswarnkar/ekumen/internal/observe"
@@ -52,6 +53,9 @@ type Error struct {
 	// Silent: the command already printed its result; only the exit
 	// status carries the failure (check with conflicts).
 	Silent bool
+	// Details are structured facts about the failure, printed as
+	// error.details with --json (e.g. the events already recorded).
+	Details any
 }
 
 func (e *Error) Error() string { return e.Message }
@@ -101,9 +105,9 @@ type Env struct {
 	// and the root's prefix in the repository.
 	Git func(root string, args ...string) string
 
-	// beforeAction, when set, runs before each reconcile action (by index)
-	// and stops the pass on error. Tests use it to interrupt a pass.
-	beforeAction func(action int) error
+	// beforeAction, when set, runs before each reconcile action; an error
+	// fails that action. Tests use it to inject failures.
+	beforeAction func(core.LoopAction) error
 }
 
 func gitOut(root string, args ...string) string {
@@ -208,6 +212,9 @@ func Run(args []string, env Env) int {
 		body := map[string]any{"code": ce.Code, "message": ce.Message}
 		if ce.Field != "" {
 			body["field"] = ce.Field
+		}
+		if ce.Details != nil {
+			body["details"] = ce.Details
 		}
 		r.printJSON(map[string]any{"error": body})
 	} else {

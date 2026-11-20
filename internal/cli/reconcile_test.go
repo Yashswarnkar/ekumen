@@ -7,10 +7,12 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/Yashswarnkar/ekumen/internal/core"
 	"github.com/Yashswarnkar/ekumen/internal/event"
 	"github.com/Yashswarnkar/ekumen/internal/observe"
 )
@@ -136,9 +138,11 @@ func TestReconcileSecondPassRecordsNothing_DControlLoop(t *testing.T) {
 	}
 }
 
-// Issue #12: a pass interrupted after k actions exits 5 naming what it
-// recorded; the next pass finishes the work with no duplicate effects.
-func TestReconcileInterruptedPassIsCompleted_Issue12(t *testing.T) {
+// Issue #12 and review: an action that fails is rolled back and listed in
+// skipped; the other actions still go ahead, the pass exits 5 for an
+// internal failure, and the next pass finishes the work with no duplicate
+// effects.
+func TestReconcileFailedActionDoesNotBlockOthers_Issue12(t *testing.T) {
 	ref := reconcileFixture(t)
 	ref.must("--as", "loop:main", "reconcile")
 	want := loopEvents(t, ref)
@@ -147,25 +151,119 @@ func TestReconcileInterruptedPassIsCompleted_Issue12(t *testing.T) {
 	}
 	for k := 0; k < 5; k++ {
 		h := reconcileFixture(t)
-		h.beforeAction = func(i int) error {
-			if i == k {
+		n := 0
+		h.beforeAction = func(core.LoopAction) error {
+			n++
+			if n == k+1 {
 				return errors.New("injected failure")
 			}
 			return nil
 		}
 		code, out, _ := h.run("--as", "loop:main", "reconcile", "--json")
-		if code != ExitInternal || !strings.Contains(out, "injected failure") || !strings.Contains(out, "events recorded before it") {
+		m := decodeJSON(t, out)
+		sk := m["skipped"].([]any)
+		if code != ExitInternal || m["ok"] != false || len(sk) != 1 || sk[0].(map[string]any)["code"] != CodeInternal ||
+			!strings.Contains(sk[0].(map[string]any)["reason"].(string), "injected failure") {
 			t.Fatalf("k=%d: exit %d %s", k, code, out)
 		}
 		h.beforeAction = nil
 		h.tick()
 		h.must("--as", "loop:main", "reconcile")
-		if got := loopEvents(t, h); !reflect.DeepEqual(got, want) {
+		if got := stripUnblocked(loopEvents(t, h)); !reflect.DeepEqual(got, stripUnblocked(want)) {
 			t.Errorf("k=%d: after the second pass\n got %v\nwant %v", k, got, want)
+		}
+		if n := unblockedRecords(loopEvents(t, h), "T-gated"); n != 1 {
+			t.Errorf("k=%d: %d applies record T-gated unblocked, want 1", k, n)
 		}
 		if code, out, _ := h.run("check", "--json"); code != 0 {
 			t.Errorf("k=%d: check %s", k, out)
 		}
+	}
+}
+
+var unblockedRe = regexp.MustCompile(`"unblocked_tasks":\[[^]]*\]`)
+
+// stripUnblocked hides unblocked_tasks: which apply removes a task's last
+// gate depends on the order the applies were written in.
+func stripUnblocked(evs []string) []string {
+	out := []string{}
+	for _, e := range evs {
+		out = append(out, unblockedRe.ReplaceAllString(e, ""))
+	}
+	slices.Sort(out)
+	return out
+}
+
+func unblockedRecords(evs []string, task string) int {
+	n := 0
+	for _, e := range evs {
+		if strings.Contains(unblockedRe.FindString(e), `"`+task+`"`) {
+			n++
+		}
+	}
+	return n
+}
+
+// Review: a deterministic refusal of one action keeps its exit 2, does not
+// block the other actions, and is reported again by the next pass.
+func TestReconcileDeterministicRefusalIsReportedEachPass(t *testing.T) {
+	h := reconcileFixture(t)
+	h.beforeAction = func(a core.LoopAction) error {
+		if a.Subject.ID == "D-gate" {
+			return errf(CodeValidation, "refused for the test")
+		}
+		return nil
+	}
+	for pass := 0; pass < 2; pass++ {
+		code, out, _ := h.run("--as", "loop:main", "reconcile", "--json")
+		m := decodeJSON(t, out)
+		sk := m["skipped"].([]any)
+		if code != ExitRefused || len(sk) != 1 || sk[0].(map[string]any)["subject"].(map[string]any)["id"] != "D-gate" ||
+			sk[0].(map[string]any)["code"] != CodeValidation {
+			t.Fatalf("pass %d: exit %d %s", pass, code, out)
+		}
+		if pass == 0 && len(m["actions"].([]any)) < 4 {
+			t.Errorf("the refusal blocked other actions: %v", m["actions"])
+		}
+		h.tick()
+	}
+	if d := decodeJSON(t, h.must("decision", "show", "D-gate-two", "--json"))["decision"].(map[string]any); d["applied_on"] == nil {
+		t.Error("D-gate-two not applied")
+	}
+}
+
+// Review (concurrency): when another writer applies a decision between
+// this pass's load and its write, the pass reads the log again, drops the
+// apply as held, and no second §B amendment is written.
+func TestReconcileRechecksBeforeApply_Issue12(t *testing.T) {
+	h := reconcileFixture(t)
+	h.beforeAction = func(a core.LoopAction) error {
+		if a.Kind == core.LoopApply && a.Subject.ID == "D-gate" {
+			if code, out, errOut := h.run("--as", "loop:other", "decision", "apply", "D-gate"); code != 0 {
+				t.Fatalf("concurrent apply: %s %s", out, errOut)
+			}
+		}
+		return nil
+	}
+	m := decodeJSON(t, h.must("--as", "loop:main", "reconcile", "--json"))
+	held := false
+	for _, x := range m["held"].([]any) {
+		x := x.(map[string]any)
+		if x["subject"].(map[string]any)["id"] == "D-gate" && x["reason"] == heldByOther {
+			held = true
+		}
+	}
+	if !held {
+		t.Errorf("held %v", m["held"])
+	}
+	n := 0
+	for _, e := range loopEvents(t, h) {
+		if strings.HasPrefix(e, "TaskAmended T-gated ") && strings.Contains(e, `"by_decision":"D-gate"`) {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Errorf("%d amendments for D-gate, want 1", n)
 	}
 }
 
@@ -205,15 +303,21 @@ func TestReconcileObservesOnce_Issue15(t *testing.T) {
 		t.Errorf("observed %v ready %v", m["observed"], m["ready"])
 	}
 
-	h2 := reconcileFixture(t)
-	h2.prs = &countingObserver{err: observe.ErrTruncated}
-	code, out, errOut := h2.run("--as", "loop:main", "reconcile", "--json")
-	m = decodeJSON(t, out)
-	if code != 0 || m["observed"].(map[string]any)["prs"] != "truncated" || m["ready"] != nil || !strings.Contains(errOut, "may be incomplete") {
-		t.Errorf("truncated: exit %d %v ready %v stderr %q", code, m["observed"], m["ready"], errOut)
-	}
-	if len(m["actions"].([]any)) == 0 {
-		t.Error("a truncated observation stopped the pass")
+	for _, obs := range []observe.Observer{&countingObserver{err: observe.ErrTruncated}, observe.None{}} {
+		h2 := reconcileFixture(t)
+		h2.prs = obs
+		code, out, _ := h2.run("--as", "loop:main", "reconcile", "--json")
+		m = decodeJSON(t, out)
+		var kinds []string
+		for _, a := range m["actions"].([]any) {
+			kinds = append(kinds, a.(map[string]any)["kind"].(string))
+		}
+		if code != 0 || m["observed"].(map[string]any)["prs"] == "ok" || m["ready"] != nil || m["not_startable"] != nil {
+			t.Errorf("%T: exit %d %v ready %v", obs, code, m["observed"], m["ready"])
+		}
+		if slices.Contains(kinds, "apply") || !slices.Contains(kinds, "default") || !slices.Contains(kinds, "route") || len(m["held"].([]any)) != 3 {
+			t.Errorf("%T: actions %v held %v", obs, kinds, m["held"])
+		}
 	}
 }
 
@@ -278,6 +382,9 @@ func TestReconcileRecordsConflict_EventLog5(t *testing.T) {
 	}
 	if code, out, _ := h.run("check", "--json"); code != 0 {
 		t.Errorf("check after the pass: %s", out)
+	}
+	if held := m["held"].([]any); len(held) != 1 || held[0].(map[string]any)["subject"].(map[string]any)["id"] != "D-gate" {
+		t.Errorf("contested D-gate not held: %v", held)
 	}
 	inbox := h.must("inbox", "--for", "lead", "--json")
 	if !strings.Contains(inbox, `"id": "`+id+`"`) {

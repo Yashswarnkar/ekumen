@@ -81,6 +81,8 @@
       "paths": []
     }
   ],
+  "held": [],
+  "skipped": [],
   "ready": [
     {
       "id": "T-core",

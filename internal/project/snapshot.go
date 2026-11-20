@@ -103,27 +103,9 @@ func Load(ctx context.Context, opt Options) (*Snapshot, error) {
 		return nil, fmt.Errorf("%s is not a folder", ek)
 	}
 	s := &Snapshot{Root: opt.Root, Store: files.New(ek), Now: opt.Now.UTC(), byID: map[string]event.Event{}, name: opt.Name}
-	raws, warns, err := s.Store.ReadAll()
-	if err != nil {
-		return nil, fmt.Errorf("read events: %w", err)
+	if err := s.readEvents(); err != nil {
+		return nil, err
 	}
-	for _, w := range warns {
-		s.Invalid = append(s.Invalid, Invalid{Path: s.rel(w.Path), Error: w.Reason})
-	}
-	for _, raw := range raws {
-		e, err := event.Decode(raw)
-		if err != nil {
-			s.Invalid = append(s.Invalid, Invalid{Path: "events", Error: err.Error()})
-			continue
-		}
-		if err := e.Validate(); err != nil {
-			s.Invalid = append(s.Invalid, Invalid{Path: s.eventPath(e), Error: err.Error()})
-			continue
-		}
-		s.Events = append(s.Events, e)
-		s.byID[e.ID] = e
-	}
-	s.State = core.Reduce(s.Events)
 
 	obs := opt.Observer
 	if obs == nil {
@@ -142,6 +124,44 @@ func Load(ctx context.Context, opt Options) (*Snapshot, error) {
 	}
 	s.Observed = s.observed()
 	return s, nil
+}
+
+// readEvents reads, decodes and validates the event log and reduces it.
+func (s *Snapshot) readEvents() error {
+	raws, warns, err := s.Store.ReadAll()
+	if err != nil {
+		return fmt.Errorf("read events: %w", err)
+	}
+	s.Events, s.Invalid, s.byID = nil, nil, map[string]event.Event{}
+	for _, w := range warns {
+		s.Invalid = append(s.Invalid, Invalid{Path: s.rel(w.Path), Error: w.Reason})
+	}
+	for _, raw := range raws {
+		e, err := event.Decode(raw)
+		if err != nil {
+			s.Invalid = append(s.Invalid, Invalid{Path: "events", Error: err.Error()})
+			continue
+		}
+		if err := e.Validate(); err != nil {
+			s.Invalid = append(s.Invalid, Invalid{Path: s.eventPath(e), Error: err.Error()})
+			continue
+		}
+		s.Events = append(s.Events, e)
+		s.byID[e.ID] = e
+	}
+	s.State = core.Reduce(s.Events)
+	return nil
+}
+
+// Refresh reads the event log again (events another writer may have
+// added) and derives state again, keeping the observations made at load
+// time. It never observes.
+func (s *Snapshot) Refresh() error {
+	if err := s.readEvents(); err != nil {
+		return err
+	}
+	s.Observed = s.observed()
+	return nil
 }
 
 // Absorb adds events already written to the log to the snapshot and

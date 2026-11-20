@@ -99,6 +99,8 @@
       ]
     }
   ],
+  "held": [],
+  "skipped": [],
   "ready": [
     {
       "id": "T-core",

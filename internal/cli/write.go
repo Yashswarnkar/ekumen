@@ -101,7 +101,7 @@ func (r *run) commit(s *project.Snapshot, evs []event.Event, written []string, h
 		}
 		if err != nil {
 			r.warn("%v", err)
-			return errf(CodeInternal, "events recorded (%s), projections not regenerated; run `ekumen project`", strings.Join(res.Events, ", "))
+			return projectionsErr(res.Events, res.Paths)
 		}
 	}
 	r.out(res, func(w io.Writer) {
@@ -111,6 +111,21 @@ func (r *run) commit(s *project.Snapshot, evs []event.Event, written []string, h
 		}
 	})
 	return nil
+}
+
+// projectionsErr is the exit-5 failure of a write whose events were
+// recorded but whose projections were not regenerated.
+func projectionsErr(events, paths []string) *Error {
+	e := errf(CodeInternal, "events recorded (%s), projections not regenerated; run `ekumen project`", strings.Join(events, ", "))
+	e.Details = recordedDetails{Events: orEmpty(events), Paths: orEmpty(paths)}
+	return e
+}
+
+// recordedDetails is error.details for a failure after events were
+// recorded.
+type recordedDetails struct {
+	Events []string `json:"events"`
+	Paths  []string `json:"paths"`
 }
 
 // appendEvents admits and appends events, all or none, and returns the
