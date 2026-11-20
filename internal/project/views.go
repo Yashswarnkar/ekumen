@@ -499,7 +499,7 @@ func (s *Snapshot) Inbox(owner string) []InboxItem {
 // OrchestratorActions are the orchestrator's action items
 // (core.OrchestratorActions): tasks drafted without a brief.
 func (s *Snapshot) OrchestratorActions() []InboxItem {
-	return s.actionItems(core.OrchestratorActions(&s.State, s.hasBrief))
+	return s.actionItems(core.OrchestratorActions(&s.State, s.Observed, s.briefLookup))
 }
 
 func (s *Snapshot) actionItems(as []core.LeadAction) []InboxItem {
@@ -510,6 +510,14 @@ func (s *Snapshot) actionItems(as []core.LeadAction) []InboxItem {
 			Action: a.Action, Command: a.Command})
 	}
 	return out
+}
+
+func (s *Snapshot) briefLookup(id string) (string, bool, error) {
+	p, err := s.BriefPath(id)
+	if err != nil {
+		return "", false, err
+	}
+	return s.rel(p), exists(p), nil
 }
 
 // hasBrief reports whether a task's brief file exists.

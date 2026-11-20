@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/json"
+	"errors"
 	"math/rand/v2"
 	"reflect"
 	"slices"
@@ -386,8 +387,9 @@ func TestLeadActions_AuditF2(t *testing.T) {
 }
 
 // Brief T-reconcile job 4: a task drafted without a brief can never reach
-// the lead's approve action, so the orchestrator's inbox lists it (brief);
-// approved, deferred and briefed tasks are not listed.
+// the lead's approve action, so the orchestrator's inbox lists it (brief),
+// with the brief path in the command; approved, deferred, done and briefed
+// tasks are not listed, and a refused recorded path is named.
 func TestOrchestratorBriefAction_InboxGaps(t *testing.T) {
 	b := newLog(t)
 	b.draftTask("T-nobrief")
@@ -396,13 +398,27 @@ func TestOrchestratorBriefAction_InboxGaps(t *testing.T) {
 	b.approve("T-approved", "h")
 	b.draftTask("T-deferred")
 	b.add(event.TaskDeferredType, event.RoleOrchestrator, "orch", event.KindTask, "T-deferred", event.TaskDeferred{Reason: "later"})
+	b.draftTask("T-done")
+	b.draftTask("T-badpath")
 	s := b.state()
-	hasBrief := func(id string) bool { return id == "T-brief" }
-	got := OrchestratorActions(&s, hasBrief)
-	if len(got) != 1 || got[0].Action != ActionBrief || got[0].Subject.ID != "T-nobrief" ||
-		got[0].Command != "write .ekumen/briefs/T-nobrief/brief.md" || got[0].Event != s.Tasks["T-nobrief"].Drafts[0].Event {
-		t.Errorf("orchestrator actions %+v", got)
+	obs := Observed{Tasks: map[string]TaskObservation{"T-done": {PR: PRMerged}}}
+	lookup := func(id string) (string, bool, error) {
+		if id == "T-badpath" {
+			return "", false, errors.New("leads outside .ekumen/")
+		}
+		return ".ekumen/briefs/" + id + "/brief.md", id == "T-brief", nil
 	}
+	got := OrchestratorActions(&s, obs, lookup)
+	if len(got) != 2 || got[0].Subject.ID != "T-badpath" || got[1].Subject.ID != "T-nobrief" {
+		t.Fatalf("orchestrator actions %+v", got)
+	}
+	if !strings.Contains(got[0].Reason, "leads outside .ekumen/") {
+		t.Errorf("refused path not named: %+v", got[0])
+	}
+	if a := got[1]; a.Action != ActionBrief || a.Command != "write .ekumen/briefs/T-nobrief/brief.md" || a.Event != s.Tasks["T-nobrief"].Drafts[0].Event {
+		t.Errorf("brief action %+v", a)
+	}
+	hasBrief := func(id string) bool { return id == "T-brief" }
 	for _, a := range LeadActions(&s, Observed{}, t0, hasBrief) {
 		if a.Subject.ID == "T-nobrief" {
 			t.Errorf("lead action for a task with no brief: %+v", a)

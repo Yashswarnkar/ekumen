@@ -508,3 +508,25 @@ func TestReconcileProjectionFailureDetails_CLIJSON1(t *testing.T) {
 		}
 	}
 }
+
+// Brief T-reconcile job 4: the orchestrator's brief action names the
+// brief's path, and goes away once the brief exists.
+func TestOrchestratorBriefActionDisappears_InboxGaps(t *testing.T) {
+	h := newHarness(t)
+	buildFixture(h)
+	brief := func() string {
+		for _, it := range decodeJSON(t, h.must("inbox", "--for", "orchestrator", "--json"))["items"].([]any) {
+			if it := it.(map[string]any); it["action"] == "brief" && it["id"] == "T-skills" {
+				return it["command"].(string)
+			}
+		}
+		return ""
+	}
+	if c := brief(); c != "write .ekumen/briefs/T-skills/brief.md" {
+		t.Fatalf("command %q", c)
+	}
+	h.write(".ekumen/briefs/T-skills/brief.md", "# T-skills\n")
+	if c := brief(); c != "" {
+		t.Errorf("brief action after the brief exists: %q", c)
+	}
+}

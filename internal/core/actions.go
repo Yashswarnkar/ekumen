@@ -90,21 +90,36 @@ func LeadActions(s *State, obs Observed, now time.Time, hasBrief func(taskID str
 	return out
 }
 
+// BriefLookup says where a task's brief.md is (as a path to show), whether
+// it exists, and err when the recorded brief path is refused.
+type BriefLookup func(taskID string) (path string, exists bool, err error)
+
 // OrchestratorActions lists the orchestrator's next moves that are not
-// routed entries, by id: brief, for each task drafted, not approved or
-// deferred, whose brief.md does not exist (hasBrief), so it can never
-// reach the lead's approve action. Like LeadActions, they are derived,
-// not stored.
-func OrchestratorActions(s *State, hasBrief func(taskID string) bool) []LeadAction {
+// routed entries, by id: brief, for each task drafted, not approved,
+// deferred or done, whose brief does not exist, so it can never reach the
+// lead's approve action. A refused recorded brief path is named in the
+// reason. Like LeadActions, they are derived, not stored.
+func OrchestratorActions(s *State, obs Observed, brief BriefLookup) []LeadAction {
 	out := []LeadAction{}
+	if brief == nil {
+		return out
+	}
 	for _, id := range sortedKeys(s.Tasks) {
 		t := s.Tasks[id]
-		if !t.Drafted() || t.Approved || t.Deferred || hasBrief == nil || hasBrief(id) {
+		if !t.Drafted() || t.Approved || t.Deferred || obs.task(id).PR == PRMerged {
 			continue
 		}
-		out = append(out, LeadAction{Action: ActionBrief, Subject: event.Subject{Kind: event.KindTask, ID: id},
-			Event: t.Drafts[0].Event, Reason: "drafted without a brief",
-			Command: "write .ekumen/briefs/" + id + "/brief.md"})
+		path, exists, err := brief(id)
+		if exists && err == nil {
+			continue
+		}
+		a := LeadAction{Action: ActionBrief, Subject: event.Subject{Kind: event.KindTask, ID: id},
+			Event: t.Drafts[0].Event, Reason: "drafted without a brief", Command: "write " + path}
+		if err != nil {
+			a.Reason = fmt.Sprintf("drafted without a usable brief: the recorded brief path is refused (%v)", err)
+			a.Command = "write .ekumen/briefs/" + id + "/brief.md, and fix the recorded brief path"
+		}
+		out = append(out, a)
 	}
 	return out
 }
