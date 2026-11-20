@@ -29,8 +29,10 @@ jobs:
         run: go test -race ./...
       - name: ekumen check
         # Fails on invalid records, lane violations or conflicts in .ekumen/,
-        # and on an empty event log once .ekumen/events/ exists.
-        # See docs/development.md.
+        # on an empty event log once .ekumen/events/ exists, and on edited or
+        # deleted event files versus the base. See docs/development.md.
+        env:
+          EKUMEN_CI_BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           go build -o bin/ekumen ./cmd/ekumen
           scripts/ci-check.sh .
