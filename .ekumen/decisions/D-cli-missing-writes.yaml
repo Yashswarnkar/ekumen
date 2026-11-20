@@ -1,0 +1,25 @@
+id: D-cli-missing-writes
+title: Add CLI commands for the remaining orchestrator events
+tier: 2
+raised_by: {task: T-cli, session: t-cli, on: 2026-11-20}
+question: >
+  C-cli-json has no command for ContractDrafted, ContractVersioned, TaskDeferred, TaskSessionAttached or
+  ExternalAdded/Updated/Resolved. After the switch point, nobody may edit .ekumen/ by hand, so these can't be
+  written at all. Add them?
+options:
+  - id: add-commands
+    tradeoff: "`contract draft|version`, `task defer|attach`, `external add|update|resolve`. A minor change under C-cli-json §5. About a day of work."
+  - id: later
+    tradeoff: Wait until one is needed, and hand-write events in the meantime, which breaks the switch-point rule.
+recommendation: add-commands
+default_if_no_answer: null
+deadline: null
+blocks: []
+contract_impact: [C-cli-json]
+context:
+  summary: >
+    Found while building the test fixture: contracts and loop events had to be written straight through the store.
+    Planned contracts (C-adapter, C-http-api) can't be created through the CLI.
+  evidence: [internal/cli/harness_test.go]
+status: pending
+answer: null

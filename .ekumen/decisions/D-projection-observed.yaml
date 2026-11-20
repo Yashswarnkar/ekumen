@@ -1,0 +1,24 @@
+id: D-projection-observed
+title: Derive projected task status from events plus observed PRs
+tier: 1
+raised_by: {task: T-cli, session: t-cli, on: 2026-11-20}
+question: >
+  registry.yaml and state.json show task status. Without observed PRs, a merged task can't be "done". Should
+  the committed projections use observed PRs (when `gh` works) or events only?
+options:
+  - id: include-observed
+    tradeoff: Statuses read right on GitHub. The projections then depend on when and where they were generated, and a run without gh shows merged tasks as not done. Implemented, with a header comment saying so.
+  - id: events-only
+    tradeoff: Fully reproducible from events, but done tasks show as ready, blocked or running.
+recommendation: include-observed
+default_if_no_answer: include-observed
+deadline: 2026-11-27
+blocks: []
+contract_impact: []
+context:
+  summary: >
+    C-event-log §7 rule 2 forbids storing observations as events, and projections are not events. state.json
+    leaves out the observed PR details and keeps only the derived status.
+  evidence: [internal/project/projections.go]
+status: pending
+answer: null

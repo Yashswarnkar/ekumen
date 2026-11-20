@@ -1,0 +1,25 @@
+id: D-claim-lane
+title: Let the claiming session write RoleClaimed and RoleReleased
+tier: 2
+raised_by: {task: T-cli, session: t-cli, on: 2026-11-20}
+question: >
+  C-cli-json §3 says `ekumen claim <role>` is run by "the claiming session" and records RoleClaimed, but
+  C-event-log §3 puts RoleClaimed and RoleReleased in the loop's lane only. Who writes them?
+options:
+  - id: claiming-session
+    tradeoff: The session writes its own claim (data.session must equal the actor). Matches the CLI and works before the loop exists. Implemented.
+  - id: loop-only
+    tradeoff: Matches the table, but nobody can claim until T-reconcile exists, so no orchestrator write is possible after the switch.
+recommendation: claiming-session
+default_if_no_answer: null
+deadline: null
+blocks: []
+contract_impact: [C-event-log]
+context:
+  summary: >
+    The two frozen contracts disagree. The CLI writes the claim as the session and checks the lane in
+    internal/project/lanes.go. core.CheckLane still reports it as a lane conflict, so `check` re-checks core's
+    lane conflicts against the v3 table before reporting them.
+  evidence: [.ekumen/contracts/C-cli-json.md, .ekumen/contracts/C-event-log.md, internal/project/lanes.go]
+status: pending
+answer: null

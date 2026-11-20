@@ -4,7 +4,7 @@ title: Align core and file store with C-event-log v3
 kind: build
 contracts_consumed: [C-event-log, C-decision-record]
 contracts_produced: []
-blocked_by: [T-import, D-contract-blockers]
+blocked_by: [T-import, D-contract-blockers, D-claim-lane, D-apply-before-loop]
 tier_grants: [push_own_branch, open_draft_pr, restack]
 ---
 
@@ -18,13 +18,14 @@ tier_grants: [push_own_branch, open_draft_pr, restack]
 
 **Job:**
 1. **Aliases:** `ValidateAlias` accepts pre-contract ids (`R1`, `T0`, `C1`, `D-001`…). An alias is any non-empty string without `/` or whitespace that isn't already an id. Add optional `aliases[]` to `TaskDrafted`, `ContractDrafted` and `ExternalAdded` (v3 §1).
-2. **Lanes v3** (§3): `DecisionRaised` by lead, orchestrator, session, integrator or loop. A session or integrator raises only from its own task; others may use `raised_by.task: null`. `TaskSessionAttached` by orchestrator or loop. `RouteResolved` by the route's owner. "Own task" comes from `TaskDrafted.session` (new optional field) or the latest `TaskSessionAttached`.
+2. **Lanes v3** (§3): `DecisionRaised` by lead, orchestrator, session, integrator or loop. A session or integrator raises only from its own task; others may use `raised_by.task: null`. `TaskSessionAttached` by orchestrator or loop. `RouteResolved` by the route's owner. "Own task" comes from `TaskDrafted.session` (new optional field) or the latest `TaskSessionAttached`. Also, per T-cli's decisions: `RoleClaimed`/`RoleReleased` by the claiming session (D-claim-lane), and `DecisionApplied` by the orchestrator as well as the loop, until the loop exists (D-apply-before-loop). Implement each only as its decision is answered.
 3. **Contract blockers:** implement what D-contract-blockers decides. If it decides `optional-fields`, that means `blocked_by[]` on `ContractDrafted`, a `ContractBlockersChanged` event (orchestrator lane), and contract blockers counted in task status and priority.
 4. **Ordering of events written at the same instant:** when several events share a timestamp (as in imports and replays), the reducer must still apply lifecycle steps in order: draft before approve, raise before decide, decide before apply. Implement this as a stable tie-break on a per-type rank, not by relying on ULID entropy. Document it in `internal/core/README.md`, and draft a one-line addition to C-event-log §2 in your handoff for the orchestrator.
-5. **File store:** `WriteBrief(task, body)` (create only, never overwrite) and `WriteEntryAt(task, kind, author, at time.Time, body)` for historical entries, with the same naming and clash rules as `WriteEntry`.
-6. **Prove it:** run `ekumen-import --dry-run` against the latest main, and report 0 validation failures and 0 lane conflicts in the handoff. Don't run the real import.
+5. **Early route resolutions:** `Reduce` keeps a `RouteResolved` that arrives before its `RoutedToOwner` and closes the route when it appears (T-cli FOLLOW-UP), so the CLI's workaround in `Snapshot.Routes` can go.
+6. **File store:** `WriteBrief(task, body)` (create only, never overwrite) and `WriteEntryAt(task, kind, author, at time.Time, body)` for historical entries, with the same naming and clash rules as `WriteEntry`.
+7. **Prove it:** run `ekumen-import --dry-run` against the latest main, and report 0 validation failures and 0 lane conflicts in the handoff. Don't run the real import.
 
-**Touches:** `internal/core/`, `internal/event/`, `internal/store/files/`, their tests and `testdata/`, `internal/legacyimport/` (only to drop workarounds the new APIs make unnecessary), and your handoff files.
+**Touches:** `internal/core/`, `internal/event/`, `internal/store/files/`, their tests and `testdata/`, `internal/legacyimport/` and `internal/project/` (only to drop workarounds the new APIs make unnecessary), and your handoff files.
 
 **Definition of done:**
 - [ ] Dry run on latest main: 0 mismatches, 0 validation failures, 0 lane conflicts

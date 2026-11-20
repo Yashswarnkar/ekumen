@@ -73,7 +73,7 @@ tasks:
     kind: build
     brief: briefs/T-core-align/brief.md
     approved: null
-    blocked_by: [T-import, D-contract-blockers]
+    blocked_by: [T-import, D-contract-blockers, D-claim-lane, D-apply-before-loop]
     status: draft
   T-cli:
     title: "ekumen CLI with --json, incl. ekumen map"
@@ -87,7 +87,14 @@ tasks:
     worktree: .worktrees/t-cli
     session: t-cli
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: running
+    status: in_review
+  T-cli-gaps:
+    title: CLI commands the orchestrator needs after the switch
+    kind: build
+    brief: briefs/T-cli-gaps/brief.md
+    approved: null
+    blocked_by: [T-cli, T-core-align, D-apply-before-loop, D-cli-missing-writes]
+    status: draft
   T-skills:
     title: /blocked and /decide skills
     kind: build
