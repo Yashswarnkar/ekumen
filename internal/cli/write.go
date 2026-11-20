@@ -224,6 +224,20 @@ func (r *run) decisionRaise(args []string) error {
 			rb["task"] = nil
 		}
 	}
+	if rb != nil {
+		if t, ok := rb["task"].(string); ok {
+			rb["task"] = s.State.Resolve(t)
+		}
+	}
+	for _, k := range []string{"blocks", "contract_impact"} {
+		if l, ok := m[k].([]any); ok {
+			for i, v := range l {
+				if id, ok := v.(string); ok {
+					l[i] = s.State.Resolve(id)
+				}
+			}
+		}
+	}
 	id, _ := m["id"].(string)
 	data, err := json.Marshal(m)
 	if err != nil {

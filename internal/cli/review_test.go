@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -77,5 +79,29 @@ func TestApplyRerunAfterPartialApply(t *testing.T) {
 	_, out, _ := h.run("decision", "show", "D-two", "--json")
 	if d := decodeJSON(t, out)["decision"].(map[string]any); d["applied_on"] == nil {
 		t.Errorf("not applied: %v", d)
+	}
+}
+
+func TestDecisionRaiseRecordsIDsNotAliases(t *testing.T) {
+	h := gapsFixture(t)
+	h.write("d-alias.yaml", strings.NewReplacer("D-gate", "D-alias", "contract_impact: []", "contract_impact: [C1]").Replace(gateDecision))
+	h.must("--as", "lead:yash", "decision", "raise", "--file", "d-alias.yaml")
+	evs, _ := filepath.Glob(filepath.Join(h.root, ".ekumen/events/decision/D-alias/*.DecisionRaised.json"))
+	if len(evs) != 1 {
+		t.Fatalf("%d DecisionRaised events", len(evs))
+	}
+	b, _ := os.ReadFile(evs[0])
+	var e struct{ Data event.DecisionRaised }
+	if err := json.Unmarshal(b, &e); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(e.Data.ContractImpact, []string{"C-event-log"}) {
+		t.Errorf("contract_impact %v, want [C-event-log]", e.Data.ContractImpact)
+	}
+
+	h.write("d-ghost.yaml", strings.NewReplacer("D-gate", "D-ghost", "blocks: [T-gated]", "blocks: [T-gated]\nraised_by: {task: T-ghost, session: main, on: 2026-11-20}").Replace(gateDecision))
+	out := mustExit(t, h, ExitRefused, "--as", "lead:yash", "decision", "raise", "--file", "d-ghost.yaml")
+	if e := decodeJSON(t, out)["error"].(map[string]any); e["field"] != "raised_by.task" {
+		t.Errorf("error %v, want field raised_by.task", e)
 	}
 }
