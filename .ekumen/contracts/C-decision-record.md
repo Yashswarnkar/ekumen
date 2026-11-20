@@ -4,7 +4,7 @@ aliases: [C2]
 title: Decision record
 status: frozen         # draft | frozen
 frozen_on: 2026-11-20
-version: 1
+version: 2
 consumers: [T-core, T-file-store, T-cli, T-server, T-decision-views, T-import]
 producers: [T-core]
 ---
@@ -47,7 +47,11 @@ A decision is a choice above a session's tier and a gate on the tasks it blocks 
 | `superseded_by` | `DecisionSuperseded` |
 | `applied_on`, `applied` (`amended_tasks`, `unblocked_tasks`, `notified_sessions`) | `DecisionApplied` |
 
-**Not stored:** `priority`. It is computed when read (tasks blocked, directly or through contracts, × deadline urgency) and appears only in `state.json`, the CLI and the UI.
+**Not stored:** `priority`. It is computed when read and appears only in `state.json`, the CLI and the UI (D-blocker-semantics, D-urgency-formula):
+
+- **Tasks held up:** the tasks reached from the decision by following `blocked_by` links downstream, transitively, including through contracts in `contract_impact`. Deferred tasks are not counted.
+- **Urgency** (UTC dates): no deadline or 8+ days away 1 · 4–7 days 2 · 2–3 days 3 · tomorrow 4 · today 5 · overdue 6.
+- **Priority** = tasks held up × urgency. A decision that holds up nothing has priority 0. Ties break by earliest deadline, then id.
 
 ## 2. Validation
 
@@ -72,7 +76,7 @@ pending ──(lead answers)──────────────► decide
 
 - **Applied** is not a status. It is recorded as `applied_on`, because a decided record stays decided after it is applied.
 - **Applying** is done only by the control loop, and is idempotent. It adds a §B amendment to every task in `blocks`, removes the decision from their blockers, and messages live sessions.
-- A **superseded** decision is never applied.
+- A **superseded** decision is never applied, and it **stops blocking**. Its replacement carries the gate and should list the same `blocks` (D-blocker-semantics).
 - A decided decision is **never reopened**. To change course, raise a new decision that supersedes it.
 
 ## 4. Generated file
@@ -84,3 +88,7 @@ pending ──(lead answers)──────────────► decide
 - No reopening; supersede instead.
 - Answers outside the listed options are `answer: other` plus `answer_note`.
 - Questions are a general mechanism, not a decision-only field.
+
+## Version 2 (2026-11-20)
+
+- Superseded decisions stop blocking; priority's reach and the urgency formula are defined (D-blocker-semantics, D-urgency-formula).

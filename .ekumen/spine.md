@@ -41,7 +41,7 @@ Most waiting is for **permission, not judgment**. Removing permission waits is a
 
 **Task kinds:** `research` (output in `.ekumen/research/<id>-<slug>.md`, cited as evidence by the spine and decisions; research is the phase before a project, D-011) · `contract` · `build`.
 
-**Task status is derived, never written:** `draft, approved, blocked, ready, running, in_review, done, deferred`.
+**Task status is derived, never written:** `draft, approved, blocked, ready, running, in_review, done, deferred`. **Approved** means approved and unblocked, but missing what it needs to start (branch or worktree); **ready** means it can start now (D-task-status-approved).
 
 **Decision lifecycle:** `raised → (questioned)* → decided | defaulted | superseded → applied`. **Applied** is the step that makes work move: amend affected briefs in §B, clear the blocks, notify live sessions, and let the dispatcher start tasks that are now ready.
 

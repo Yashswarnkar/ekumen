@@ -29,5 +29,8 @@ context:
 '
   evidence:
   - internal/core/priority.go
-status: pending
-answer: 
+status: decided
+answer: steps
+answer_note: As recommended.
+decided_by: lead
+decided_on: '2026-11-20'

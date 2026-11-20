@@ -30,5 +30,8 @@ context:
     one author on two branches in one second can.
   evidence:
   - internal/store/files/events_test.go#TestBranchesMergeByCopy
-status: pending
-answer: 
+status: decided
+answer: accept-document
+answer_note: As recommended.
+decided_by: lead
+decided_on: '2026-11-20'

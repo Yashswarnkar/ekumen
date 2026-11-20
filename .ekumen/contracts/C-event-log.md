@@ -4,7 +4,7 @@ aliases: [C1]
 title: Event log
 status: frozen         # draft | frozen
 frozen_on: 2026-11-20
-version: 2
+version: 3
 consumers: [T-core, T-file-store, T-cli, T-server, T-import, T-reconcile]
 producers: [T-core]
 ---
@@ -25,7 +25,7 @@ slug: lowercase a–z, 0–9, words joined by "-", 1–5 words, the slug itself 
 Examples: `T-core`, `D-control-loop`, `C-event-log`, `X-sandbox-creds`. The regex is `^[TDCX]-[a-z0-9]+(-[a-z0-9]+){0,4}$`.
 
 - The CLI refuses an id already in use. Two branches picking the same id is caught by the `id-collision` rule (§5).
-- **Aliases.** Items created before this contract keep their old ids (`R1`, `T0`, `D-012`, `C1`) as `aliases`. Readers resolve an alias to its id everywhere. The import task (T-import) assigns slugs and aliases to them.
+- **Aliases.** Items created before this contract keep their old ids (`R1`, `T0`, `D-012`, `C1`) as `aliases`. Readers resolve an alias to its id everywhere. The import task (T-import) assigns slugs and aliases to them. Aliases are carried by the optional `aliases[]` field of the event that creates the item: `TaskDrafted`, `ContractDrafted`, `ExternalAdded`, and the record in `DecisionRaised` (D-alias-field).
 - **Events** use a ULID: unique, and sorting by creation time.
 
 ## 2. Envelope
@@ -49,7 +49,7 @@ Every event is one JSON object:
 | `schema` | Envelope version. Integer, currently `1`. |
 | `id` | ULID. Also part of the file name, so two events never share a file. |
 | `type` | One of the types in §6. |
-| `at` | RFC 3339, UTC. |
+| `at` | RFC 3339, UTC. Every date in Ekumen (`on`, `deadline`, `decided_on`, file-name timestamps) is a **UTC** date. |
 | `actor.role` | `lead` · `orchestrator` · `session` · `loop` (the control loop) · `integrator` (an end-to-end session that owns integration docs). |
 | `actor.id` | The lead's handle, a session name, or `loop`. |
 | `subject.kind` | `task` · `decision` · `contract` · `external` · `project`. |
@@ -65,11 +65,15 @@ Every event type has one role allowed to write it: its **lane**. The CLI refuses
 | Role | May write |
 |---|---|
 | **lead** | `TaskApproved`, `DecisionDecided`, `DecisionSuperseded`, `ContractFrozen` |
-| **orchestrator** | `TaskDrafted`, `TaskAmended` (§B), `TaskBlockersChanged`, `TaskDeferred`, `ContractDrafted`, `ContractVersioned`, `External*`, `RouteResolved` (items routed to it) |
-| **session** (its own task only) | `TaskHandoff` (§C), `DecisionRaised` |
-| **integrator** (its own task only) | `TaskHandoff`, `DecisionRaised` |
+| **orchestrator** | `TaskDrafted`, `TaskAmended` (§B), `TaskBlockersChanged`, `TaskDeferred`, `TaskSessionAttached`, `ContractDrafted`, `ContractVersioned`, `External*` |
+| **session** (its own task only) | `TaskHandoff` (§C) |
+| **integrator** (its own task only) | `TaskHandoff` |
+| **lead, orchestrator, session, integrator, loop** | `DecisionRaised`. A session or integrator raises only from its own task; the others may raise with `raised_by.task: null` (D-lane-gaps). |
 | **anyone** | `QuestionAsked`. `QuestionAnswered` only by the question's addressee. |
+| **the route's owner** | `RouteResolved`, for items routed to them (D-lane-gaps). |
 | **loop** | `DecisionDefaulted`, `DecisionApplied`, `TaskSessionAttached`, `RoutedToOwner`, `ConflictDetected`, `RoleClaimed`, `RoleReleased` |
+
+**A session's own task** is the task whose `TaskDrafted.session` names it, or the latest `TaskSessionAttached` for that session (written by the orchestrator or the loop) (D-lane-gaps).
 
 **One live holder per role.** A session takes a role with `RoleClaimed` (`ekumen claim orchestrator`) and gives it up with `RoleReleased`. A claim lasts until released or until its session is no longer alive. The CLI refuses a second claim while one is held.
 
@@ -104,7 +108,7 @@ Events that don't contradict are never conflicts. Two questions on one decision 
 
 | Type | `data` |
 |---|---|
-| `TaskDrafted` | `title, kind (research\|contract\|build), brief, repo, base_branch, branch, worktree, blocked_by[], tier_grants[]` |
+| `TaskDrafted` | `title, kind (research\|contract\|build), brief, repo, base_branch, branch, worktree, blocked_by[], tier_grants[]`, optional `session`, optional `aliases[]` |
 | `TaskApproved` | `tier_grants[]` (final list), `text_sha256` (§A as approved) |
 | `TaskAmended` | `file, text_sha256, note` (one §B entry) |
 | `TaskBlockersChanged` | `added[], removed[], reason` |
@@ -129,9 +133,9 @@ Events that don't contradict are never conflicts. Two questions on one decision 
 | `QuestionAsked` | `question_id, text, to` (role or session; may be empty, see §4) |
 | `QuestionAnswered` | `question_id, text` |
 
-**Contract:** `ContractDrafted {title, path}` · `ContractFrozen {version, text_sha256}` · `ContractVersioned {version, by_decision, text_sha256}`
+**Contract:** `ContractDrafted {title, path, aliases[]?}` · `ContractFrozen {version, text_sha256}` · `ContractVersioned {version, by_decision, text_sha256}`
 
-**External dependency:** `ExternalAdded {what, owner_team, asked_on, needed_by, blocks[]}` · `ExternalUpdated {fields}` · `ExternalResolved {note}`
+**External dependency:** `ExternalAdded {what, owner_team, asked_on, needed_by, blocks[], aliases[]?}` · `ExternalUpdated {fields}` · `ExternalResolved {note}`
 
 **Routing, roles, conflicts:** `RoutedToOwner {route_id, to, from_event, reason}` · `RouteResolved {route_id, note}` · `RoleClaimed {role, session}` · `RoleReleased {role, session}` · `ConflictDetected {rule, events[]}`
 
@@ -161,7 +165,9 @@ Events that don't contradict are never conflicts. Two questions on one decision 
 
 `<timestamp>` is UTC `YYYYMMDDTHHMMSSZ`, so files sort by time and two writers never pick the same name.
 
-Every change is a new file with a unique name, so git never sees two branches editing the same file and never reports a merge conflict. Contradictions are found by §5 instead.
+Every change is a new file with a unique name, so git never sees two branches editing the same file and never reports a merge conflict. One known exception, accepted (D-entry-name-same-author-branches): the *same* author writing an entry for the *same* task on two branches within the same second produces two files with one name, and git reports a conflict at merge. It needs one role active on two branches at once, which role claims make rare, and git surfaces it loudly.
+
+The file store checks that an event's `type` is a safe name (`^[A-Z][A-Za-z0-9]{0,63}$`), not that it is in §6; the core enforces the list (D-store-event-type-check). Contradictions are found by §5 instead.
 
 **Projections** are generated from events and committed, so they read well on GitHub. Once the CLI exists they are never hand-edited. A brief "view" (§A, then amendments, then handoffs, in time order) is generated on demand and not stored.
 
@@ -176,3 +182,10 @@ Adding an event type or an optional field is a minor change: readers ignore what
 - Projections are committed.
 - Questions are recorded on any subject, not only decisions.
 - The hand-written records made before the CLI existed become events through a one-off import (T-import).
+
+## Version 3 (2026-11-20)
+
+- Aliases on creating events (D-alias-field).
+- Lanes widened: who may raise decisions, a session's own task, who resolves routes (D-lane-gaps).
+- All dates are UTC dates.
+- Documented the same-author entry-name case (D-entry-name-same-author-branches) and the store's type check (D-store-event-type-check).

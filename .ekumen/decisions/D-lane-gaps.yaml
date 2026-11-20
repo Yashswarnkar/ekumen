@@ -34,5 +34,8 @@ context:
     CLI and loop write events, all three cases will show up as lane conflicts.
   evidence:
   - internal/core/lanes.go
-status: pending
-answer: 
+status: decided
+answer: widen
+answer_note: As recommended.
+decided_by: lead
+decided_on: '2026-11-20'

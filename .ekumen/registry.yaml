@@ -54,7 +54,7 @@ tasks:
     worktree: .worktrees/t-core
     session: t-core
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: in_review
+    status: done
   T-file-store:
     title: File store for events and entries
     kind: build
@@ -67,14 +67,20 @@ tasks:
     worktree: .worktrees/t-file-store
     session: t-file-store
     tier_grants: [push_own_branch, open_draft_pr, restack]
-    status: in_review
+    status: done
   T-cli:
     title: "ekumen CLI with --json, incl. ekumen map"
     kind: build
     brief: briefs/T-cli/brief.md
-    approved: null
+    approved: 2026-11-20
     blocked_by: [C-cli-json, T-core, T-file-store, D-yaml-library]
-    status: draft
+    repo: ekumen
+    base_branch: main
+    branch: build/t-cli
+    worktree: .worktrees/t-cli
+    session: t-cli
+    tier_grants: [push_own_branch, open_draft_pr, restack]
+    status: running
   T-skills:
     title: /blocked and /decide skills
     kind: build
@@ -114,9 +120,15 @@ tasks:
     title: Import hand-written records into events
     kind: build
     brief: briefs/T-import/brief.md
-    approved: null
+    approved: 2026-11-20
     blocked_by: [T-core, T-file-store]
-    status: draft
+    repo: ekumen
+    base_branch: main
+    branch: build/t-import
+    worktree: .worktrees/t-import
+    session: t-import
+    tier_grants: [push_own_branch, open_draft_pr, restack]
+    status: running
   T-reconcile:
     title: Control loop, one pass (ekumen reconcile)
     kind: build

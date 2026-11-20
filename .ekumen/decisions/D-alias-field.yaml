@@ -29,5 +29,8 @@ context:
   evidence:
   - ".ekumen/contracts/C-event-log.md#1-ids"
   - internal/event/data.go
-status: pending
-answer: 
+status: decided
+answer: optional-field
+answer_note: As recommended.
+decided_by: lead
+decided_on: '2026-11-20'

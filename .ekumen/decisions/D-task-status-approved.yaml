@@ -28,5 +28,8 @@ context:
   evidence:
   - ".ekumen/spine.md#3-domain"
   - internal/core/status.go
-status: pending
-answer: 
+status: decided
+answer: not-startable
+answer_note: As recommended.
+decided_by: lead
+decided_on: '2026-11-20'
