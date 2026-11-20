@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -17,6 +18,7 @@ const skillsDir = "../../skills"
 var (
 	skillName   = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 	placeholder = regexp.MustCompile(`<[^<>]+>`)
+	codeSpan    = regexp.MustCompile("`(ekumen [^`]+)`")
 	skillKeys   = []string{"name", "description", "license", "compatibility", "metadata", "allowed-tools"}
 	forbidden   = []string{".ekumen/events", "registry.yaml", "state.json", "decisions/",
 		"claude", "codex", "gemini", "opencode", "cursor", "copilot", "anthropic", "openai"}
@@ -72,20 +74,40 @@ func fencedBlocks(text, lang string) []string {
 	return out
 }
 
+func skillBody(text string) string {
+	if rest, ok := strings.CutPrefix(text, "---\n"); ok {
+		if _, after, ok := strings.Cut(rest, "\n---\n"); ok {
+			return after
+		}
+	}
+	return text
+}
+
+// skillCommands returns every ekumen command line a skill names: lines in
+// fenced blocks, then inline code spans (except the generic "ekumen …").
 func skillCommands(text string) []string {
 	var out []string
-	for _, b := range fencedBlocks(text, "") {
-		for _, l := range strings.Split(b, "\n") {
-			if strings.HasPrefix(l, "ekumen ") {
-				out = append(out, l)
-			}
+	var prose []string
+	in := false
+	for _, l := range strings.Split(skillBody(text), "\n") {
+		switch {
+		case strings.HasPrefix(l, "```"):
+			in = !in
+		case in && strings.HasPrefix(l, "ekumen "):
+			out = append(out, l)
+		case !in:
+			prose = append(prose, l)
+		}
+	}
+	for _, m := range codeSpan.FindAllStringSubmatch(strings.Join(prose, "\n"), -1) {
+		if !strings.HasPrefix(m[1], "ekumen …") {
+			out = append(out, m[1])
 		}
 	}
 	return out
 }
 
-func shellWords(t *testing.T, line string) []string {
-	t.Helper()
+func shellWords(line string) ([]string, error) {
 	var words []string
 	var cur strings.Builder
 	var quote rune
@@ -105,7 +127,7 @@ func shellWords(t *testing.T, line string) []string {
 				started = false
 			}
 		case strings.ContainsRune("|;&<>$`", c):
-			t.Fatalf("%q: keep skill command lines to plain arguments (found %q)", line, c)
+			return nil, fmt.Errorf("%q: keep skill command lines to plain arguments (found %q)", line, c)
 		default:
 			cur.WriteRune(c)
 			started = true
@@ -114,7 +136,88 @@ func shellWords(t *testing.T, line string) []string {
 	if started {
 		words = append(words, cur.String())
 	}
-	return words
+	return words, nil
+}
+
+func runAs(h *harness, actor, stdin string, args ...string) (int, string, string) {
+	var out, errb bytes.Buffer
+	env := h.env(stdin, &out, &errb)
+	env.Getenv = func(k string) string {
+		if k == "EKUMEN_ACTOR" {
+			return actor
+		}
+		return ""
+	}
+	code := Run(args, env)
+	return code, out.String(), errb.String()
+}
+
+// checkSkillLine runs a skill's command line with its placeholders filled
+// in, for real on a fixture, so the command, its flags, required flags and
+// positional arity all go through the CLI's own parser. Only a usage error
+// fails; not found, refusals and successes all mean the line is well formed.
+func checkSkillLine(h *harness, line string) error {
+	words, err := shellWords(placeholder.ReplaceAllString(line, "x"))
+	if err != nil {
+		return err
+	}
+	if len(words) < 2 || words[0] != "ekumen" {
+		return fmt.Errorf("%q: not an ekumen command", line)
+	}
+	if !slices.Contains(words, "--json") {
+		return fmt.Errorf("%q has no --json", line)
+	}
+	code, out, errOut := runAs(h, "session:t-cli", "", words[1:]...)
+	h.tick()
+	if code == ExitUsage {
+		return fmt.Errorf("%q: usage error\n%s%s", line, out, errOut)
+	}
+	want := "Usage: ekumen " + words[1]
+	if len(words) > 2 && !strings.HasPrefix(words[2], "-") {
+		want += " " + words[2]
+	}
+	code, out, errOut = h.run(append(words[1:], "-h")...)
+	if code != ExitUsage || !strings.HasPrefix(strings.TrimSpace(out+errOut), want) {
+		return fmt.Errorf("%q: -h: want %q, got exit %d\n%s%s", line, want, code, out, errOut)
+	}
+	return nil
+}
+
+func TestSkillCommandsParse(t *testing.T) {
+	h := newHarness(t)
+	buildFixture(h)
+	for name, text := range skillTexts(t) {
+		cmds := skillCommands(text)
+		if len(cmds) == 0 {
+			t.Errorf("%s: no ekumen commands", name)
+		}
+		for _, line := range cmds {
+			if err := checkSkillLine(h, line); err != nil {
+				t.Errorf("%s: %v", name, err)
+			}
+		}
+	}
+}
+
+func TestSkillLineCheckerCatchesBrokenLines(t *testing.T) {
+	h := newHarness(t)
+	buildFixture(h)
+	if err := checkSkillLine(h, "ekumen decision answer <id> <option> --note … --json"); err != nil {
+		t.Fatalf("well-formed line refused: %v", err)
+	}
+	for _, line := range []string{
+		"ekumen decision answer <id> --note … --json",
+		"ekumen decision anwser <id> <option> --json",
+		"ekumen question answer <qid> --txt … --json",
+		"ekumen question ask <id> --json",
+		"ekumen task show --json",
+		"ekumen inbox --for lead",
+		"ekumen decision raise --file - --json | cat",
+	} {
+		if err := checkSkillLine(h, line); err == nil {
+			t.Errorf("%q passed the checker", line)
+		}
+	}
 }
 
 func TestSkillFrontMatter(t *testing.T) {
@@ -137,30 +240,6 @@ func TestSkillFrontMatter(t *testing.T) {
 		}
 		if n := strings.Count(text, "\n"); n > 160 {
 			t.Errorf("%s: %d lines; keep SKILL.md to about 150 and move detail to a reference file", name, n)
-		}
-	}
-}
-
-func TestSkillCommandsParse(t *testing.T) {
-	h := newHarness(t)
-	for name, text := range skillTexts(t) {
-		cmds := skillCommands(text)
-		if len(cmds) == 0 {
-			t.Errorf("%s: no ekumen commands in fenced blocks", name)
-		}
-		for _, line := range cmds {
-			words := shellWords(t, placeholder.ReplaceAllString(line, "x"))
-			if !slices.Contains(words, "--json") {
-				t.Errorf("%s: %q has no --json", name, line)
-			}
-			want := "Usage: ekumen " + words[1]
-			if len(words) > 2 && !strings.HasPrefix(words[2], "-") {
-				want += " " + words[2]
-			}
-			code, out, errOut := h.run(append(words[1:], "-h")...)
-			if code != ExitUsage || !strings.HasPrefix(strings.TrimSpace(out+errOut), want) {
-				t.Errorf("%s: %q: want %q, got exit %d\n%s%s", name, line, want, code, out, errOut)
-			}
 		}
 	}
 }
@@ -189,19 +268,73 @@ var templateValues = map[string]string{
 	"repo path or URL":                ".ekumen/briefs/T-demo/brief.md",
 }
 
-func TestSkillFlow(t *testing.T) {
-	texts := skillTexts(t)
-	tmpls := fencedBlocks(texts["blocked"], "yaml")
-	if len(tmpls) != 1 {
-		t.Fatalf("blocked: want one yaml template, got %d", len(tmpls))
-	}
-	record := placeholder.ReplaceAllStringFunc(tmpls[0], func(p string) string {
-		v, ok := templateValues[p[1:len(p)-1]]
+func fillTemplate(t *testing.T, tmpl string, vals map[string]string) string {
+	t.Helper()
+	return placeholder.ReplaceAllStringFunc(tmpl, func(p string) string {
+		v, ok := vals[p[1:len(p)-1]]
 		if !ok {
-			t.Fatalf("template placeholder %s has no test value", p)
+			t.Fatalf("placeholder %s has no test value", p)
 		}
 		return v
 	})
+}
+
+// skillArgs takes the first command line in a skill that starts with
+// prefix, fills its placeholders (and "…" values) and returns its argv.
+func skillArgs(t *testing.T, text, prefix string, vals map[string]string) []string {
+	t.Helper()
+	for _, line := range skillCommands(text) {
+		if !strings.HasPrefix(line, prefix) {
+			continue
+		}
+		words, err := shellWords(fillTemplate(t, line, vals))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, w := range words {
+			if w == "…" {
+				words[i] = vals["…"]
+			}
+		}
+		return words[1:]
+	}
+	t.Fatalf("no command starting %q", prefix)
+	return nil
+}
+
+func replaceOnce(t *testing.T, s, old, new string) string {
+	t.Helper()
+	if !strings.Contains(s, old) {
+		t.Fatalf("template has no %q", old)
+	}
+	return strings.Replace(s, old, new, 1)
+}
+
+func dig(t *testing.T, v any, path ...string) any {
+	t.Helper()
+	for _, k := range path {
+		m, ok := v.(map[string]any)
+		if !ok {
+			t.Fatalf("%v: not an object at %q", path, k)
+		}
+		if v, ok = m[k]; !ok {
+			t.Fatalf("missing key %q (path %v)", k, path)
+		}
+	}
+	return v
+}
+
+func TestSkillFlow(t *testing.T) {
+	texts := skillTexts(t)
+	blocked, decide := texts["blocked"], texts["decide"]
+	tmpls := fencedBlocks(blocked, "yaml")
+	if len(tmpls) != 1 {
+		t.Fatalf("blocked: want one yaml template, got %d", len(tmpls))
+	}
+	tierOne := fillTemplate(t, tmpls[0], templateValues)
+	tierTwo := replaceOnce(t, tierOne, "id: D-demo-choice", "id: D-demo-tier-two")
+	tierTwo = replaceOnce(t, tierTwo, "tier: 1", "tier: 2")
+	tierTwo = replaceOnce(t, tierTwo, "default_if_no_answer: files", "default_if_no_answer: null")
 
 	h := newHarness(t)
 	h.write(".ekumen/briefs/T-demo/brief.md", "# T-demo\n")
@@ -210,56 +343,110 @@ func TestSkillFlow(t *testing.T) {
 	h.must("--as", "orchestrator:main", "task", "draft", "--file", "t.yaml")
 	h.must("--as", "lead:yash", "task", "approve", "T-demo")
 
-	jsonOf := func(stdin string, args ...string) map[string]any {
+	call := func(actor, stdin string, args []string) (int, map[string]any) {
 		t.Helper()
-		code, out, errOut := h.runIn(stdin, append(args, "--json")...)
-		if code != 0 {
+		code, out, errOut := runAs(h, actor, stdin, args...)
+		h.tick()
+		if code != 0 && code != ExitRefused {
 			t.Fatalf("ekumen %s: exit %d\n%s%s", strings.Join(args, " "), code, out, errOut)
 		}
-		h.tick()
-		return decodeJSON(t, out)
+		return code, decodeJSON(t, out)
 	}
-	kinds := func(m map[string]any) []string {
-		var ks []string
-		for _, it := range m["items"].([]any) {
-			ks = append(ks, it.(map[string]any)["kind"].(string))
+	ok := func(actor, stdin string, args []string) map[string]any {
+		t.Helper()
+		code, m := call(actor, stdin, args)
+		if code != 0 {
+			t.Fatalf("ekumen %s: exit %d: %v", strings.Join(args, " "), code, m)
 		}
-		return ks
+		return m
+	}
+	const session, lead = "session:s-demo", "lead:yash"
+	v := map[string]string{"task": "T-demo", "session": "s-demo", "handle": "yash", "this session": "desk"}
+	with := func(kv ...string) map[string]string {
+		m := map[string]string{}
+		for k, x := range v {
+			m[k] = x
+		}
+		for i := 0; i < len(kv); i += 2 {
+			m[kv[i]] = kv[i+1]
+		}
+		return m
 	}
 
-	jsonOf(record, "--as", "session:s-demo", "decision", "raise", "--file", "-")
-	if ks := kinds(jsonOf("", "inbox", "--for", "lead")); !slices.Contains(ks, "decision") {
-		t.Fatalf("lead inbox kinds %v, want a decision", ks)
+	task := ok(session, "", skillArgs(t, blocked, "ekumen task show", v))
+	if g := dig(t, task, "task", "tier_grants").([]any); !slices.Contains(g, any("push_own_branch")) {
+		t.Fatalf("task.tier_grants = %v", g)
+	}
+	raise := skillArgs(t, blocked, "ekumen decision raise", v)
+	ok(session, tierOne, raise)
+	ok(session, tierTwo, raise)
+
+	var ids []string
+	for _, it := range ok("", "", skillArgs(t, decide, "ekumen inbox", v))["items"].([]any) {
+		if dig(t, it, "kind") == "decision" {
+			ids = append(ids, dig(t, it, "id").(string))
+		}
+	}
+	if !slices.Contains(ids, "D-demo-choice") || !slices.Contains(ids, "D-demo-tier-two") {
+		t.Fatalf("lead inbox decisions %v", ids)
 	}
 
-	jsonOf("", "--as", "lead:yash", "question", "ask", "D-demo-choice", "--text", "Why not SQLite?")
-	qs := jsonOf("", "question", "list", "--for", "s-demo", "--open")["questions"].([]any)
+	show := func(id string) any {
+		return dig(t, ok("", "", skillArgs(t, decide, "ekumen decision show", with("id", id))), "decision")
+	}
+	d2 := show("D-demo-tier-two")
+	if dig(t, d2, "tier") != 2.0 || dig(t, d2, "default_if_no_answer") != nil || dig(t, d2, "status") != "pending" {
+		t.Fatalf("tier-2 variant: %v", d2)
+	}
+	d := show("D-demo-choice")
+	for _, k := range []string{"holds_up", "priority", "answer", "answer_note", "superseded_by", "applied_on", "deadline", "default_if_no_answer"} {
+		dig(t, d, k)
+	}
+	if dig(t, d, "raised_by", "session") != "s-demo" || dig(t, d, "status") != "pending" {
+		t.Fatalf("raised decision: %v", d)
+	}
+	if hu := dig(t, d, "holds_up").([]any); !slices.Contains(hu, any("T-demo")) {
+		t.Fatalf("holds_up = %v", hu)
+	}
+
+	ok(lead, "", skillArgs(t, decide, "ekumen question ask", with("id", "D-demo-choice", "…", "Why not SQLite?")))
+	qs := ok(session, "", skillArgs(t, blocked, "ekumen question list", v))["questions"].([]any)
 	if len(qs) != 1 {
 		t.Fatalf("open questions for s-demo: %v", qs)
 	}
-	if ks := kinds(jsonOf("", "inbox", "--for", "s-demo")); !slices.Contains(ks, "question") {
-		t.Fatalf("session inbox kinds %v, want a question", ks)
+	var kinds []string
+	for _, it := range ok("", "", []string{"inbox", "--for", "s-demo", "--json"})["items"].([]any) {
+		kinds = append(kinds, dig(t, it, "kind").(string))
 	}
-	jsonOf("", "--as", "session:s-demo", "question", "answer", qs[0].(map[string]any)["id"].(string), "--text", "Not needed yet.")
+	if !slices.Contains(kinds, "question") {
+		t.Fatalf("session inbox kinds %v, want a question", kinds)
+	}
+	ok(session, "", skillArgs(t, blocked, "ekumen question answer", with("question id", dig(t, qs[0], "id").(string), "…", "Not needed yet.")))
 
-	d := jsonOf("", "decision", "show", "D-demo-choice")["decision"].(map[string]any)
-	if d["status"] != "pending" || d["applied_on"] != nil {
-		t.Fatalf("before answer: status %v applied_on %v", d["status"], d["applied_on"])
-	}
-	if a := d["questions"].([]any)[0].(map[string]any)["answer"]; a != "Not needed yet." {
-		t.Fatalf("questions[0].answer = %v", a)
+	d = dig(t, ok(session, "", skillArgs(t, blocked, "ekumen decision show", with("decision id", "D-demo-choice"))), "decision")
+	q := dig(t, d, "questions").([]any)[0]
+	if dig(t, q, "answer") != "Not needed yet." || dig(t, q, "by") != lead || dig(t, q, "to") != session || dig(t, q, "answered_by") != session {
+		t.Fatalf("questions[0] = %v", q)
 	}
 
-	jsonOf("", "--as", "lead:yash", "decision", "answer", "D-demo-choice", "files", "--note", "Keep it simple.")
-	jsonOf("", "--as", "loop:main", "decision", "apply", "D-demo-choice")
-	d = jsonOf("", "decision", "show", "D-demo-choice")["decision"].(map[string]any)
-	if d["status"] != "decided" || d["applied_on"] == nil {
-		t.Fatalf("after apply: status %v applied_on %v", d["status"], d["applied_on"])
+	h.must("--as", lead, "decision", "supersede", "D-demo-tier-two", "--by", "D-demo-choice", "--note", "One decision is enough.")
+	if s := dig(t, show("D-demo-tier-two"), "superseded_by"); s != "D-demo-choice" {
+		t.Fatalf("superseded_by = %v", s)
 	}
-	if u := d["applied"].(map[string]any)["unblocked_tasks"].([]any); !slices.Contains(u, any("T-demo")) {
+	if code, m := call("", "", skillArgs(t, decide, "ekumen decision apply", with("id", "D-demo-tier-two"))); code != ExitRefused {
+		t.Fatalf("applying a superseded decision: exit %d %v, want refused", code, m)
+	}
+
+	ok("", "", skillArgs(t, decide, "ekumen decision answer", with("id", "D-demo-choice", "option", "files", "…", "Keep it simple.")))
+	ok("", "", skillArgs(t, decide, "ekumen decision apply", with("id", "D-demo-choice")))
+	d = show("D-demo-choice")
+	if dig(t, d, "status") != "decided" || dig(t, d, "answer") != "files" || dig(t, d, "answer_note") != "Keep it simple." || dig(t, d, "applied_on") == nil {
+		t.Fatalf("after apply: %v", d)
+	}
+	if u := dig(t, d, "applied", "unblocked_tasks").([]any); !slices.Contains(u, any("T-demo")) {
 		t.Fatalf("applied.unblocked_tasks = %v, want T-demo", u)
 	}
-	if am := jsonOf("", "task", "show", "T-demo")["brief"].(map[string]any)["amendments"].([]any); len(am) != 1 {
+	if am := dig(t, ok(session, "", skillArgs(t, blocked, "ekumen task show", v)), "brief", "amendments").([]any); len(am) != 1 {
 		t.Fatalf("brief.amendments = %v, want one", am)
 	}
 }

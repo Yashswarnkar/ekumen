@@ -39,7 +39,10 @@ Present `decision` in this order, always:
 4. **Context:** `context.summary`, then `context.evidence` and `context.prior_decisions` as a list.
 5. **Questions so far:** each item in `questions` with `text`, `by`, `to`, and its `answer` with `answered_by`, or "open".
 
-If `status` is not `pending`, say so first (decided, defaulted or superseded, and `applied_on`), then go to step 5 if it still needs applying.
+If `status` is not `pending`, say so first:
+
+- `superseded`: report `superseded_by` (the decision that replaced it) and stop. A superseded decision is never answered or applied; offer `/decide <superseded_by>` instead.
+- `decided` or `defaulted`: report `answer`, `answer_note` and `applied_on`, then go to step 5 if `applied_on` is still null.
 
 Anything that is your own view (a risk you see, a gap in the evidence) goes after the record under a heading **"My view (not part of the record)"**. Never blend it into the record.
 
@@ -62,7 +65,10 @@ Then end your turn. Don't wait or poll. When the lead runs `/decide <id>` again,
 
 ## 4. Answer, only on the lead's explicit word
 
-Record an answer only when the lead names the option (or says "go with the recommendation"). Never pick one on your own judgment, and never treat a default or a recommendation as the lead's answer.
+Record an answer only on the lead's explicit word. Never pick one on your own judgment, and never treat a default or a recommendation as the lead's answer.
+
+- What counts: the lead names an option id, says `other` with the choice, or says the literal word "recommendation". Anything vaguer ("ok", "sure", "sounds good", "fine") is not an answer: ask which option.
+- Before running the command, echo back exactly what you will record (the option id, or `other` and its note, and the note text) and ask "Record this?". Run it only after an explicit yes. If the lead changes anything, echo again.
 
 The answer is written as the lead: `lead:<handle>`. Use `EKUMEN_ACTOR` if it is a `lead:` actor; otherwise ask the lead for their handle once and pass `--as lead:<handle>`.
 
@@ -81,6 +87,8 @@ Applying adds a §B amendment to each task in `blocks`, clears the block and let
 ```
 ekumen decision apply <id> --as loop:<this session> --json
 ```
+
+If it is refused (any exit 2, e.g. the decision is still pending or was superseded, or a `lane` refusal), report the error to the lead and stop. Never retry it, and never retry as a different role.
 
 `<this session>` is your own session name. If the generated one-line amendment isn't enough for the blocked sessions to act on, draft a fuller amendment (what changes for them, concretely), show it to the lead first, write it to a file and pass `--amend-text-file <file>`.
 
