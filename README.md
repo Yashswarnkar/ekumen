@@ -34,6 +34,10 @@ From Ursula K. Le Guin's Hainish books: the Ekumen is a federation that coordina
 
 This repo's own design decisions live in [`.ekumen/decisions/`](.ekumen/decisions), in the format the tool will manage.
 
+The `/blocked` and `/decide` agent skills are the day-one way in: see [docs/skills.md](docs/skills.md).
+
+The `/blocked` and `/decide` agent skills are the day-one way in: see [docs/skills.md](docs/skills.md).
+
 ## License
 
 [Apache-2.0](LICENSE)
