@@ -2,4 +2,4 @@ module github.com/Yashswarnkar/ekumen
 
 go 1.26.0
 
-require go.yaml.in/yaml/v3 v3.0.4
+require go.yaml.in/yaml/v3 v3.0.6

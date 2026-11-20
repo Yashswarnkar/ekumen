@@ -14,39 +14,30 @@ import (
 	"time"
 
 	"github.com/Yashswarnkar/ekumen/internal/buildinfo"
+	"github.com/Yashswarnkar/ekumen/internal/cli"
 	"github.com/Yashswarnkar/ekumen/internal/server"
 	"github.com/Yashswarnkar/ekumen/web"
 )
-
-const usage = `Usage: ekumen <command> [flags]
-
-Commands:
-  version   Print version, commit and build date
-  serve     Serve the UI and HTTP API (default --addr ` + server.DefaultAddr + `)
-`
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
 
+// run handles version and serve here and every C-cli-json command in
+// internal/cli.
 func run(args []string, stdout, stderr io.Writer) int {
-	if len(args) == 0 {
-		fmt.Fprint(stderr, usage)
-		return 2
+	if len(args) > 0 {
+		switch args[0] {
+		case "version":
+			fmt.Fprintf(stdout, "ekumen %s (commit %s, built %s)\n", buildinfo.Version, buildinfo.Commit, buildinfo.Date)
+			return 0
+		case "serve":
+			return serve(args[1:], stderr)
+		}
 	}
-	switch args[0] {
-	case "version":
-		fmt.Fprintf(stdout, "ekumen %s (commit %s, built %s)\n", buildinfo.Version, buildinfo.Commit, buildinfo.Date)
-		return 0
-	case "serve":
-		return serve(args[1:], stderr)
-	case "help", "-h", "--help":
-		fmt.Fprint(stdout, usage)
-		return 0
-	default:
-		fmt.Fprintf(stderr, "ekumen: unknown command %q\n\n%s", args[0], usage)
-		return 2
-	}
+	env := cli.DefaultEnv()
+	env.Stdout, env.Stderr = stdout, stderr
+	return cli.Run(args, env)
 }
 
 func serve(args []string, stderr io.Writer) int {
@@ -54,7 +45,7 @@ func serve(args []string, stderr io.Writer) int {
 	fs.SetOutput(stderr)
 	addr := fs.String("addr", server.DefaultAddr, "listen address")
 	if err := fs.Parse(args); err != nil {
-		return 2
+		return cli.ExitUsage
 	}
 
 	srv := &http.Server{
