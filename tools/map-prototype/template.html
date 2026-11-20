@@ -90,6 +90,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 .n.task.blocked rect { fill: var(--plan-soft); stroke: var(--plan); stroke-dasharray: 4 3; }
 .n.task.ready rect { fill: var(--panel); stroke: var(--accent); }
 .n.contract rect { fill: var(--panel); stroke: var(--accent); }
+.n.contract.frozen rect { fill: var(--ok-soft); stroke: var(--ok); }
 .n.contract.planned rect { stroke-dasharray: 4 3; stroke: var(--plan); fill: var(--plan-soft); }
 .n.decision polygon { fill: var(--gate-soft); stroke: var(--gate); }
 .n .badge { font-family: var(--font-mono); font-size: 10.5px; fill: var(--review); }
@@ -141,9 +142,9 @@ footer { color: var(--muted); font-size: 13px; }
     <div class="gkey">
       <span><i style="border-color:var(--gate);background:var(--gate-soft)"></i>Open decision (gate)</span>
       <span><i style="border-color:var(--review);background:var(--review-soft)"></i>In review</span>
-      <span><i style="border-color:var(--accent)"></i>Contract drafted / task ready</span>
+      <span><i style="border-color:var(--accent)"></i>Contract draft / task ready</span>
+      <span><i style="border-color:var(--ok);background:var(--ok-soft)"></i>Contract frozen / task done</span>
       <span><i style="border-color:var(--plan);border-style:dashed;background:var(--plan-soft)"></i>Planned or blocked</span>
-      <span><i style="border-color:var(--ok);background:var(--ok-soft)"></i>Done</span>
     </div>
     <div class="graphbox" id="graph" role="img" aria-label="Task graph"></div>
   </section>
