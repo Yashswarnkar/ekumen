@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M7WK2VWFAQCS6FA4NG13YCV0","type":"RoleClaimed","at":"2026-11-20T13:42:09.039194Z","actor":{"role":"orchestrator","id":"claude-pkg-7e"},"subject":{"kind":"project","id":"project"},"data":{"role":"orchestrator","session":"claude-pkg-7e"}}
