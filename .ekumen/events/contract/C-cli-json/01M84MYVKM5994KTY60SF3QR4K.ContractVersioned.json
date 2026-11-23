@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M84MYVKM5994KTY60SF3QR4K","type":"ContractVersioned","at":"2026-11-23T16:48:50.292452Z","actor":{"role":"orchestrator","id":"claude-pkg-7e"},"subject":{"kind":"contract","id":"C-cli-json"},"data":{"version":3,"by_decision":"D-cli-json-v3","text_sha256":"689ccf7b73a1663bb0a3559a83e8e8bb06775295bba5dd8a70f889e1cc9dc2e2"}}
