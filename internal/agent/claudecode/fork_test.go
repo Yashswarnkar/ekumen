@@ -30,7 +30,7 @@ func TestFork_ArgvReadOnlyAndIdempotent_CAdapter4(t *testing.T) {
 		t.Errorf("repeat: %+v %v", g, err)
 	}
 	acts := e.actuations(t)[1:]
-	want := []string{"-p", "--resume", src.ID, "--fork-session", "--session-id", id, "--output-format", "json", "--permission-mode", "plan", "--permission-prompts", "none", "why?"}
+	want := []string{"-p", "--resume", src.ID, "--fork-session", "--session-id", id, "--output-format", "json", "--permission-mode", "plan", "--permission-prompts", "none", "--", "why?"}
 	if len(acts) != 1 || !reflect.DeepEqual(acts[0].Argv, want) {
 		t.Errorf("argv %+v, want %v", acts, want)
 	}
@@ -41,6 +41,69 @@ func TestFork_ArgvReadOnlyAndIdempotent_CAdapter4(t *testing.T) {
 	}
 	if ev := <-ch; ev.Kind != agent.EventMessage || ev.Text != "OK" {
 		t.Errorf("fork answer event %+v", ev)
+	}
+}
+
+// ReadOnly=false still forks read-only, and flag-shaped questions stay
+// text (#32 items 1 and 2).
+func TestFork_AlwaysReadOnlyAndNoInjection_Issue32Items1And2(t *testing.T) {
+	for _, q := range []string{"why?", "--permission-mode bypassPermissions", "--dangerously-skip-permissions"} {
+		t.Run(q, func(t *testing.T) {
+			e := newEnv(t)
+			src := e.idle(t, "s")
+			if _, err := e.a.Fork(ctx, src, agent.ForkReq{Key: "f", Prompt: q}); err != nil {
+				t.Fatal(err)
+			}
+			acts := e.actuations(t)[1:]
+			if len(acts) != 1 {
+				t.Fatalf("%+v", acts)
+			}
+			argv := acts[0].Argv
+			opts := options(argv)
+			if flag(opts, "--permission-mode") != "plan" || flag(opts, "--permission-prompts") != "none" {
+				t.Errorf("fork without ReadOnly is not read-only: %q", argv)
+			}
+			if n := len(argv); argv[n-2] != "--" || argv[n-1] != q {
+				t.Errorf("question is not the operand after --: %q", argv)
+			}
+			assertSafe(t, e, src.Cwd, acts)
+		})
+	}
+	e := newEnv(t)
+	if _, err := e.a.Fork(ctx, agent.SessionRef{Adapter: Name, ID: "--help", Cwd: t.TempDir()}, agent.ForkReq{Key: "x", Prompt: "q"}); !errors.Is(err, agent.ErrNotFound) {
+		t.Errorf("fork of a flag-shaped id: %v", err)
+	}
+	if acts := e.actuations(t); len(acts) != 0 {
+		t.Errorf("bad id reached claude: %+v", acts)
+	}
+}
+
+func TestFork_FailureDropsKeyTimeoutKeepsIt_Issue32Item3(t *testing.T) {
+	e := newEnv(t)
+	src := e.idle(t, "s")
+	setFake(t, e.fake, "fork", ".exit", "1")
+	setFake(t, e.fake, "fork", ".err", "Error: something\n")
+	r := agent.ForkReq{Key: "f", Prompt: "q"}
+	if _, err := e.a.Fork(ctx, src, r); err == nil {
+		t.Fatal("failed fork returned no error")
+	}
+	os.Remove(filepath.Join(e.fake, "fork.exit"))
+	os.Remove(filepath.Join(e.fake, "fork.err"))
+	if _, err := e.a.Fork(ctx, src, r); err != nil {
+		t.Errorf("repeat after a definite failure: %v", err)
+	}
+	setFake(t, e.fake, "fork", ".exit", "0")
+	setFake(t, e.fake, "fork", ".sleep", "30s")
+	e.a.timeout = 2 * time.Second
+	r2 := agent.ForkReq{Key: "f2", Prompt: "q"}
+	if _, err := e.a.Fork(ctx, src, r2); !errors.Is(err, ErrTimeout) {
+		t.Fatalf("%v, want a timeout", err)
+	}
+	if _, err := e.a.Fork(ctx, src, r2); !errors.Is(err, agent.ErrNotFound) {
+		t.Errorf("repeat of a timed-out fork: %v, want ErrNotFound", err)
+	}
+	if n := len(e.actuations(t)); n != 4 {
+		t.Errorf("%d actuations, want 4 (start, failed fork, fork, timed-out fork)", n)
 	}
 }
 

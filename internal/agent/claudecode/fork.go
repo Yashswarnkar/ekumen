@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"strings"
 	"time"
 
@@ -18,6 +19,13 @@ type printResult struct {
 	Subtype   string `json:"subtype"`
 }
 
+// forkReadOnly is on every fork, whatever ForkReq.ReadOnly says (#32 item
+// 2): plan mode, and any permission prompt is denied rather than asked.
+// A side question never needs to change the worktree, and the zero value
+// of ReadOnly must not be the unsafe one. The live probe asks a fork to
+// write a file and checks it was denied (README "Fork").
+var forkReadOnly = []string{"--permission-mode", "plan", "--permission-prompts", "none"}
+
 // Fork asks a side question in a copy of the session (spine rule 10). The
 // fork's ID is a UUIDv5 of the key; its answer is kept in the state
 // directory and returned by Events on the fork.
@@ -26,10 +34,10 @@ func (a *Adapter) Fork(ctx context.Context, s agent.SessionRef, r agent.ForkReq)
 		return agent.SessionRef{}, errors.New("claudecode: Fork needs Key and Prompt")
 	}
 	if rec, ok := a.state.key(opFork, r.Key); ok {
-		if rec.Pending {
-			return agent.SessionRef{}, fmt.Errorf("%w: Fork %q was attempted and its outcome is unknown", agent.ErrNotFound, r.Key)
-		}
-		return a.ref(rec), nil
+		return forkRecorded(rec)
+	}
+	if err := checkID(s.ID); err != nil {
+		return agent.SessionRef{}, err
 	}
 	cwd := s.Cwd
 	if rec, ok := a.state.session(s.ID); ok {
@@ -47,24 +55,29 @@ func (a *Adapter) Fork(ctx context.Context, s agent.SessionRef, r agent.ForkReq)
 		cwd = e.Cwd
 	}
 	rec := sessionRecord{ID: uuidV5("fork:" + r.Key), Key: r.Key, Op: opFork, Cwd: cwd, From: s.ID, Pending: true, At: a.now()}
-	if err := a.state.saveKey(rec); err != nil {
+	if err := a.state.claimKey(rec); err != nil {
+		if errors.Is(err, fs.ErrExist) {
+			if rec, ok := a.state.key(opFork, r.Key); ok {
+				return forkRecorded(rec)
+			}
+		}
 		return agent.SessionRef{}, err
 	}
-	args := []string{"-p", "--resume", s.ID, "--fork-session", "--session-id", rec.ID, "--output-format", "json"}
-	if r.ReadOnly {
-		args = append(args, "--permission-mode", "plan", "--permission-prompts", "none")
-	}
-	res, err := a.exec(ctx, cwd, append(args, r.Prompt)...)
+	args := append([]string{"-p", "--resume", s.ID, "--fork-session", "--session-id", rec.ID, "--output-format", "json"}, forkReadOnly...)
+	res, err := a.exec(ctx, cwd, promptArgs(args, r.Prompt)...)
 	if errors.Is(err, ErrNotStarted) {
 		a.state.dropKey(opFork, r.Key)
 		return agent.SessionRef{}, notStarted(err)
 	}
 	if err != nil {
-		return agent.SessionRef{}, err
+		return agent.SessionRef{}, fmt.Errorf("claude -p --fork-session: %w; key %q stays pending", err, r.Key)
 	}
 	var out printResult
 	if res.Code != 0 || json.Unmarshal(res.Stdout, &out) != nil {
-		return agent.SessionRef{}, fmt.Errorf("claude -p --fork-session exited %d: %s", res.Code, firstLine(res.Stderr))
+		// the process ran and ended without an answer: drop the key so a
+		// repeat can ask again (#32 item 3)
+		a.state.dropKey(opFork, r.Key)
+		return agent.SessionRef{}, fmt.Errorf("claude -p --fork-session exited %d: %s", res.Code, firstLine(res.Stderr, res.Stdout))
 	}
 	if out.SessionID != "" {
 		rec.ID = out.SessionID
@@ -73,7 +86,20 @@ func (a *Adapter) Fork(ctx context.Context, s agent.SessionRef, r agent.ForkReq)
 	if out.IsError {
 		rec.Result = "error (" + out.Subtype + "): " + out.Result
 	}
+	if len(rec.Result) > maxForkAnswer {
+		rec.Result = rec.Result[:maxForkAnswer] + " [truncated]"
+	}
 	return a.finish(rec, rec.ID)
+}
+
+// maxForkAnswer bounds the answer kept in the state directory.
+const maxForkAnswer = 64 << 10
+
+func forkRecorded(rec sessionRecord) (agent.SessionRef, error) {
+	if rec.Pending {
+		return agent.SessionRef{}, fmt.Errorf("%w: Fork %q timed out or was interrupted and its outcome is unknown; it is not asked again", agent.ErrNotFound, rec.Key)
+	}
+	return agent.SessionRef{Adapter: Name, ID: rec.ID, Cwd: rec.Cwd, Ownership: agent.Managed}, nil
 }
 
 // Events replays what the adapter holds for a managed session: a fork's
