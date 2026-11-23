@@ -96,6 +96,9 @@ func newEnv(t *testing.T) *env {
 	t.Setenv("HOME", e.home)
 	setFake(t, e.fake, "version", ".out", fixture(t, "version.txt"))
 	setFake(t, e.fake, "agents", ".out", fixture(t, "agents-observed.json"))
+	setFake(t, e.fake, "bg-start", "", fixture(t, "bg-start.synthetic.txt"))
+	setFake(t, e.fake, "resume.tmpl", "", fixture(t, "bg-resume.synthetic.txt"))
+	setFake(t, e.fake, "fork-result", "", fixture(t, "fork-result.json"))
 	e.a = New(Options{Bin: os.Args[0], StateDir: e.state, Timeout: 10 * time.Second, Now: func() time.Time { return t0 }})
 	return e
 }

@@ -160,10 +160,11 @@ func (a *Adapter) Available(ctx context.Context) error {
 // caps declares only what is implemented (README "Capabilities").
 var caps = map[string]map[string]string{
 	"": {
-		agent.OpList: agent.Supported, agent.OpStatus: agent.Supported,
+		agent.OpList: agent.Supported, agent.OpStatus: agent.Supported, agent.OpStart: agent.Supported,
 	},
 	agent.Managed: {
-		agent.OpList: agent.Supported, agent.OpStatus: agent.Supported,
+		agent.OpList: agent.Supported, agent.OpStatus: agent.Supported, agent.OpResume: agent.Supported,
+		agent.OpSend: agent.Partial,
 	},
 	agent.Observed: {
 		agent.OpList: agent.Supported, agent.OpStatus: agent.Partial,
@@ -273,11 +274,13 @@ func under(path, root string) bool {
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
-func firstLine(b []byte) string {
-	for i, c := range b {
-		if c == '\n' {
-			return string(b[:i])
+// firstLine is the first line of the first non-empty output.
+func firstLine(outs ...[]byte) string {
+	for _, b := range outs {
+		if s := strings.TrimSpace(string(b)); s != "" {
+			line, _, _ := strings.Cut(s, "\n")
+			return line
 		}
 	}
-	return string(b)
+	return ""
 }
