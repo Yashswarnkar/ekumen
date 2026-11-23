@@ -3,9 +3,12 @@ package claudecode
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/Yashswarnkar/ekumen/internal/agent"
@@ -59,9 +62,9 @@ func TestCaps_PerOwnership(t *testing.T) {
 	}
 	lying := agent.SessionRef{Adapter: Name, ID: "o1", Ownership: agent.Managed}
 	want := map[string]map[string]string{
-		"new":      {"list": "supported", "status": "supported", "start": "supported", "resume": "unsupported", "send": "unsupported", "fork": "unsupported", "events": "unsupported"},
-		"managed":  {"list": "supported", "status": "supported", "start": "unsupported", "resume": "supported", "send": "partial", "fork": "supported", "events": "partial"},
-		"observed": {"list": "supported", "status": "partial", "start": "unsupported", "resume": "unsupported", "send": "unsupported", "fork": "supported", "events": "unsupported"},
+		"new":      {"list": "supported", "status": "supported", "start": "unsupported", "resume": "unsupported", "send": "unsupported", "fork": "unsupported", "events": "unsupported"},
+		"managed":  {"list": "supported", "status": "supported", "start": "unsupported", "resume": "unsupported", "send": "unsupported", "fork": "unsupported", "events": "unsupported"},
+		"observed": {"list": "supported", "status": "partial", "start": "unsupported", "resume": "unsupported", "send": "unsupported", "fork": "unsupported", "events": "unsupported"},
 	}
 	for name, ref := range map[string]*agent.SessionRef{"new": nil, "managed": &managed, "observed": &lying} {
 		c, err := e.a.Caps(ctx, ref)
@@ -165,7 +168,74 @@ func TestStatus_ManagedReadsHookLog(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "r.2"), []byte("{"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if st, _ := e.a.Status(ctx, agent.SessionRef{Adapter: Name, ID: id}); st.State != agent.StateUnknown {
-		t.Errorf("garbled hook: %+v", st)
+	if st2, _ := e.a.Status(ctx, agent.SessionRef{Adapter: Name, ID: id}); st2 != st {
+		t.Errorf("a garbled hook record changed the status: %+v, was %+v", st2, st)
+	}
+}
+
+func TestStatus_CancelledIsAnError(t *testing.T) {
+	e := newEnv(t)
+	c, cancel := context.WithCancel(ctx)
+	cancel()
+	st, err := e.a.Status(c, agent.SessionRef{Adapter: Name, ID: "bbbbbbb2-0000-4000-8000-000000000002"})
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("cancelled Status: %+v %v, want context.Canceled", st, err)
+	}
+}
+
+func TestStateDir_AbsoluteAndNotACache_Issue32Items7And9(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("EKUMEN_STATE_DIR", "")
+	a := New(Options{StateDir: "rel/state"})
+	if !filepath.IsAbs(a.state.dir) || !strings.HasSuffix(a.state.dir, "rel/state") {
+		t.Errorf("relative state dir kept as %q", a.state.dir)
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_STATE_HOME", "")
+	if got, _ := stateDir(""); got != filepath.Join(home, ".local", "state", "ekumen", "claude-code") {
+		t.Errorf("default %q", got)
+	}
+	t.Setenv("XDG_STATE_HOME", filepath.Join(home, "xdg"))
+	if got, _ := stateDir(""); got != filepath.Join(home, "xdg", "ekumen", "claude-code") {
+		t.Errorf("XDG default %q", got)
+	}
+	t.Setenv("EKUMEN_STATE_DIR", "env/state")
+	if got, _ := stateDir(""); !filepath.IsAbs(got) {
+		t.Errorf("EKUMEN_STATE_DIR kept relative: %q", got)
+	}
+}
+
+func TestStore_CreateIsExclusiveAndWritesLeaveNoTemps_Issue32Item7(t *testing.T) {
+	s := &store{dir: t.TempDir()}
+	r := deliveryRecord{Key: "k", State: agent.Uncertain}
+	var wins atomic.Int32
+	var wg sync.WaitGroup
+	for i := 0; i < 16; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := s.claimDelivery(r); err == nil {
+				wins.Add(1)
+			} else if !errors.Is(err, fs.ErrExist) {
+				t.Error(err)
+			}
+		}()
+	}
+	wg.Wait()
+	if wins.Load() != 1 {
+		t.Errorf("%d claims of one key succeeded, want 1", wins.Load())
+	}
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() { defer wg.Done(); s.saveDelivery(deliveryRecord{Key: "k", State: agent.Delivered}) }()
+	}
+	wg.Wait()
+	if d, ok := s.delivery("k"); !ok || d.State != agent.Delivered {
+		t.Errorf("after concurrent writes: %+v %v", d, ok)
+	}
+	ents, _ := os.ReadDir(s.path("deliveries"))
+	if len(ents) != 1 {
+		t.Errorf("files left: %v", ents)
 	}
 }

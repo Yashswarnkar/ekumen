@@ -61,22 +61,76 @@ func (s *store) read(p string, v any) bool {
 	return err == nil && json.Unmarshal(b, v) == nil
 }
 
+// write replaces p atomically and durably: a uniquely named temporary file
+// in the same directory is synced, renamed over p, and the directory is
+// synced, so a crash leaves the old record or the new one (#32 item 7).
 func (s *store) write(p string, v any) error {
-	if s.dir == "" {
-		return errors.New("no state directory")
-	}
-	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
-		return err
-	}
-	b, err := json.MarshalIndent(v, "", "  ")
+	tmp, err := s.temp(p, v)
 	if err != nil {
 		return err
 	}
-	tmp := p + ".tmp"
-	if err := os.WriteFile(tmp, b, 0o600); err != nil {
+	if err := os.Rename(tmp, p); err != nil {
+		os.Remove(tmp)
 		return err
 	}
-	return os.Rename(tmp, p)
+	return syncDir(filepath.Dir(p))
+}
+
+// create writes p only if it does not exist yet, atomically: the record is
+// written in full under a temporary name and hard-linked into place, which
+// fails when p exists. Two callers racing on one key get one winner; the
+// loser gets an error wrapping fs.ErrExist.
+func (s *store) create(p string, v any) error {
+	tmp, err := s.temp(p, v)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp)
+	if err := os.Link(tmp, p); err != nil {
+		return err
+	}
+	return syncDir(filepath.Dir(p))
+}
+
+func (s *store) temp(p string, v any) (string, error) {
+	if s.dir == "" {
+		return "", errors.New("no state directory")
+	}
+	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+		return "", err
+	}
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	f, err := os.CreateTemp(filepath.Dir(p), ".tmp-*")
+	if err != nil {
+		return "", err
+	}
+	_, err = f.Write(b)
+	if err == nil {
+		err = f.Sync()
+	}
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		os.Remove(f.Name())
+		return "", err
+	}
+	return f.Name(), nil
+}
+
+func syncDir(dir string) error {
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	if err := d.Sync(); err != nil && !errors.Is(err, os.ErrInvalid) {
+		return err
+	}
+	return nil
 }
 
 func validID(id string) bool {
@@ -107,6 +161,12 @@ func (s *store) saveKey(r sessionRecord) error {
 	return s.write(s.path("keys", r.Op+"-"+keyHash(r.Key)+".json"), r)
 }
 
+// claimKey records a new Start or Fork key; it fails with fs.ErrExist when
+// the key is already recorded.
+func (s *store) claimKey(r sessionRecord) error {
+	return s.create(s.path("keys", r.Op+"-"+keyHash(r.Key)+".json"), r)
+}
+
 func (s *store) dropKey(op, key string) {
 	if s.dir != "" {
 		os.Remove(s.path("keys", op+"-"+keyHash(key)+".json"))
@@ -120,6 +180,12 @@ func (s *store) delivery(key string) (deliveryRecord, bool) {
 
 func (s *store) saveDelivery(r deliveryRecord) error {
 	return s.write(s.path("deliveries", keyHash(r.Key)+".json"), r)
+}
+
+// claimDelivery records a new Send key; it fails with fs.ErrExist when the
+// key is already recorded, so one key is never sent twice.
+func (s *store) claimDelivery(r deliveryRecord) error {
+	return s.create(s.path("deliveries", keyHash(r.Key)+".json"), r)
 }
 
 func (s *store) dropDelivery(key string) {

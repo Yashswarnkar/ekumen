@@ -22,19 +22,20 @@ var MinVersion = [3]int{2, 1, 259}
 
 type Options struct {
 	Bin      string // absolute path; default EKUMEN_CLAUDE_BIN, else claude on PATH
-	StateDir string // default EKUMEN_STATE_DIR, else <user cache dir>/ekumen/claude-code
+	StateDir string // default EKUMEN_STATE_DIR, else $XDG_STATE_HOME or ~/.local/state, + /ekumen/claude-code
 	Timeout  time.Duration
 	Now      func() time.Time
 	Runner   Runner // default: exec in the session's Cwd
 }
 
 type Adapter struct {
-	bin     string
-	binErr  error
-	state   *store
-	run     Runner
-	now     func() time.Time
-	timeout time.Duration
+	bin      string
+	binErr   error
+	state    *store
+	stateErr error
+	run      Runner
+	now      func() time.Time
+	timeout  time.Duration
 }
 
 var _ agent.Adapter = (*Adapter)(nil)
@@ -48,20 +49,42 @@ func New(o Options) *Adapter {
 		a.timeout = time.Minute
 	}
 	a.bin, a.binErr = resolveBin(o.Bin)
-	dir := o.StateDir
-	if dir == "" {
-		dir = os.Getenv("EKUMEN_STATE_DIR")
+	dir, err := stateDir(o.StateDir)
+	a.state, a.stateErr = &store{dir: dir}, err
+	if err != nil {
+		a.state.dir = ""
 	}
-	if dir == "" {
-		if c, err := os.UserCacheDir(); err == nil {
-			dir = filepath.Join(c, "ekumen", "claude-code")
-		}
-	}
-	a.state = &store{dir: dir}
 	if a.run == nil {
 		a.run = execRunner{bin: a.bin}
 	}
 	return a
+}
+
+// stateDir resolves the state directory to an absolute path (#32 item 9:
+// a relative one would put hook records in the session's worktree and
+// point --settings at a missing file). It is a state directory, not a
+// cache, since key and delivery records must survive cache purges (#32
+// item 7).
+func stateDir(dir string) (string, error) {
+	if dir == "" {
+		dir = os.Getenv("EKUMEN_STATE_DIR")
+	}
+	if dir == "" {
+		base := os.Getenv("XDG_STATE_HOME")
+		if !filepath.IsAbs(base) {
+			home, err := os.UserHomeDir()
+			if err != nil || home == "" {
+				return "", fmt.Errorf("no state directory: set EKUMEN_STATE_DIR (%v)", err)
+			}
+			base = filepath.Join(home, ".local", "state")
+		}
+		dir = filepath.Join(base, "ekumen", "claude-code")
+	}
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return "", fmt.Errorf("state directory %q: %w", dir, err)
+	}
+	return abs, nil
 }
 
 func resolveBin(bin string) (string, error) {
@@ -114,6 +137,9 @@ func (a *Adapter) Available(ctx context.Context) error {
 	if a.binErr != nil {
 		return a.binErr
 	}
+	if a.stateErr != nil {
+		return fmt.Errorf("%w: %v", agent.ErrUnavailable, a.stateErr)
+	}
 	res, err := a.exec(ctx, "", "--version")
 	if err != nil {
 		return fmt.Errorf("%w: %v", agent.ErrUnavailable, err)
@@ -131,16 +157,16 @@ func (a *Adapter) Available(ctx context.Context) error {
 	return nil
 }
 
+// caps declares only what is implemented (README "Capabilities").
 var caps = map[string]map[string]string{
 	"": {
-		agent.OpList: agent.Supported, agent.OpStatus: agent.Supported, agent.OpStart: agent.Supported,
+		agent.OpList: agent.Supported, agent.OpStatus: agent.Supported,
 	},
 	agent.Managed: {
-		agent.OpList: agent.Supported, agent.OpStatus: agent.Supported, agent.OpResume: agent.Supported,
-		agent.OpSend: agent.Partial, agent.OpFork: agent.Supported, agent.OpEvents: agent.Partial,
+		agent.OpList: agent.Supported, agent.OpStatus: agent.Supported,
 	},
 	agent.Observed: {
-		agent.OpList: agent.Supported, agent.OpStatus: agent.Partial, agent.OpFork: agent.Supported,
+		agent.OpList: agent.Supported, agent.OpStatus: agent.Partial,
 	},
 }
 
@@ -219,6 +245,9 @@ func (a *Adapter) Status(ctx context.Context, s agent.SessionRef) (agent.Status,
 	now := a.now()
 	es, err := a.listing(ctx)
 	if err != nil {
+		if ctx.Err() != nil {
+			return agent.Status{}, ctx.Err() // the caller gave up; not a status
+		}
 		return unknown(now, SourceNone, "listing failed: "+err.Error()), nil
 	}
 	hooks, err := a.hooks(s.ID)
