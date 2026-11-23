@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M84N57D9AN2RWMRX6RB3R0EA","type":"ContractVersioned","at":"2026-11-23T16:52:18.985207Z","actor":{"role":"orchestrator","id":"claude-pkg-7e"},"subject":{"kind":"contract","id":"C-event-log"},"data":{"version":5,"by_decision":"D-imported-event-time-order","text_sha256":"a245919bfa0d6169b22f9e13a3fdef4564842490beba25d8e5a82629c44b657c"}}
