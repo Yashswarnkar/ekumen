@@ -86,25 +86,47 @@ Most waiting is for **permission, not judgment**. Removing permission waits is a
 
 1. **Core and the contracts C-event-log, C-decision-record, C-cli-json and C-http-api** know only generic concepts: session, status (`running`, `idle`, `needs_input`, `done`, `unknown`), deliver a message, fork, and *capabilities*. No tool or vendor name appears in them.
 2. **C-adapter, the adapter interface**, defines operations (`list, status, start, resume, send, fork, events`), a capability set per adapter, and a fallback for each missing capability, chosen in code: e.g. no `send` to a running session → a queued side question. Sessions are either *managed* (Ekumen started them) or *observed* (the lead started them); observed sessions get whatever the adapter can see (D-016).
-3. **Adapters** hold every tool-specific choice. A generic ACP adapter covers any agent that speaks ACP v1 (D-015, D-018). Native adapters add what ACP can't do, starting with **Claude Code** for v0.1: status from hooks plus `claude agents --json` (D-013); answers delivered on the session's input stream for managed sessions (D-014); it runs the lead's own installed `claude` under the lead's login and never handles credentials (D-017). Codex, Gemini CLI and OpenCode adapters follow the same interface.
+3. **Adapters** hold every tool-specific choice. A generic ACP adapter covers any agent that speaks ACP v1 (D-015, D-018). Native adapters add what ACP can't do, starting with **Claude Code** for v1: status from hooks plus `claude agents --json` (D-013); answers delivered on the session's input stream for managed sessions (D-014); it runs the lead's own installed `claude` under the lead's login and never handles credentials (D-017). Codex, Gemini CLI and OpenCode adapters follow the same interface.
 
 A decision about one tool is recorded against its adapter, never written into the core.
 
 - **Rules are evaluated by the control loop in code** (no tokens), and start roles through agent adapters. Role runs are ordinary tasks whose handoffs carry a verdict; gates hold a task's `done` until the verdict passes (C-roles).
 
-## 7. v0.1 scope
+## 7. v1 scope
 
-**In:**
-- Event log and file store
-- Decisions: raise, ask, answer, apply
-- Task list with derived status and blocks
-- The control loop, run one pass on demand (`ekumen reconcile`, plus `--dry-run`)
-- `ekumen` CLI with `--json`
-- `/blocked` and `/decide` skills
-- `ekumen serve` with three views: **task graph** (decisions as gates), **decision inbox** (ranked), **decision screen** (context, evidence, Q&A, answer) (D-006)
-- Claude Code adapter
+**The first complete release (set by the lead, 2026-11-23).** v1 is done when the lead can run a project the way they work: one terminal per brief, many sessions at once, and one control plane that says what needs them. Tracked on GitHub under the **v1** milestone.
 
-**Out:** running the loop on a timer (dispatcher), hooks, auditor, database stores, sync, other adapters, multiple approvers, hosted page.
+**Already built (v0.1):** the event log and file store; decisions (raise, ask, answer, apply); the task list with derived status and blockers; the `ekumen` CLI with `--json`; the `/blocked` and `/decide` skills; one pass of the control loop (`ekumen reconcile`); the static build map; `ekumen check` gating CI.
+
+**v1 capabilities:**
+
+| # | Capability | What v1 needs | Issues |
+|---|---|---|---|
+| 1 | **Inbox** | Honest ranking (unfinished work only, real paths) and plain output: what to do, why, what it unblocks, the command. Decisions raised on task branches are visible. Statuses aren't stale. | #37, #38, #39 |
+| 2 | **Control loop** | Runs continuously (watch or timer), with a write lock so the loop and background sessions can write at once, and PRs observed once per pass | #41, #12 (lock), #15 (once per pass) |
+| 3 | **Briefs written** | A `/brief` skill for the orchestrator, and `ekumen brief new` to scaffold and draft a task | #42 |
+| 4 | **Environment setup** | `ekumen init` for a new project; `ekumen task start <id>` creates the worktree and branch, attaches the session and prints or launches the command | #40 |
+| 5 | **Agents in the background** | The Claude Code adapter (after its safety fixes), then the loop starts ready tasks through it, in a visible terminal where possible, with a paste-a-command fallback | #32, #30, #31, #44 |
+| 6 | **Roles and personas in the lifecycle** | C-roles frozen and built: role and rule files, rules evaluated by the loop, runs started through the adapter. First roles: reviewer and auditor. | #43 |
+| 7 | **Several projects at once** | A project registry, `inbox --all` and `status --all`, and the loop per project | #45 |
+
+**Order:** start 1, 3, 4 and the adapter fix-up (#32) in parallel. Then 2, then 6 and 5 (both need the loop, and 5 needs the adapter). 7 comes last, because it touches the whole CLI.
+
+**Deferred to v1.1** (GitHub milestone **v1.1**):
+- goals and `ekumen next` (#46)
+- the web UI (#47)
+- lane checks against history (#14)
+- role-claim takeover (#13)
+- crash-atomic writes (the rest of #12)
+- cycle reporting (#48)
+- a linear priority walk (#49)
+- "main is broken" alerting (#50)
+- CI noise (#51)
+- the stale-binary warning (#52)
+- multi-decision contract versions (#53)
+- recurring audits until roles exist (#54)
+
+**Out of v1:** database stores and sync, adapters other than Claude Code (ACP comes after), multiple approvers, a hosted page.
 
 ## 8. How this repo is built (dogfooding)
 
@@ -114,7 +136,7 @@ Ekumen is built using Ekumen, starting before the tool exists:
 - **Every task session runs in a terminal the lead opens (2026-11-23).** The orchestrator prepares the worktree and the exact command, and never starts hidden worker sessions of its own. The lead can open, watch or talk to any session at any time; Ekumen (`ekumen inbox`, the map) is how the lead sees which ones need attention.
 - **Manual first, then switch.** Until the CLI exists, the orchestrator maintains these files by hand in the documented format. As each piece ships, the manual step it replaces stops immediately, even if the piece is rough.
 - **Friction is data.** Every §C handoff includes a `FRICTION` section listing what was painful by hand and what was ambiguous in the format. It feeds the backlog.
-- **Self-hosting first.** Work that lets us *use* Ekumen on itself comes before everything else. Order for v0.1:
+- **Self-hosting first.** Work that lets us *use* Ekumen on itself comes before everything else. The order that took v0.1 to self-hosting (done; v1 order is in §7):
   1. **Foundations:** T-core and T-file-store.
   2. **Self-hosting slice:** C-cli-json, then T-cli (decisions, questions, tasks, handoffs, status, inbox, graph, and `ekumen map`, a static build map) and T-import (today's hand-written records become events). **Switch point:** from here on, nobody edits `.ekumen/` by hand. Agents and the orchestrator use `ekumen`.
   3. **Moving work by itself:** T-skills (`/blocked`, `/decide`), then T-reconcile, at first observing only git and pull requests.
