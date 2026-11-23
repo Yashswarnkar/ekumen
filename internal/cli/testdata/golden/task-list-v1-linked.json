@@ -1,0 +1,127 @@
+{
+  "tasks": [
+    {
+      "id": "T-done",
+      "aliases": [],
+      "title": "Already merged",
+      "kind": "build",
+      "status": "done",
+      "blocked_by": [
+        "C-api"
+      ],
+      "blocked_by_open": [],
+      "approved_on": "2026-11-20",
+      "branch": "build/t-done",
+      "session": null,
+      "tier_grants": [],
+      "observed": {
+        "pr": {
+          "number": 5,
+          "state": "merged",
+          "checks": "success",
+          "title": "T-done: merged",
+          "branch": "build/t-done",
+          "linked_by": "branch"
+        }
+      },
+      "brief": ".ekumen/briefs/T-done/brief.md"
+    },
+    {
+      "id": "T-next",
+      "aliases": [],
+      "title": "Comes after T-wait",
+      "kind": "build",
+      "status": "draft",
+      "blocked_by": [
+        "T-wait"
+      ],
+      "blocked_by_open": [
+        "T-wait"
+      ],
+      "approved_on": null,
+      "branch": null,
+      "session": null,
+      "tier_grants": [],
+      "observed": {
+        "pr": null
+      },
+      "brief": ".ekumen/briefs/T-next/brief.md"
+    },
+    {
+      "id": "T-stack",
+      "aliases": [],
+      "title": "Stacked branches",
+      "kind": "build",
+      "status": "done",
+      "blocked_by": [],
+      "blocked_by_open": [],
+      "approved_on": "2026-11-20",
+      "branch": "build/t-stack",
+      "session": null,
+      "tier_grants": [],
+      "observed": {
+        "pr": {
+          "number": 9,
+          "state": "merged",
+          "checks": "success",
+          "title": "core: second part",
+          "branch": "build/t-stack-2",
+          "linked_by": "stack"
+        }
+      },
+      "brief": ".ekumen/briefs/T-stack/brief.md"
+    },
+    {
+      "id": "T-titled",
+      "aliases": [],
+      "title": "No branch recorded",
+      "kind": "build",
+      "status": "done",
+      "blocked_by": [],
+      "blocked_by_open": [],
+      "approved_on": "2026-11-20",
+      "branch": null,
+      "session": null,
+      "tier_grants": [],
+      "observed": {
+        "pr": {
+          "number": 10,
+          "state": "merged",
+          "checks": "success",
+          "title": "T-titled: the work",
+          "branch": "feature/x",
+          "linked_by": "title"
+        }
+      },
+      "brief": ".ekumen/briefs/T-titled/brief.md"
+    },
+    {
+      "id": "T-wait",
+      "aliases": [],
+      "title": "Waits on the decision",
+      "kind": "build",
+      "status": "draft",
+      "blocked_by": [
+        "D-wide"
+      ],
+      "blocked_by_open": [
+        "D-wide"
+      ],
+      "approved_on": null,
+      "branch": "build/t-wait",
+      "session": null,
+      "tier_grants": [],
+      "observed": {
+        "pr": {
+          "number": 12,
+          "state": "draft",
+          "checks": "pending",
+          "title": "T-wait: start",
+          "branch": "build/t-wait",
+          "linked_by": "branch"
+        }
+      },
+      "brief": ".ekumen/briefs/T-wait/brief.md"
+    }
+  ]
+}

@@ -14,6 +14,7 @@ import (
 	"github.com/Yashswarnkar/ekumen/internal/core"
 	"github.com/Yashswarnkar/ekumen/internal/event"
 	"github.com/Yashswarnkar/ekumen/internal/mapview"
+	"github.com/Yashswarnkar/ekumen/internal/observe"
 	"github.com/Yashswarnkar/ekumen/internal/project"
 	"github.com/Yashswarnkar/ekumen/internal/store/files"
 )
@@ -71,12 +72,53 @@ func (r *run) status(args []string) error {
 	return nil
 }
 
+// printInbox prints each item as a block: what to do, why, what it
+// unblocks (as paths), and the command. Items are already ranked.
 func printInbox(w io.Writer, items []project.InboxItem) {
 	if len(items) == 0 {
 		fmt.Fprintln(w, "  nothing waiting")
 	}
-	for _, i := range items {
-		fmt.Fprintf(w, "  %-9s %-28s p=%-4g %s (%s)\n", i.Kind, i.ID, i.Priority, i.Title, i.Reason)
+	for n, i := range items {
+		if n > 0 {
+			fmt.Fprintln(w)
+		}
+		fmt.Fprintf(w, "%2d. %s\n", n+1, i.What)
+		line := func(label, text string) { fmt.Fprintf(w, "    %-9s %s\n", label+":", text) }
+		if i.OnBranch != "" {
+			line("raised", fmt.Sprintf("on branch %s, in PR #%d (not merged, so not on main yet)", i.OnBranch, i.PR))
+		}
+		line("why", i.Why)
+		switch {
+		case len(i.Path) > 0:
+			for k, p := range i.Path {
+				label := "unblocks:"
+				if k > 0 {
+					label = ""
+				}
+				fmt.Fprintf(w, "    %-9s %s\n", label, strings.Join(p, " → "))
+			}
+		case i.Kind == "decision" || i.Action == core.ActionFreeze || i.Action == core.ActionApply:
+			line("unblocks", "no unfinished task")
+		}
+		if len(i.ContractContext) > 0 {
+			line("touches", strings.Join(i.ContractContext, ", ")+" (context only; not counted in the ranking)")
+		}
+		if len(i.Options) > 0 {
+			var opts []string
+			for _, o := range i.Options {
+				if o == i.Recommendation {
+					o += " (recommended)"
+				}
+				opts = append(opts, o)
+			}
+			line("options", strings.Join(opts, ", "))
+		}
+		if i.Command != "" {
+			line("run", i.Command)
+		}
+		if i.Kind == "decision" {
+			line("details", "ekumen decision show "+i.ID+" · ekumen why "+i.ID)
+		}
 	}
 }
 
@@ -106,7 +148,7 @@ func (r *run) inbox(args []string) error {
 		For   string              `json:"for"`
 		Items []project.InboxItem `json:"items"`
 	}{who, items}, func(w io.Writer) {
-		fmt.Fprintf(w, "inbox for %s:\n", who)
+		fmt.Fprintf(w, "inbox for %s: %s, most pressing first\n\n", who, count(len(items), "item"))
 		printInbox(w, items)
 	})
 	return nil
@@ -235,6 +277,10 @@ func (r *run) taskShow(args []string) error {
 		if len(t.BlockedByOpen) > 0 {
 			fmt.Fprintf(w, "blocked by: %s\n", strings.Join(t.BlockedByOpen, ", "))
 		}
+		if t.Observed != nil && t.Observed.PR != nil {
+			pr := t.Observed.PR
+			fmt.Fprintf(w, "pull request: #%d %s (%s), branch %s, linked by %s\n", pr.Number, pr.State, pr.Title, pr.Branch, linkRuleText[pr.LinkedBy])
+		}
 		if u := t.PendingUpdate; u != nil {
 			fmt.Fprintf(w, "pending update: %s (%s); the lead accepts it with `ekumen task approve %s`\n", project.FormatUpdate(u.Fields), u.Reason, t.ID)
 		}
@@ -294,7 +340,18 @@ func (r *run) decisionShow(args []string) error {
 	}
 	id, err := r.findDecision(s, pos[0])
 	if err != nil {
-		return withKindHint(s, err, pos[0], event.KindDecision)
+		// A decision raised on an open branch is shown from there (#38).
+		bd, ok := s.FindBranchDecision(s.State.Resolve(pos[0]))
+		if !ok {
+			return withKindHint(s, err, pos[0], event.KindDecision)
+		}
+		r.warn("%s is raised on branch %s, in PR #%d, and is not on main yet", bd.ID, bd.Branch, bd.PR)
+		bs := s.OnBranch(bd)
+		r.out(map[string]any{"decision": bs.DecisionView(bd.ID), "on_branch": bd.Branch, "pr": bd.PR}, func(w io.Writer) {
+			b, _ := bs.DecisionYAML(bd.ID)
+			w.Write(b)
+		})
+		return nil
 	}
 	d := s.DecisionView(id)
 	r.out(map[string]any{"decision": d}, func(w io.Writer) {
@@ -653,4 +710,68 @@ func (r *run) projectCheck(s *project.Snapshot) error {
 		return &Error{Code: CodeValidation, Silent: true}
 	}
 	return nil
+}
+
+// count is "1 item" or "3 items".
+func count(n int, noun string) string {
+	if n == 1 {
+		return "1 " + noun
+	}
+	return fmt.Sprintf("%d %ss", n, noun)
+}
+
+func (r *run) why(args []string) error {
+	fs := r.newFlags("why")
+	pos, err := r.parse(fs, args, 1, 1, "why <task|decision|contract|external id>")
+	if err != nil {
+		return err
+	}
+	s, err := r.load()
+	if err != nil {
+		return err
+	}
+	w, err := s.WhyOf(pos[0])
+	if err != nil {
+		return fieldErr(CodeNotFound, "id", "no task, decision, contract or external dependency %q", pos[0])
+	}
+	r.out(w, func(out io.Writer) { printWhy(out, w) })
+	return nil
+}
+
+// printWhy prints the why view: the item, what would move it, what it
+// waits on (a tree), and what waits on it (paths).
+func printWhy(w io.Writer, v project.Why) {
+	fmt.Fprintf(w, "%s · %s · %s\n%s\n", v.ID, v.Kind, v.Status, v.Title)
+	if v.OnBranch != "" {
+		fmt.Fprintf(w, "raised on branch %s, in PR #%d (not on main yet)\n", v.OnBranch, v.PR)
+	}
+	fmt.Fprintf(w, "\nnext: %s\n", v.Next)
+	fmt.Fprintln(w, "\nwaits on:")
+	if len(v.WaitsOn) == 0 {
+		fmt.Fprintln(w, "  nothing open")
+	}
+	var tree func([]core.Wait, string)
+	tree = func(ws []core.Wait, indent string) {
+		for _, x := range ws {
+			fmt.Fprintf(w, "%s- %s: %s\n", indent, x.ID, x.Why)
+			tree(x.On, indent+"  ")
+		}
+	}
+	tree(v.WaitsOn, "  ")
+	fmt.Fprintln(w, "\nwaiting on it (unfinished work only):")
+	fmt.Fprintf(w, "  %s\n", v.Why)
+	for _, p := range v.Path {
+		t := p[len(p)-1]
+		fmt.Fprintf(w, "  %s  (%s is %s)\n", strings.Join(p, " → "), t, v.Statuses[t])
+	}
+	if len(v.ContractContext) > 0 {
+		fmt.Fprintf(w, "\ntouches: %s (context only; not counted in the ranking)\n", strings.Join(v.ContractContext, ", "))
+	}
+}
+
+// linkRuleText says how a PR was linked to its task (observe.LinkTask).
+var linkRuleText = map[string]string{
+	observe.LinkBranch: "branch (the recorded branch)",
+	observe.LinkStack:  "stack (the recorded branch plus -<n>)",
+	observe.LinkTitle:  "title (it starts with the task id and a colon)",
 }

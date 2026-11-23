@@ -1,0 +1,11 @@
+T-next · task · draft
+Comes after T-wait
+
+next: its open blockers clearing (below), then the lead approving it
+
+waits on:
+  - T-wait: not done yet (draft)
+    - D-wide: waits on the lead's answer
+
+waiting on it (unfinished work only):
+  Nothing unfinished waits on this.

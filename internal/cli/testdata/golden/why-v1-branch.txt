@@ -1,0 +1,12 @@
+D-on-branch · decision · pending
+Which status source the adapter trusts
+raised on branch build/t-wait, in PR #12 (not on main yet)
+
+next: the lead's answer, which waits on D-branch-decision-answer: it is raised on branch build/t-wait (PR #12), not on main
+
+waits on:
+  nothing open
+
+waiting on it (unfinished work only):
+  T-next can't start until this is decided.
+  D-on-branch → T-next  (T-next is draft)

@@ -45,13 +45,24 @@ type Snapshot struct {
 	Now     time.Time
 	// PRs maps a branch to its observed PR. Nil means observation was
 	// unavailable, so observed state is unknown.
-	PRs      map[string]observe.PR
+	PRs map[string]observe.PR
+	// PRList is every pull request observed (nil when unavailable), and
+	// Links the one linked to each task (observe.LinkTask), by task id.
+	PRList   []observe.PR
+	Links    map[string]observe.Linked
 	Observed core.Observed
 	// PRsObserved is ObserveOK, ObserveUnavailable or ObserveTruncated.
 	PRsObserved string
 
 	byID map[string]event.Event
 	name string
+
+	// For reading decisions on open branches lazily (BranchDecisions).
+	ctx        context.Context
+	observer   observe.Observer
+	warn       func(string)
+	branchRead bool
+	branches   []BranchDecision
 }
 
 // How pull requests were observed at load time.
@@ -102,7 +113,8 @@ func Load(ctx context.Context, opt Options) (*Snapshot, error) {
 	if fi, err := os.Stat(ek); err != nil || !fi.IsDir() {
 		return nil, fmt.Errorf("%s is not a folder", ek)
 	}
-	s := &Snapshot{Root: opt.Root, Store: files.New(ek), Now: opt.Now.UTC(), byID: map[string]event.Event{}, name: opt.Name}
+	s := &Snapshot{Root: opt.Root, Store: files.New(ek), Now: opt.Now.UTC(), byID: map[string]event.Event{}, name: opt.Name,
+		ctx: ctx, warn: warn}
 	if err := s.readEvents(); err != nil {
 		return nil, err
 	}
@@ -111,16 +123,17 @@ func Load(ctx context.Context, opt Options) (*Snapshot, error) {
 	if obs == nil {
 		obs = observe.None{}
 	}
+	s.observer = obs
 	prs, err := obs.PullRequests(ctx)
 	switch {
 	case errors.Is(err, observe.ErrTruncated):
 		warn("observed state may be incomplete: " + err.Error())
-		s.PRs, s.PRsObserved = observe.ByBranch(prs), ObserveTruncated
+		s.PRs, s.PRList, s.PRsObserved = observe.ByBranch(prs), prs, ObserveTruncated
 	case err != nil:
 		warn("observed state unknown: " + err.Error())
 		s.PRsObserved = ObserveUnavailable
 	default:
-		s.PRs, s.PRsObserved = observe.ByBranch(prs), ObserveOK
+		s.PRs, s.PRList, s.PRsObserved = observe.ByBranch(prs), prs, ObserveOK
 	}
 	s.Observed = s.observed()
 	return s, nil
@@ -178,14 +191,19 @@ func (s *Snapshot) Absorb(evs ...event.Event) {
 	s.Observed = s.observed()
 }
 
+// observed links pull requests to tasks (observe.LinkTask: recorded
+// branch, stacked branch, then title) and derives the observations core
+// reads. It also fills s.Links.
 func (s *Snapshot) observed() core.Observed {
 	o := core.Observed{Tasks: map[string]core.TaskObservation{}}
+	s.Links = map[string]observe.Linked{}
 	if s.PRs == nil {
 		return o
 	}
 	for id, t := range s.State.Tasks {
-		if pr, ok := s.PRs[t.Branch]; ok && t.Branch != "" {
-			o.Tasks[id] = core.TaskObservation{PR: core.PRState(pr.State)}
+		if l, ok := observe.LinkTask(s.PRList, t.Branch, append([]string{id}, t.Aliases...)...); ok {
+			s.Links[id] = l
+			o.Tasks[id] = core.TaskObservation{PR: core.PRState(l.State)}
 		}
 	}
 	return o

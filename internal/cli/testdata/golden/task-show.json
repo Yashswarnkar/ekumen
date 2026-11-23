@@ -25,7 +25,9 @@
         "number": 7,
         "state": "draft",
         "checks": "pending",
-        "title": "T-cli"
+        "title": "T-cli",
+        "branch": "build/t-cli",
+        "linked_by": "branch"
       }
     },
     "brief": ".ekumen/briefs/T-cli/brief.md"

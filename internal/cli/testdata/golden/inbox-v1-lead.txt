@@ -1,0 +1,18 @@
+inbox for lead: 2 items, most pressing first
+
+ 1. Decide D-wide: How writes stay all-or-nothing
+    why:      2 unfinished tasks wait on this: T-wait directly, and T-next through them.
+    unblocks: D-wide → T-wait
+              D-wide → T-wait → T-next
+    touches:  C-api (context only; not counted in the ranking)
+    options:  lock (recommended), journal
+    run:      ekumen decision answer D-wide <option>
+    details:  ekumen decision show D-wide · ekumen why D-wide
+
+ 2. Decide D-on-branch: Which status source the adapter trusts
+    raised:   on branch build/t-wait, in PR #12 (not merged, so not on main yet)
+    why:      T-next can't start until this is decided.
+    unblocks: D-on-branch → T-next
+    options:  listing, hooks
+    run:      none yet: answering waits on D-branch-decision-answer
+    details:  ekumen decision show D-on-branch · ekumen why D-on-branch

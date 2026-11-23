@@ -42,12 +42,9 @@
       "superseded_by": null,
       "applied_on": null,
       "applied": null,
-      "priority": 3,
+      "priority": 0,
       "holds_up": [
-        "C-event-log",
-        "T-cli",
-        "T-core",
-        "T-skills"
+        "C-event-log"
       ]
     },
     {
@@ -144,9 +141,7 @@
       "applied_on": null,
       "applied": null,
       "priority": 0,
-      "holds_up": [
-        "T-skills"
-      ]
+      "holds_up": []
     },
     {
       "id": "D-yaml-library",
@@ -201,10 +196,7 @@
         "notified_sessions": []
       },
       "priority": 0,
-      "holds_up": [
-        "T-cli",
-        "T-skills"
-      ]
+      "holds_up": []
     }
   ]
 }

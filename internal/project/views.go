@@ -22,6 +22,10 @@ type PRView struct {
 	Checks string `json:"checks"`
 	URL    string `json:"url,omitempty"`
 	Title  string `json:"title,omitempty"`
+	// Branch is the PR's head branch, and LinkedBy the rule that linked it
+	// to the task: branch, stack or title (GitHub #39).
+	Branch   string `json:"branch,omitempty"`
+	LinkedBy string `json:"linked_by,omitempty"`
 }
 
 // ObservedView is a task's observed state. A nil *ObservedView is "unknown".
@@ -138,7 +142,8 @@ type Question struct {
 	AnsweredAt *string `json:"answered_at"`
 }
 
-// InboxItem is the C-cli-json InboxItem shape.
+// InboxItem is the C-cli-json InboxItem shape. The fields after Command
+// were added by T-inbox-v1 (C-cli-json §5, a minor change).
 type InboxItem struct {
 	Kind      string   `json:"kind"`
 	ID        string   `json:"id"`
@@ -147,10 +152,34 @@ type InboxItem struct {
 	Reason    string   `json:"reason"`
 	CreatedAt string   `json:"created_at"`
 	Subject   *Subject `json:"subject,omitempty"`
-	// Action and Command are set on kind "action" items (C-cli-json v3):
-	// approve, freeze or apply, and the command that does it.
+	// Action is set on kind "action" items (C-cli-json v3): approve,
+	// freeze or apply. Command is the command that acts on the item.
 	Action  string `json:"action,omitempty"`
 	Command string `json:"command,omitempty"`
+	// What is one plain line saying what to do.
+	What string `json:"what"`
+	// Why says, in plain words, why it matters.
+	Why string `json:"why"`
+	// Unblocks are the unfinished tasks it holds up (core.ImpactOf), Path
+	// one chain from the item to each of them, Direct the ones that wait
+	// on it directly, and ContractContext the contracts a decision may
+	// change: context, not counted.
+	Unblocks        []string   `json:"unblocks"`
+	Path            [][]string `json:"path"`
+	Direct          []string   `json:"direct"`
+	ContractContext []string   `json:"contract_context"`
+	// Options lists a decision's option ids, and Recommendation the
+	// raiser's pick.
+	Options        []string `json:"options,omitempty"`
+	Recommendation string   `json:"recommendation,omitempty"`
+	// OnBranch and PR are set on a decision raised on an open pull
+	// request's branch and not on main (GitHub #38). Answerable is false
+	// while such a decision cannot be answered yet, with BlockedBy naming
+	// the decision it waits on.
+	OnBranch   string `json:"on_branch,omitempty"`
+	PR         int    `json:"pr,omitempty"`
+	Answerable *bool  `json:"answerable,omitempty"`
+	BlockedBy  string `json:"blocked_by,omitempty"`
 }
 
 // Node is a graph node.
@@ -301,8 +330,9 @@ func (s *Snapshot) TaskView(id string) Task {
 	}
 	if s.PRs != nil {
 		v.Observed = &ObservedView{}
-		if pr, ok := s.PRs[t.Branch]; ok && t.Branch != "" {
-			v.Observed.PR = &PRView{Number: pr.Number, State: pr.State, Checks: pr.Checks, URL: pr.URL, Title: pr.Title}
+		if l, ok := s.Links[id]; ok {
+			v.Observed.PR = &PRView{Number: l.Number, State: l.State, Checks: l.Checks, URL: l.URL, Title: l.Title,
+				Branch: l.Branch, LinkedBy: l.By}
 		}
 	}
 	return v
@@ -334,11 +364,11 @@ func (s *Snapshot) DecisionIDs() []string {
 }
 
 // HoldsUp lists what a decision holds up: its contract_impact plus the
-// tasks core.BlockedByDecision reaches, sorted.
+// unfinished tasks core.BlockedByDecision reaches, sorted.
 func (s *Snapshot) HoldsUp(id string) []string {
 	d := s.State.Decisions[id]
 	out := s.resolveAll(d.ContractImpact)
-	for _, t := range core.BlockedByDecision(&s.State, id) {
+	for _, t := range core.BlockedByDecision(&s.State, s.Observed, id) {
 		if !slices.Contains(out, t) {
 			out = append(out, t)
 		}
@@ -394,7 +424,7 @@ func (s *Snapshot) DecisionView(id string) Decision {
 		v.Applied = &Applied{list(d.Applied.AmendedTasks), list(d.Applied.UnblockedTasks), list(d.Applied.NotifiedSessions)}
 	}
 	if d.Status == core.StatusPending {
-		v.Priority = float64(core.Priority(&s.State, id, s.Now))
+		v.Priority = float64(core.Priority(&s.State, s.Observed, id, s.Now))
 	}
 	return v
 }
@@ -466,80 +496,6 @@ func NormalizeOwner(o string) string {
 }
 
 // ---- inbox ----
-
-// Inbox lists what waits on owner (a role name or session name), ranked:
-// for the lead, pending decisions by priority (core.PendingDecisions), then
-// unrecorded conflicts, then the lead's next moves (kind "action",
-// core.LeadActions: approve, freeze, apply); for the orchestrator, its
-// next moves (core.OrchestratorActions: brief); then, for everyone, open
-// routed items (questions and handoffs), oldest first.
-func (s *Snapshot) Inbox(owner string) []InboxItem {
-	out := []InboxItem{}
-	if owner == string(event.RoleLead) {
-		for _, r := range core.PendingDecisions(&s.State, s.Now) {
-			d := s.State.Decisions[r.ID]
-			reason := fmt.Sprintf("blocks %d task%s", r.Blocked, plural(r.Blocked))
-			if d.Deadline != nil {
-				reason += ", due " + *d.Deadline
-			}
-			out = append(out, InboxItem{Kind: "decision", ID: r.ID, Title: d.Title, Priority: float64(r.Priority),
-				Reason: reason, CreatedAt: s.atOf(d.Raises[0].Event)})
-		}
-		for _, c := range s.Conflicts() {
-			out = append(out, InboxItem{Kind: "conflict", ID: "conflict-" + c.Rule + "-" + strings.ToLower(first(c.Events)),
-				Title: c.Detail, Reason: "rule " + c.Rule, CreatedAt: s.atOf(last(c.Events))})
-		}
-		out = append(out, s.actionItems(core.LeadActions(&s.State, s.Observed, s.Now, s.hasBrief))...)
-	}
-	if owner == string(event.RoleOrchestrator) {
-		out = append(out, s.OrchestratorActions()...)
-	}
-	var routes []InboxItem
-	for _, r := range s.Routes() {
-		if !r.Open || r.To != owner {
-			continue
-		}
-		sub := &Subject{string(r.Subject.Kind), s.State.Resolve(r.Subject.ID)}
-		item := InboxItem{Kind: "route", ID: r.ID, Reason: r.Reason, CreatedAt: s.atOf(r.FromEvent), Subject: sub}
-		if from, ok := s.byID[r.FromEvent]; ok {
-			switch from.Type {
-			case event.QuestionAskedType:
-				var q event.QuestionAsked
-				if p, err := from.Payload(); err == nil {
-					q = *p.(*event.QuestionAsked)
-				}
-				item.Kind, item.ID, item.Title = "question", q.QuestionID, q.Text
-			case event.TaskHandoffType:
-				var h event.TaskHandoff
-				if p, err := from.Payload(); err == nil {
-					h = *p.(*event.TaskHandoff)
-				}
-				item.Title = fmt.Sprintf("%s handoff: %s", sub.ID, h.StatusLine)
-			}
-		}
-		routes = append(routes, item)
-	}
-	slices.SortFunc(routes, func(a, b InboxItem) int {
-		return cmp.Or(cmp.Compare(a.CreatedAt, b.CreatedAt), cmp.Compare(a.ID, b.ID))
-	})
-	return append(out, routes...)
-}
-
-// OrchestratorActions are the orchestrator's action items
-// (core.OrchestratorActions): tasks drafted without a brief.
-func (s *Snapshot) OrchestratorActions() []InboxItem {
-	return s.actionItems(core.OrchestratorActions(&s.State, s.Observed, s.briefLookup))
-}
-
-func (s *Snapshot) actionItems(as []core.LeadAction) []InboxItem {
-	out := []InboxItem{}
-	for _, a := range as {
-		out = append(out, InboxItem{Kind: "action", ID: a.Subject.ID, Title: s.actionTitle(a), Reason: a.Reason,
-			CreatedAt: s.atOf(a.Event), Subject: &Subject{string(a.Subject.Kind), a.Subject.ID},
-			Action: a.Action, Command: a.Command})
-	}
-	return out
-}
 
 func (s *Snapshot) briefLookup(id string) (string, bool, error) {
 	p, err := s.BriefPath(id)

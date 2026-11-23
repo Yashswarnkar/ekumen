@@ -13,7 +13,13 @@
         "id": "T-skills"
       },
       "action": "brief",
-      "command": "write .ekumen/briefs/T-skills/brief.md"
+      "command": "write .ekumen/briefs/T-skills/brief.md",
+      "what": "Write the brief for T-skills: Skills",
+      "why": "The lead can't approve a task without a brief.",
+      "unblocks": [],
+      "path": [],
+      "direct": [],
+      "contract_context": []
     },
     {
       "kind": "route",
@@ -25,7 +31,14 @@
       "subject": {
         "kind": "task",
         "id": "T-cli"
-      }
+      },
+      "command": "ekumen route resolve route-01M7W42VG0000000000000000N --note \"…\"",
+      "what": "Read T-cli's handoff and fold it in: Done, in review.",
+      "why": "The session handed off with items for you (handoff has follow-ups, decisions raised or deviations).",
+      "unblocks": [],
+      "path": [],
+      "direct": [],
+      "contract_context": []
     }
   ]
 }

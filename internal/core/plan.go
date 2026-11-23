@@ -114,7 +114,7 @@ type PlanInput struct {
 //     The deadline day itself is still answerable (Urgency's "overdue").
 //  2. apply: each decided or defaulted decision that is not applied or
 //     superseded, as `decision apply` does (ApplyEffectOf): a TaskAmended
-//     per drafted task in blocks not yet amended for it, then
+//     per task the decision gates (Gates) not yet amended for it, then
 //     DecisionApplied. Defaults of this pass are applied in this pass.
 //     Held, not planned, when the observation is incomplete (DecisionApplied
 //     records unblocked_tasks for good) or the decision is contested

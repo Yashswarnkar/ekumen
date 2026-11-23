@@ -54,8 +54,8 @@ func view(events []event.Event) goldenView {
 	return goldenView{
 		State:     s,
 		Statuses:  TaskStatuses(&s, obs),
-		LeadInbox: Inbox(&s, "lead", now),
-		OrchInbox: Inbox(&s, "orchestrator", now),
+		LeadInbox: Inbox(&s, obs, "lead", now),
+		OrchInbox: Inbox(&s, obs, "orchestrator", now),
 		Routes:    Route(&s, events),
 		Conflicts: Conflicts(&s, events, ConflictInputs{TextSHA256: map[string]string{".ekumen/contracts/C-event-log.md": "aaa2"}}),
 	}

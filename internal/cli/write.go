@@ -303,6 +303,9 @@ func (r *run) decisionAnswer(args []string) error {
 	}
 	id, err := r.findDecision(s, pos[0])
 	if err != nil {
+		if bd, ok := s.FindBranchDecision(s.State.Resolve(pos[0])); ok {
+			return fieldErr(CodeValidation, "id", "%v", bd.BranchAnswerBlocked())
+		}
 		return err
 	}
 	if err := r.probe(s, a, event.DecisionDecidedType, event.Subject{Kind: event.KindDecision, ID: id}); err != nil {

@@ -11,7 +11,14 @@
       "subject": {
         "kind": "task",
         "id": "T-cli"
-      }
+      },
+      "command": "ekumen question answer q-01m7w3vh40000000000000000h --text \"…\"",
+      "what": "Answer lead:yash's question about T-cli: Is the map offline?",
+      "why": "lead:yash asked and is waiting for the answer.",
+      "unblocks": [],
+      "path": [],
+      "direct": [],
+      "contract_context": []
     }
   ]
 }

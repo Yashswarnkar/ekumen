@@ -23,8 +23,9 @@ var (
 // DecisionApplied {amended_tasks: Tasks, unblocked_tasks: Unblocked}.
 type ApplyEffect struct {
 	Decision string `json:"decision"`
-	// Tasks are the drafted tasks in the decision's `blocks`, resolved,
-	// in order: amended_tasks.
+	// Tasks are the drafted tasks the decision gates (Gates): those in its
+	// `blocks`, resolved, in order, then those whose blocked_by names it,
+	// by id: amended_tasks.
 	Tasks []string `json:"tasks"`
 	// Amend are the Tasks not yet amended for this decision.
 	Amend []string `json:"amend"`
@@ -67,6 +68,15 @@ func ApplyEffectOf(s *State, events []event.Event, obs Observed, id string, now 
 			continue
 		}
 		eff.Tasks = append(eff.Tasks, tid)
+	}
+	// A task whose blocked_by names the decision is gated too (Gates,
+	// GitHub #63), so it is amended as well, after those in `blocks`.
+	for _, tid := range Gates(s, id) {
+		if !slices.Contains(eff.Tasks, tid) {
+			eff.Tasks = append(eff.Tasks, tid)
+		}
+	}
+	for _, tid := range eff.Tasks {
 		if !AmendedFor(s.Tasks[tid], id) {
 			eff.Amend = append(eff.Amend, tid)
 		}

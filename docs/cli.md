@@ -29,7 +29,7 @@ $ ekumen status --as lead:yash --json
   "project": "ekumen",
   "generated_at": "2026-11-20T09:21:00Z",
   "counts": {"tasks_by_status": {"done": 1, "draft": 1, "running": 1}, "decisions_open": 2, "routes_open": 2, "conflicts": 0},
-  "inbox_top": [{"kind": "decision", "id": "D-new-choice", "title": "…", "priority": 5, "reason": "blocks 1 task, due 2026-11-20", "created_at": "…"}]
+  "inbox_top": [{"kind": "decision", "id": "D-new-choice", "title": "…", "priority": 5, "reason": "holds up 1 unfinished task, due 2026-11-20", "created_at": "…", "what": "…", "why": "…", …}]
 }
 ```
 
@@ -37,13 +37,36 @@ $ ekumen status --as lead:yash --json
 
 ### `ekumen inbox [--for lead|orchestrator|<session>]`
 
+Each item is a block: **what** to do, **why** it matters, what it **unblocks** (as paths from the item to each unfinished task), and the command to **run**. No scores are printed; the order is the ranking.
+
 ```
-$ ekumen inbox --for orchestrator
-inbox for orchestrator:
-  route     route-01M7W42VG0000000000000000N p=0    T-cli handoff: Done, in review. (handoff has follow-ups, …)
+$ ekumen inbox --for lead
+inbox for lead: 12 items, most pressing first
+
+ 1. Decide D-write-atomicity: How writes stay all-or-nothing and safe with concurrent writers
+    why:      T-loop-hardening can't start until this is decided.
+    unblocks: D-write-atomicity → T-loop-hardening
+    touches:  C-event-log (context only; not counted in the ranking)
+    options:  lock-and-commit-last (recommended), journal, lock-only
+    run:      ekumen decision answer D-write-atomicity <option>
+    details:  ekumen decision show D-write-atomicity · ekumen why D-write-atomicity
+
+ 2. Decide D-claude-bg-workspace-trust: How managed Start handles a task worktree that Claude Code does not trust yet
+    raised:   on branch build/t-claude-adapter, in PR #25 (not merged, so not on main yet)
+    why:      Nothing unfinished waits on this.
+    unblocks: no unfinished task
+    options:  unsupported-then-paste (recommended), lead-trusts-worktree-root, adapter-accepts-trust
+    run:      none yet: answering waits on D-branch-decision-answer
+    …
 ```
 
 Ranked: for the lead, pending decisions by priority, then conflicts, then the lead's next moves (`kind: action`, below); for the orchestrator, its next moves (`kind: action`, `action: brief`, below); then, for every owner, open routed items (questions and handoffs needing action), oldest first. Until the control loop exists, the CLI computes the routes the loop would write (C-event-log §4), so questions and handoffs show up straight away. `--for session:t-cli` and `--for t-cli` are the same.
+
+**How decisions are ranked (T-inbox-v1).** Priority = unfinished tasks held up × deadline urgency (1 with no deadline or 8+ days away, up to 6 when overdue), then earliest deadline, then id. A decision *gates* a task when its `blocks` lists the task **or** the task's `blocked_by` lists the decision. It holds up the tasks it gates and, transitively, every task waiting on those (through tasks and the contracts they block). Done and deferred tasks never count and are never walked through. Contracts in `contract_impact` are shown as `touches` (context) and do not count. A decision that is applied or superseded holds up nothing.
+
+**Decisions raised on branches (GitHub #38).** The lead's inbox also lists decisions raised on the head branch of an open or draft PR that are not in the local log, read with `gh api graphql` (read-only: nothing is fetched, merged or checked out). They carry `on_branch`, `pr` (the lowest PR number whose branch has it), `answerable: false` and `blocked_by: "D-branch-decision-answer"`: answering one is refused (exit 2) until that decision says how an answer on main refers to a decision not on main yet. `decision show` and `why` show them, with a warning that they are not on main.
+
+With `--json`, every item has the C-cli-json fields plus `what`, `why`, `unblocks` (task ids), `path` (one id chain per unblocked task), `direct` (tasks that wait on it directly) and `contract_context`; decisions add `options` and `recommendation`, branch decisions `on_branch`, `pr`, `answerable` and `blocked_by` (C-cli-json §5, a minor change).
 
 The lead's `action` items carry `action` and `command` (C-cli-json v3), with `subject` naming the item:
 
@@ -64,7 +87,34 @@ $ ekumen inbox --for lead --json
 {"for": "lead", "items": [
   {"kind": "action", "id": "C-http-api", "title": "Freeze C-http-api: HTTP API for the UI", "priority": 0,
    "reason": "draft contract with no open blockers", "created_at": "…",
-   "subject": {"kind": "contract", "id": "C-http-api"}, "action": "freeze", "command": "ekumen contract freeze C-http-api"}]}
+   "subject": {"kind": "contract", "id": "C-http-api"}, "action": "freeze", "command": "ekumen contract freeze C-http-api",
+   "what": "Freeze C-http-api: HTTP API for the UI",
+   "why": "Draft contract with no open blockers. 3 unfinished tasks wait on this: T-server directly, and T-decision-views and T-graph-view through them.",
+   "unblocks": ["T-decision-views", "T-graph-view", "T-server"],
+   "path": [["C-http-api", "T-server"], ["C-http-api", "T-server", "T-decision-views"], ["C-http-api", "T-server", "T-graph-view"]],
+   "direct": ["T-server"], "contract_context": []}]}
+```
+
+### `ekumen why <id>`
+
+For a task, decision (on main or on an open branch), contract or external dependency: what would move it on, what it waits on (its open blockers, each with *their* open blockers), and what unfinished work waits on it, as paths.
+
+```
+$ ekumen why T-next
+T-next · task · draft
+Comes after T-wait
+
+next: its open blockers clearing (below), then the lead approving it
+
+waits on:
+  - T-wait: not done yet (draft)
+    - D-wide: waits on the lead's answer
+
+waiting on it (unfinished work only):
+  Nothing unfinished waits on this.
+```
+
+`--json` prints `{id, kind, title, status, next, waits_on: [{id, why, on: […], repeat?}], why, direct, unblocks, path, contract_context, statuses}`, plus `on_branch` and `pr` for a branch decision. Exit `3` for an unknown id.
 ```
 
 ### `ekumen task list [--status s]` / `ekumen task show <id>`
@@ -75,6 +125,8 @@ T-skills               blocked    Skills  [blocked by D-new-choice, T-cli]
 
 $ ekumen task show T-cli --json     # {task, brief: {text, amendments: [Entry], handoffs: [Entry]}}
 ```
+
+**Which pull request stands for a task (GitHub #39).** A PR is linked to a task when its head branch is the task's recorded branch (`branch`), or that branch plus `-<n>` (`stack`: `build/t-reconcile-2`), or its title starts with `<task id>:` (`title`; an alias works too). Among the PRs that match, an open or draft PR wins over a merged one, and a merged one over a closed one, so a task with a PR still open is not done; then the earlier rule, then the higher number. `observed.pr` carries `branch` and `linked_by`, and `task show` prints `pull request: #19 merged (…), branch build/t-reconcile, linked by branch (the recorded branch)`.
 
 A task with an update waiting for the lead (see `task update` under [Write commands](#write-commands)) carries `pending_update`; every other field shows the current values:
 
@@ -91,7 +143,7 @@ D-claim-lane                       t2 pending    p=3    Who writes RoleClaimed
 $ ekumen decision show D-yaml-library      # prints the decision as YAML; --json gives {decision}
 ```
 
-`priority` = tasks held up × deadline urgency (C-decision-record §1), for pending decisions; `holds_up` lists the contracts in `contract_impact` and every task reached downstream.
+`priority` = unfinished tasks held up × deadline urgency, for pending decisions (see [How decisions are ranked](#ekumen-inbox---for-leadorchestratorsession)); `holds_up` lists the contracts in `contract_impact` and the unfinished tasks held up. An applied or superseded decision holds up nothing.
 
 `decision show`, `task show` and `contract show` given an id of another kind still exit `3`, and the message names the command that shows it:
 
