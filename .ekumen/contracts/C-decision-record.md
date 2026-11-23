@@ -4,7 +4,7 @@ aliases: [C2]
 title: Decision record
 status: frozen         # draft | frozen
 frozen_on: 2026-11-20
-version: 2
+version: 3
 consumers: [T-core, T-file-store, T-cli, T-server, T-decision-views, T-import]
 producers: [T-core]
 ---
@@ -32,7 +32,7 @@ A decision is a choice above a session's tier and a gate on the tasks it blocks 
 | `default_if_no_answer` | option id \| null | tier 1: **required**. Tier 2: **must be null**. | Applied by the control loop after `deadline`. |
 | `deadline` | date \| null | tier 1: **required**. Tier 2: optional. | Drives priority. |
 | `blocks` | list of task ids | yes (may be empty) | These tasks are blocked until the decision is applied. |
-| `contract_impact` | list of contract ids | yes (may be empty) | Non-empty → must be tier 2; applying it starts the contract-change protocol. |
+| `contract_impact` | list of contract ids | yes (may be empty) | Non-empty → must be tier 2; applying it starts the contract-change protocol (§3). |
 | `context.summary` | string | yes | ≤ 150 words. Why it came up, what was tried, what evidence exists. |
 | `context.evidence` | list of strings | no | Repo paths (optionally `#anchor`) or URLs. |
 | `context.prior_decisions` | list of decision ids | no | |
@@ -75,7 +75,14 @@ pending ──(lead answers)──────────────► decide
 ```
 
 - **Applied** is not a status. It is recorded as `applied_on`, because a decided record stays decided after it is applied.
-- **Applying** is done only by the control loop, and is idempotent. It adds a §B amendment to every task in `blocks`, removes the decision from their blockers, and messages live sessions.
+- **Applying** is done only by the control loop (`ekumen reconcile`, or `ekumen decision apply` run as the loop), and is idempotent. It adds a §B amendment to every task in `blocks` (written by the loop with `by_decision`; D-apply-amend-lane), removes the decision from their blockers, and messages live sessions.
+- **Contract-change protocol** (D-contract-version-recording). A decided decision with `contract_impact` changes each contract it names in four steps:
+  1. The orchestrator edits the contract body and bumps its front-matter `version`.
+  2. The orchestrator records `ContractVersioned {version, by_decision, text_sha256}` with `ekumen contract version <id> --by <decision>`. This is refused unless the decision is decided or defaulted and names the contract, and the version is higher than the frozen one.
+  3. The lead freezes the new text with `ekumen contract freeze <id>`. Freezing a new version of a frozen contract that wasn't recorded this way is refused.
+  4. Until the freeze, `check` accepts the recorded text.
+
+  Draft contracts change freely until their first freeze.
 - A **superseded** decision is never applied, and it **stops blocking**. Its replacement carries the gate and should list the same `blocks` (D-blocker-semantics).
 - A decided decision is **never reopened**. To change course, raise a new decision that supersedes it.
 
@@ -92,3 +99,10 @@ pending ──(lead answers)──────────────► decide
 ## Version 2 (2026-11-20)
 
 - Superseded decisions stop blocking; priority's reach and the urgency formula are defined (D-blocker-semantics, D-urgency-formula).
+
+## Version 3 (2026-11-23)
+
+Consolidated from handoff proposals by the orchestrator (GitHub #57).
+
+- Defined the contract-change protocol (D-contract-version-recording).
+- Amendments added by applying a decision are written by the loop (D-apply-amend-lane).
