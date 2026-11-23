@@ -1,0 +1,17 @@
+[
+  {"cwd":"/work/d","id":"d0000001","kind":"background","name":"working-busy","sessionId":"d0000001-0000-4000-8000-000000000001","startedAt":1795170000000,"state":"working","pid":201,"status":"busy"},
+  {"cwd":"/work/d","id":"d0000002","kind":"background","name":"working","sessionId":"d0000002-0000-4000-8000-000000000002","startedAt":1795170000000,"state":"working"},
+  {"cwd":"/work/d","id":"d0000003","kind":"background","name":"wait-permission","sessionId":"d0000003-0000-4000-8000-000000000003","startedAt":1795170000000,"state":"blocked","pid":203,"status":"waiting","waitingFor":"permission prompt"},
+  {"cwd":"/work/d","id":"d0000004","kind":"background","name":"wait-input","sessionId":"d0000004-0000-4000-8000-000000000004","startedAt":1795170000000,"state":"blocked","pid":204,"status":"waiting","waitingFor":"input needed"},
+  {"cwd":"/work/d","id":"d0000005","kind":"background","name":"wait-sandbox","sessionId":"d0000005-0000-4000-8000-000000000005","startedAt":1795170000000,"state":"blocked","pid":205,"status":"waiting","waitingFor":"sandbox request"},
+  {"cwd":"/work/d","id":"d0000006","kind":"background","name":"wait-worker","sessionId":"d0000006-0000-4000-8000-000000000006","startedAt":1795170000000,"state":"blocked","pid":206,"status":"waiting","waitingFor":"worker request"},
+  {"cwd":"/work/d","id":"d0000007","kind":"background","name":"wait-dialog","sessionId":"d0000007-0000-4000-8000-000000000007","startedAt":1795170000000,"state":"blocked","pid":207,"status":"waiting","waitingFor":"dialog open"},
+  {"cwd":"/work/d","id":"d0000008","kind":"background","name":"done-idle","sessionId":"d0000008-0000-4000-8000-000000000008","startedAt":1795170000000,"state":"done","pid":208,"status":"idle"},
+  {"cwd":"/work/d","id":"d0000009","kind":"background","name":"done","sessionId":"d0000009-0000-4000-8000-000000000009","startedAt":1795170000000,"state":"done"},
+  {"cwd":"/work/d","id":"d000000a","kind":"background","name":"stopped","sessionId":"d000000a-0000-4000-8000-00000000000a","startedAt":1795170000000,"state":"stopped"},
+  {"cwd":"/work/d","kind":"interactive","name":"term-wait","pid":211,"sessionId":"d000000b-0000-4000-8000-00000000000b","startedAt":1795170000000,"status":"waiting","waitingFor":"permission prompt"},
+  {"cwd":"/work/u","kind":"remote","name":"unknown-kind","sessionId":"e0000001-0000-4000-8000-000000000001","startedAt":1795170000000,"status":"busy"},
+  {"cwd":"/work/u","kind":"interactive","name":"unknown-status","pid":301,"sessionId":"e0000002-0000-4000-8000-000000000002","startedAt":1795170000000,"status":"sleeping"},
+  {"cwd":"/work/u","id":"e0000003","kind":"background","name":"unknown-state","sessionId":"e0000003-0000-4000-8000-000000000003","startedAt":1795170000000,"state":"paused"},
+  {"cwd":"/work/u","kind":"interactive","name":"unknown-waiting","pid":302,"sessionId":"e0000004-0000-4000-8000-000000000004","startedAt":"2026-11-20T10:00:00Z","status":"waiting","waitingFor":"coffee"}
+]
