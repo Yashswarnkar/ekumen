@@ -322,7 +322,7 @@ $ ekumen --as orchestrator:main task attach T-skills --session t-skills --adapte
 attached T-skills to session t-skills
 ```
 
-Records `TaskSessionAttached`. The session (`t-skills` or `session:t-skills`) then writes in the task's lane, alongside the session named at draft time. Attaching the same session and adapter again records nothing.
+Records `TaskSessionAttached`. The session (`t-skills` or `session:t-skills`) then writes in the task's lane, alongside the session named at draft time. Attaching the same session and adapter again records nothing. `task start` attaches for you.
 
 ### `ekumen task block <id> --add x --remove y --reason t` (orchestrator, with the claim)
 
@@ -513,6 +513,77 @@ notify: t-gated
 - **Exit codes:** `0` when every action was taken or held, including when the pass recorded conflicts: they are now decisions in the lead's inbox, and `ekumen check` stays the CI gate. With anything in `skipped`, the full report is still printed, with `ok: false`, and the exit is `2` when every skip was a refusal (lane or validation), else `5`. If the events were recorded but the projections could not be written, the exit is `5` with the error shape, and `error.details` is `{events, paths}`: what was recorded.
 - **Run one pass at a time.** There is no write lock yet (issue #12). Before each default or apply, the pass reads the log again and drops the action (held, "already done by another writer") if another writer did it since the load. That narrows the window but does not close it. Two passes that both write an apply leave two §B amendments for good: the reducer ignores the second `DecisionApplied`, but not its amendment. Two passes run as different `loop:<session>` actors can also raise the same conflict decision, which `check` reports as `id-collision`.
 
+## Setup commands
+
+### `ekumen init [--project name] [--lead handle]`
+
+Starts a project in the current folder (or `--root`), which must be inside a git repository and have no `.ekumen/` yet (otherwise exit 2). It writes, and only inside that folder:
+
+- the layout `.ekumen/{events,briefs,contracts,decisions,research}/` (a `.gitkeep` in each but `events/`, so the layout can be committed);
+- `.ekumen/spine.md`, a short template with the section headings and placeholder text;
+- `.ekumen/config.yaml` (below), with `project` (default: the origin repository's name, else the folder's), `lead` and the default agent;
+- the missing lines among `.ekumen/registry.yaml`, `.ekumen/state.json` and `.worktrees/` in `.gitignore`.
+
+It records no events, never commits, and prints the next steps. `ekumen check` on the result is clean.
+
+```
+$ ekumen init --lead yash --json
+{"ok": true, "events": [], "paths": [".ekumen/briefs/.gitkeep", …, ".ekumen/spine.md", ".ekumen/config.yaml", ".gitignore"],
+ "project": "demo", "next": ["Fill in .ekumen/spine.md, …", …]}
+```
+
+### `.ekumen/config.yaml`
+
+Optional, committed, edited by its owner. Every field is optional:
+
+```yaml
+project: ekumen                 # the project's name
+lead: Yashswarnkar              # the lead's handle
+agents:
+  default: claude-code          # which entry `task start` uses
+  claude-code: {command: "~/.local/bin/claude"}   # starts a session; prefer an absolute path
+setup: ["go build -o bin/ekumen ./cmd/ekumen"]    # run in each new worktree
+```
+
+Agent tool names live only in this file (spine §5 rule 12). `ekumen init` writes `claude-code` with command `claude` as a default to edit; the CLI itself names no agent.
+
+### `ekumen task start <id> [--open] [--agent name] [--setup]` (orchestrator, with the claim)
+
+Sets up a task's environment, replacing the hand-made recipe (spine §8):
+
+1. **Check.** The task is approved, not deferred or done, has no open blockers, has `base_branch`, `branch`, `worktree` and `session`, its brief has a **Start prompt** block, and an agent is configured. Otherwise exit 2 with every reason and the command that fixes it (`--json`: `error.details.reasons`). Nothing is created.
+2. **Worktree.** Paths are relative to the project's folder in the repository's main working tree, so running it from another worktree doesn't nest. If the worktree exists, it must be a git worktree on the task's branch; it is reused and never changed. Otherwise: an existing local branch is checked out into it, or the branch is created from `origin/<base_branch>` (fetched first; a failed fetch is a warning) without tracking it.
+3. **Attach.** `TaskSessionAttached` with the recorded session and the agent's name as adapter, unless that session is already attached. A session named only at draft time counts as not attached.
+4. **Setup.** The config's `setup` commands, with `sh -c` in a new worktree (or an existing clean one with `--setup`). Their output goes to stderr. A worktree with uncommitted changes is left alone, with a warning.
+5. **Prompt file.** `<worktree's folder>/<id>.prompt.txt`, e.g. `.worktrees/T-start.prompt.txt`: who the session is, `EKUMEN_ACTOR=session:<session>`, the setup reminder, and the brief's Start prompt block verbatim (the indented or fenced block after `**Start prompt:**` or a `## Start prompt` heading). Rewritten only when its text changes.
+6. **Command.** The one line the lead pastes into a new terminal. The agent is `--agent`, else the task's attached adapter if configured, else `agents.default`, else the only one configured. A command whose first word is a bare name is resolved to an absolute path on `PATH` (never an alias, C-adapter §6).
+
+`--open` also opens a new macOS Terminal window running the command (through `osascript`, with the command passed as an argument). Elsewhere it prints the command and warns that `--open` isn't supported on this platform.
+
+Running it again changes nothing and prints the same command (`done` is empty).
+
+```
+$ ekumen --as orchestrator:main task start T-start
+T-start set up in /work/ekumen/.worktrees/t-start (branch, worktree, attach, setup, prompt).
+Paste into a new terminal:
+
+  cd '/work/ekumen/.worktrees/t-start' && EKUMEN_ACTOR=session:t-start /Users/me/.local/bin/claude "$(cat '/work/ekumen/.worktrees/T-start.prompt.txt')"
+
+$ ekumen task start T-start --json      # {ok, events, paths, task, session, agent, branch,
+                                        #  worktree, prompt, done: [...], command, opened}
+```
+
+### `ekumen task start --list`
+
+Every approved, unblocked task whose worktree doesn't exist yet: the tasks the lead could open now. No actor needed. A task missing location fields is listed with what is `missing`; the others carry the `command` to start them.
+
+```
+$ ekumen task start --list
+T-audit                ready     Recurring read-only audit
+    ekumen task start T-audit
+$ ekumen task start --list --json       # {tasks: [{id, title, status, branch, worktree, session, missing, command}]}
+```
+
 ## Skills commands
 
 These need no actor and write nothing under `.ekumen/`; they work outside a project. See [Skills](skills.md).
@@ -558,6 +629,6 @@ After the switch point nobody edits `.ekumen/` by hand, with these exceptions (D
 | `.ekumen/contracts/<id>.md` | orchestrator | Draft: free to edit. Frozen: changed only through a decided tier-2 decision, `contract version` and `contract freeze`; `check` reports `frozen-text-changed` otherwise. |
 | `.ekumen/briefs/<id>/brief.md` (§A) | orchestrator | Only before `task approve`, which hashes it; afterwards `check` reports `frozen-text-changed`. Changes go in §B (`task amend`). |
 | `.ekumen/research/*.md` | the research task's session | Cited as evidence; no hash yet. |
-| `.ekumen/config.yaml` (optional) | orchestrator | `project:` names the project; `lead:` is the lead's handle (else the latest lead in the log). |
+| `.ekumen/config.yaml` (optional) | orchestrator | `project:` names the project; `lead:` is the lead's handle (else the latest lead in the log); `agents:` and `setup:` are read by `task start`. See [Setup commands](#setup-commands). |
 
 Everything else (events, amendments, handoffs, generated files) is written by `ekumen`. An amendment or handoff file with no event is reported by `check` as `orphan-entry`.

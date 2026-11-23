@@ -48,6 +48,15 @@ bin/ekumen check                   # validate every record and run the conflict 
 
 Writes need an identity, e.g. `--as lead:<you>` or `EKUMEN_ACTOR=session:<name>`, and are refused outside that role's lane. Every command takes `--json`.
 
+To set up a task's environment (worktree, branch, session, prompt file) and get the one command that opens its session:
+
+```bash
+bin/ekumen task start --list                                # approved, unblocked tasks with no worktree yet
+bin/ekumen task start T-audit --as orchestrator:<you>       # prints the command; --open opens a macOS Terminal window
+```
+
+To start your own project, run `ekumen init --lead <you>` in its git repository, then fill in `.ekumen/spine.md` and `.ekumen/config.yaml` (the agent command and setup steps). See [docs/cli.md](docs/cli.md#setup-commands).
+
 For agent sessions, install the `/blocked` and `/decide` skills with `bin/ekumen skills install --dir .claude/skills`. See [docs/skills.md](docs/skills.md).
 
 ## Documentation
