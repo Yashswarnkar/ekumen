@@ -8,6 +8,13 @@
       ]
     },
     {
+      "name": "brief",
+      "description": "Use in an Ekumen orchestrator session when the lead asks for a brief (\"write the brief for X\", \"turn this issue into a brief\"), or when the orchestrator's inbox shows a `brief` action. Scaffolds the task with `ekumen brief new`, guides filling each section (goal, context verified against main, job, touches, definition of done, out of scope, escalation, start prompt), checks it with `ekumen brief check`, and hands it to the lead for approval. Never approves.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
       "name": "decide",
       "description": "Use when the lead of an Ekumen project wants to work through a pending decision, or an orchestrator session acts on the lead's explicit word. Picks a decision from the lead's inbox (or takes an id), shows it with its background, answers follow-up questions from the record or routes them to the session that raised it without derailing that session, records the lead's answer, and applies it so the blocked work can move.",
       "files": [

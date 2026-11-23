@@ -501,31 +501,41 @@ func (r *run) taskDraft(args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := r.probe(s, a, event.TaskDraftedType, event.Subject{Kind: event.KindTask, ID: t.ID}); err != nil {
+	e, err := r.taskDraftEvent(s, a, t)
+	if err != nil {
 		return err
+	}
+	return r.commit(s, []event.Event{e}, nil, "drafted "+t.ID)
+}
+
+// taskDraftEvent checks the lane and a task file (`task draft`, `brief
+// new`) and returns its TaskDrafted event, with blocked_by resolved to ids.
+func (r *run) taskDraftEvent(s *project.Snapshot, a event.Actor, t taskFile) (event.Event, error) {
+	if err := r.probe(s, a, event.TaskDraftedType, event.Subject{Kind: event.KindTask, ID: t.ID}); err != nil {
+		return event.Event{}, err
 	}
 	switch {
 	case event.ValidateIDOfKind(t.ID, event.KindTask) != nil:
-		return fieldErr(CodeValidation, "id", "%v", event.ValidateIDOfKind(t.ID, event.KindTask))
+		return event.Event{}, fieldErr(CodeValidation, "id", "%v", event.ValidateIDOfKind(t.ID, event.KindTask))
 	case s.State.Has(t.ID) || s.State.Resolve(t.ID) != t.ID:
-		return fieldErr(CodeValidation, "id", "%q is already in use", t.ID)
+		return event.Event{}, fieldErr(CodeValidation, "id", "%q is already in use", t.ID)
 	case strings.TrimSpace(t.Title) == "":
-		return fieldErr(CodeValidation, "title", "required")
+		return event.Event{}, fieldErr(CodeValidation, "title", "required")
 	case !slices.Contains([]string{event.TaskKindResearch, event.TaskKindContract, event.TaskKindBuild}, t.Kind):
-		return fieldErr(CodeValidation, "kind", "must be research, contract or build, got %q", t.Kind)
+		return event.Event{}, fieldErr(CodeValidation, "kind", "must be research, contract or build, got %q", t.Kind)
 	}
 	for i, al := range t.Aliases {
 		if err := event.ValidateAlias(al); err != nil {
-			return fieldErr(CodeValidation, fmt.Sprintf("aliases[%d]", i), "%v", err)
+			return event.Event{}, fieldErr(CodeValidation, fmt.Sprintf("aliases[%d]", i), "%v", err)
 		}
 		if s.State.Has(al) {
-			return fieldErr(CodeValidation, fmt.Sprintf("aliases[%d]", i), "%q is already in use", al)
+			return event.Event{}, fieldErr(CodeValidation, fmt.Sprintf("aliases[%d]", i), "%q is already in use", al)
 		}
 	}
 	for i, b := range t.BlockedBy {
 		rb := s.State.Resolve(b)
 		if event.ValidateID(rb) != nil {
-			return fieldErr(CodeValidation, fmt.Sprintf("blocked_by[%d]", i), "%q is not an id or known alias", b)
+			return event.Event{}, fieldErr(CodeValidation, fmt.Sprintf("blocked_by[%d]", i), "%q is not an id or known alias", b)
 		}
 		if !s.State.Has(rb) {
 			r.warn("blocked_by %s names nothing yet; it blocks until it exists and clears", b)
@@ -538,11 +548,7 @@ func (r *run) taskDraft(args []string) error {
 	d := taskDrafted{TaskDrafted: event.TaskDrafted{Title: t.Title, Kind: t.Kind, Brief: t.Brief, Repo: t.Repo,
 		BaseBranch: t.BaseBranch, Branch: t.Branch, Worktree: t.Worktree, BlockedBy: orEmpty(t.BlockedBy),
 		TierGrants: orEmpty(t.TierGrants), Aliases: t.Aliases}, Session: t.Session}
-	e, err := r.mkEvent(a, event.TaskDraftedType, event.Subject{Kind: event.KindTask, ID: t.ID}, d)
-	if err != nil {
-		return err
-	}
-	return r.commit(s, []event.Event{e}, nil, "drafted "+t.ID)
+	return r.mkEvent(a, event.TaskDraftedType, event.Subject{Kind: event.KindTask, ID: t.ID}, d)
 }
 
 func orEmpty(s []string) []string {

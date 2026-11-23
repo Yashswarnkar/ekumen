@@ -57,7 +57,7 @@ The orchestrator's `action` items have the same shape. They are derived, not rou
 
 | `action` | When | `command` |
 |---|---|---|
-| `brief` | A task is drafted, not approved or deferred, and has no `brief.md`, so it can never reach the lead's `approve`. | `write .ekumen/briefs/<id>/brief.md` |
+| `brief` | A task is drafted, not approved or deferred, and has no `brief.md`, so it can never reach the lead's `approve`. The reason names the path; fill the scaffold with the [`/brief`](skills.md) skill. | `ekumen brief new <id> --existing` |
 
 ```
 $ ekumen inbox --for lead --json
@@ -165,7 +165,30 @@ Validates event and brief files (layout, envelope, payload), checks that files r
 - `spine-unapproved`: `.ekumen/spine.md` does not match the latest `ekumen spine approve`. Nothing is reported before the first approval.
 - `update-after-close`: a `TaskUpdated` that comes after the task's `TaskDeferred` in the log. `task update` refuses it, so it arrives through a merge. A done task is not checked: done is observed and has no place in the log, so an update proposed before the PR merged is ordinary history; it stays pending, the inbox does not offer it, and `task approve` refuses it.
 
+It also runs [`ekumen brief check`](#ekumen-brief-check-id) on the brief of every drafted task that is not approved or deferred, and lists the ones with problems under `briefs` (`[{task, path, ok, problems: [{section, message}]}]`). These are **reported, never failed on** (the lead's call for T-brief, 2026-11-23): `ok` and the exit code ignore them. Approved briefs are frozen and not checked; tasks without a `brief.md` are the orchestrator's `brief` inbox action instead.
+
 Exit `4` with conflicts, `2` with invalid files only.
+
+### `ekumen brief check <id>`
+
+```
+$ ekumen brief check T-demo
+Context: still has a TODO(brief) hint from the template: replace it with the real content
+Start prompt: must name the handoff command (ekumen task handoff <id>)
+.ekumen/briefs/T-demo/brief.md: 2 problems
+$ echo $?
+2
+```
+
+Checks a task's `brief.md` (§A) against the brief format, and prints `{task, path, ok, problems: [{section, message}]}` with `--json`. No actor needed. A brief passes when:
+
+- its front matter has the task's `id`, a `title`, a `kind` (`build`, `research` or `contract`), and every `blocked_by` id is recorded;
+- each section is present, once: **Goal**, **Context**, **Job**, **Touches**, **Definition of done**, **Out of scope**, **Escalate if**, **Start prompt**. A section starts at a line `**Name:**` (an optional parenthesis before the colon, as in `**Context (verify against origin/main when you start):**`) or a heading `## Name`;
+- no section is empty, still holds a `TODO(brief)` hint, or is unchanged from the template (`.ekumen/templates/brief.md`, else the built-in one);
+- **Definition of done** has at least one checkbox (`- [ ] …`);
+- **Start prompt** sets the actor (`EKUMEN_ACTOR=` or `--as session:`) and names the handoff command (`task handoff`).
+
+Exit `2` when something is missing (`problems` names each section), `3` when the task or its `brief.md` doesn't exist. The check is mechanical; whether the scope is right is the orchestrator's judgment and the lead's approval.
 
 ## Write commands
 
@@ -245,7 +268,35 @@ aliases: []
 $ ekumen --as orchestrator:main task draft --file t.yaml
 ```
 
-Write `briefs/<id>/brief.md` (§A) yourself before approval; the CLI hashes it at approval. It is one of the [owner-edited prose files](#owner-edited-prose-files).
+Write `briefs/<id>/brief.md` (§A) yourself before approval; the CLI hashes it at approval. It is one of the [owner-edited prose files](#owner-edited-prose-files). `ekumen brief new` (below) does both steps from a template.
+
+### `ekumen brief new <id> --title t [--kind build|research|contract] [--blocked-by a,b] [--grants a,b] [--from-issue N]` (orchestrator, with the claim)
+
+```
+$ ekumen --as orchestrator:main brief new T-demo --title "Demo setup" --from-issue 40 --grants push_own_branch,open_draft_pr
+drafted T-demo with a brief to fill in; then run `ekumen brief check T-demo`
+  .ekumen/briefs/T-demo/brief.md
+  .ekumen/events/task/T-demo/….TaskDrafted.json
+```
+
+Writes `.ekumen/briefs/<id>/brief.md` from a template and records `TaskDrafted`, as one write: if the event can't be recorded, the file is removed. The task gets the same validation as `task draft` (a refused id, title or kind writes nothing), with these defaults:
+
+| Field | Default | Flag |
+|---|---|---|
+| `kind` | `build` | `--kind` |
+| `session` | the id in lower case (`t-demo`) | `--session` |
+| `branch` | `build/<id lower>` | `--branch` |
+| `worktree` | `.worktrees/<id lower>` | `--worktree` |
+| `base_branch` | origin's default branch (`origin/HEAD`), else `main` | `--base-branch` |
+| `repo` | the project name | — |
+| `brief` | `briefs/<id>/brief.md` | — |
+
+- **Template:** `.ekumen/templates/brief.md` if the project has one, else the built-in template: front matter, the eight sections of [`brief check`](#ekumen-brief-check-id), and a one-line `TODO(brief)` hint in each. Placeholders: `{{id}}`, `{{title}}`, `{{title_yaml}}` (quoted for YAML when needed), `{{kind}}`, `{{session}}`, `{{blocked_by}}`, `{{tier_grants}}` (comma-separated) and `{{goal}}`.
+- **`--from-issue N`** fills the Goal with the GitHub issue's number, title, link and quoted body, read with `gh issue view N` in the project root. Without `--title`, the issue's title is the task's. If `gh` is missing or fails, a warning says so and the brief is written with the Goal hint.
+- **Refused (exit 2):** an id already in use (or an alias), and a `brief.md` already at the path, which is never overwritten.
+- **`--existing`:** for a task already drafted without a brief (the orchestrator's `brief` inbox action), writes `brief.md` from the template and the task's record. It records no event and refuses an approved task or an existing brief. `--from-issue` works with it too.
+
+Then fill each section (the [`/brief`](skills.md) skill guides it), run `ekumen brief check <id>`, and tell the lead it is ready for `task approve`.
 
 ### `ekumen task approve <id> [--grants a,b]` (lead)
 

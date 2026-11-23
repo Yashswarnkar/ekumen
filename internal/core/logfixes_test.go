@@ -415,7 +415,7 @@ func TestOrchestratorBriefAction_InboxGaps(t *testing.T) {
 	if !strings.Contains(got[0].Reason, "leads outside .ekumen/") {
 		t.Errorf("refused path not named: %+v", got[0])
 	}
-	if a := got[1]; a.Action != ActionBrief || a.Command != "write .ekumen/briefs/T-nobrief/brief.md" || a.Event != s.Tasks["T-nobrief"].Drafts[0].Event {
+	if a := got[1]; a.Action != ActionBrief || a.Command != "ekumen brief new T-nobrief --existing" || a.Event != s.Tasks["T-nobrief"].Drafts[0].Event {
 		t.Errorf("brief action %+v", a)
 	}
 	hasBrief := func(id string) bool { return id == "T-brief" }
