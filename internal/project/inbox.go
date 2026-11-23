@@ -534,6 +534,9 @@ func (s *Snapshot) taskNext(id string, st core.TaskStatus) string {
 	case core.TaskReady:
 		return "a session starting it"
 	case core.TaskRunning:
+		if l, ok := s.Links[id]; ok && l.State == observe.StateDraft {
+			return fmt.Sprintf("its session finishing and marking draft PR #%d ready for review", l.Number)
+		}
 		return "its session finishing and opening a PR for review"
 	case core.TaskInReview:
 		return "its PR being reviewed and merged"
