@@ -10,7 +10,7 @@ tier_grants: [push_own_branch, open_draft_pr, restack]
 
 # T-inbox-v1 · An inbox the lead can act on
 
-**Goal:** v1 capability 1 (spine §7). `ekumen inbox --for lead` must tell the lead, in plain words, **what to do next, why, and what it unblocks**, with numbers they can trust. Today it ranks by a `p=` score nobody can read, that score counts finished work, decisions waiting on task branches are invisible, and some task statuses are stale. GitHub issues: **#37, #38, #39**.
+**Goal:** v1 capability 1 (spine §7). `ekumen inbox --for lead` must tell the lead, in plain words, **what to do next, why, and what it unblocks**, with numbers they can trust. Today it ranks by a `p=` score nobody can read, that score counts finished work, decisions waiting on task branches are invisible, and some task statuses are stale. GitHub issues: **#37, #38, #39, #63**.
 
 **Context (verify against origin/main when you start):**
 - Inbox: `core.Inbox` (`internal/core/priority.go:170`), `core.LeadActions` (`internal/core/actions.go:52`), `project.Snapshot.Inbox` and `actionItems` (`internal/project/views.go:476–534`), and the printer `printInbox` (`internal/cli/read.go:74`).
@@ -39,6 +39,8 @@ tier_grants: [push_own_branch, open_draft_pr, restack]
 
    Recorded branch first, then stack suffix, then title. `task show` says which rule linked it.
 
+6. **One-sided gates (#63).** A decision gates a task if *either* the decision's `blocks` lists the task *or* the task's `blocked_by` lists the decision. Impact, ranking and `why` use that union, so D-pr-observation-style decisions don't show up at 0. `decision apply` amends every task in the union. Today it only amends `blocks`, so T-loop-hardening's decisions amend nobody. That amend change is in `internal/core` (`ApplyPlan`); check it against C-decision-record §3 and note any contract text in your handoff.
+
 **Touches:** `internal/core/` (priority, actions, a new why/impact file), `internal/project/views.go`, `internal/observe/`, `internal/cli/` (`read.go`, the new `why` command, help text), `docs/cli.md`, tests and golden files, your handoff files.
 
 **Definition of done:**
@@ -46,6 +48,7 @@ tier_grants: [push_own_branch, open_draft_pr, restack]
 - [ ] T-skills and T-reconcile show `done` from their merged PRs (title rule).
 - [ ] The plain inbox has a "what / why / unblocks / command" block per item. Paste the real output into the handoff.
 - [ ] `ekumen why D-write-atomicity` and `ekumen why T-claude-adapter` are correct on the real log.
+- [ ] Applying a decision named only in a task's `blocked_by` amends that task (test).
 - [ ] Golden tests for the inbox, `why` and the linking rules. `go test -race ./...`, vet and gofmt are clean, and CI is green (main is protected).
 - [ ] Handoff via `ekumen task handoff T-inbox-v1`, including FRICTION about reading the inbox as the lead would.
 
