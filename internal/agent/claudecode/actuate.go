@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -27,9 +28,32 @@ var (
 )
 
 // trustRefused reports Claude Code's refusal to start in a folder the user
-// has not trusted; nothing was started or sent (observed on 2.1.329).
-func trustRefused(stderr []byte) bool {
-	return bytes.Contains(stderr, []byte("Workspace not trusted"))
+// has not trusted; nothing was started or sent (observed on 2.1.329, on
+// stderr; stdout is matched too, #32 item 3).
+func trustRefused(res Result) bool {
+	m := []byte("Workspace not trusted")
+	return bytes.Contains(res.Stderr, m) || bytes.Contains(res.Stdout, m)
+}
+
+var idRe = regexp.MustCompile(`^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{8})$`)
+
+// checkID refuses anything but a session UUID or an 8-hex short id before
+// it is put on a command line (#32 item 1): an id such as
+// "--dangerously-skip-permissions" would otherwise be parsed as a flag.
+func checkID(id string) error {
+	if !idRe.MatchString(id) {
+		return fmt.Errorf("%w: %q is not a session id", agent.ErrNotFound, id)
+	}
+	return nil
+}
+
+// promptArgs ends option parsing before free text (#32 item 1): without
+// "--", a prompt or message starting with "-" is read as flags, e.g.
+// "--permission-mode bypassPermissions". Claude Code 2.1.330 was checked
+// hands-on: `claude -p -- "--version"` sends "--version" as the prompt,
+// and `-- agents` is a prompt, not the agents subcommand.
+func promptArgs(args []string, text string) []string {
+	return append(args, "--", text)
 }
 
 func sessionName(task, key string) string {
@@ -130,17 +154,7 @@ func (a *Adapter) Start(ctx context.Context, r agent.StartReq) (agent.SessionRef
 		return agent.SessionRef{}, errors.New("claudecode: Start needs Key, Cwd and Prompt")
 	}
 	if rec, ok := a.state.key(opStart, r.Key); ok {
-		if !rec.Pending {
-			return a.ref(rec), nil
-		}
-		es, err := a.listing(ctx)
-		if err != nil {
-			return agent.SessionRef{}, err
-		}
-		if e := findByName(es, rec.Name); e != nil {
-			return a.finish(rec, e.ref())
-		}
-		return agent.SessionRef{}, fmt.Errorf("%w: Start %q was attempted and %s is not listed", agent.ErrNotFound, r.Key, rec.Name)
+		return a.startRecorded(ctx, rec)
 	}
 	name := sessionName(r.Task, r.Key)
 	kh := keyHash(r.Key)
@@ -165,23 +179,30 @@ func (a *Adapter) Start(ctx context.Context, r agent.StartReq) (agent.SessionRef
 	if err := os.WriteFile(settings, b, 0o600); err != nil {
 		return agent.SessionRef{}, err
 	}
-	if err := a.state.saveKey(rec); err != nil {
+	if err := a.state.claimKey(rec); err != nil {
+		if errors.Is(err, fs.ErrExist) {
+			if rec, ok := a.state.key(opStart, r.Key); ok {
+				return a.startRecorded(ctx, rec)
+			}
+		}
 		return agent.SessionRef{}, err
 	}
-	res, err := a.exec(ctx, r.Cwd, "--bg", "--name", name, "--settings", settings, r.Prompt)
+	res, err := a.exec(ctx, r.Cwd, promptArgs([]string{"--bg", "--name", name, "--settings", settings}, r.Prompt)...)
 	if errors.Is(err, ErrNotStarted) {
 		a.state.dropKey(opStart, r.Key)
 		return agent.SessionRef{}, notStarted(err)
 	}
 	if err != nil {
-		return agent.SessionRef{}, err
+		// a timeout or a lost process: it may have started a session, so
+		// the key stays pending and a repeat looks it up by name
+		return agent.SessionRef{}, fmt.Errorf("claude --bg %s: %w; key %q stays pending until it is listed", name, err, r.Key)
 	}
 	if res.Code != 0 {
-		if trustRefused(res.Stderr) {
+		if trustRefused(res) {
 			a.state.dropKey(opStart, r.Key)
-			return agent.SessionRef{}, fmt.Errorf("%w: %s", agent.ErrUnsupported, firstLine(res.Stderr))
+			return agent.SessionRef{}, fmt.Errorf("%w: %s", agent.ErrUnsupported, firstLine(res.Stderr, res.Stdout))
 		}
-		return agent.SessionRef{}, fmt.Errorf("claude --bg exited %d: %s", res.Code, firstLine(res.Stderr))
+		return a.startFailed(ctx, rec, fmt.Sprintf("claude --bg exited %d: %s", res.Code, firstLine(res.Stderr, res.Stdout)))
 	}
 	if id, _ := parseBg(res.Stdout); len(id) == 36 {
 		return a.finish(rec, id)
@@ -191,7 +212,39 @@ func (a *Adapter) Start(ctx context.Context, r agent.StartReq) (agent.SessionRef
 			return a.finish(rec, e.ref())
 		}
 	}
-	return agent.SessionRef{}, fmt.Errorf("claude --bg started %s but it is not listed yet", name)
+	return agent.SessionRef{}, fmt.Errorf("claude --bg started %s but it is not listed yet; key %q stays pending", name, r.Key)
+}
+
+// startFailed handles a --bg that ran and exited non-zero (#32 item 3).
+// If the session is listed by name anyway it was started; otherwise
+// nothing was, and the key is dropped so a repeat may start again. Only
+// when the listing itself fails does the key stay pending.
+func (a *Adapter) startFailed(ctx context.Context, rec sessionRecord, why string) (agent.SessionRef, error) {
+	es, err := a.listing(ctx)
+	if err != nil {
+		return agent.SessionRef{}, fmt.Errorf("%s; listing failed (%v), so key %q stays pending", why, err, rec.Key)
+	}
+	if e := findByName(es, rec.Name); e != nil {
+		return a.finish(rec, e.ref())
+	}
+	a.state.dropKey(opStart, rec.Key)
+	return agent.SessionRef{}, fmt.Errorf("%s; nothing was started", why)
+}
+
+// startRecorded answers a repeated Start key: the recorded session, or,
+// for a key left pending by a timeout, the session found by name.
+func (a *Adapter) startRecorded(ctx context.Context, rec sessionRecord) (agent.SessionRef, error) {
+	if !rec.Pending {
+		return a.ref(rec), nil
+	}
+	es, err := a.listing(ctx)
+	if err != nil {
+		return agent.SessionRef{}, err
+	}
+	if e := findByName(es, rec.Name); e != nil {
+		return a.finish(rec, e.ref())
+	}
+	return agent.SessionRef{}, fmt.Errorf("%w: Start %q timed out or was interrupted and %s is not listed; it is not started again", agent.ErrNotFound, rec.Key, rec.Name)
 }
 
 func (a *Adapter) Send(ctx context.Context, s agent.SessionRef, m agent.Message) (agent.Delivery, error) {
@@ -206,6 +259,9 @@ func (a *Adapter) Send(ctx context.Context, s agent.SessionRef, m agent.Message)
 	if !managed {
 		return agent.Delivery{}, fmt.Errorf("%w: observed session", agent.ErrUnsupported)
 	}
+	if err := checkID(s.ID); err != nil {
+		return agent.Delivery{}, err
+	}
 	if m.Key == "" {
 		return agent.Delivery{}, errors.New("claudecode: Send needs a Key")
 	}
@@ -213,25 +269,33 @@ func (a *Adapter) Send(ctx context.Context, s agent.SessionRef, m agent.Message)
 		return recorded(d)
 	}
 	st, err := a.Status(ctx, s)
-	if err != nil || (st.State != agent.StateIdle && st.State != agent.StateDone) {
+	if err != nil {
+		return agent.Delivery{}, err
+	}
+	if st.State != agent.StateIdle && st.State != agent.StateDone {
 		return agent.Delivery{Key: m.Key, State: agent.Queued}, nil
 	}
 	d := deliveryRecord{Key: m.Key, To: s.ID, State: agent.Uncertain, Error: "send interrupted before its outcome was recorded", At: a.now()}
-	if err := a.state.saveDelivery(d); err != nil {
+	if err := a.state.claimDelivery(d); err != nil {
+		if errors.Is(err, fs.ErrExist) {
+			if d, ok := a.state.delivery(m.Key); ok {
+				return recorded(d)
+			}
+		}
 		return agent.Delivery{}, err
 	}
-	res, err := a.exec(ctx, rec.Cwd, "--resume", s.ID, "--bg", m.Text)
+	res, err := a.exec(ctx, rec.Cwd, promptArgs([]string{"--resume", s.ID, "--bg"}, m.Text)...)
 	switch {
 	case errors.Is(err, ErrNotStarted):
 		a.state.dropDelivery(m.Key)
 		return agent.Delivery{}, notStarted(err)
 	case err != nil:
 		d.Error = err.Error()
-	case res.Code != 0 && trustRefused(res.Stderr):
+	case res.Code != 0 && trustRefused(res):
 		a.state.dropDelivery(m.Key)
-		return agent.Delivery{}, fmt.Errorf("%w: %s", agent.ErrUnsupported, firstLine(res.Stderr))
+		return agent.Delivery{}, fmt.Errorf("%w: %s", agent.ErrUnsupported, firstLine(res.Stderr, res.Stdout))
 	case res.Code != 0:
-		d.Error = fmt.Sprintf("claude --resume --bg exited %d: %s", res.Code, firstLine(res.Stderr))
+		d.Error = fmt.Sprintf("claude --resume --bg exited %d: %s", res.Code, firstLine(res.Stderr, res.Stdout))
 	default:
 		id, note := parseBg(res.Stdout)
 		if note || (id != "" && !sameSession(id, s.ID)) {
@@ -262,6 +326,9 @@ func (a *Adapter) Resume(ctx context.Context, s agent.SessionRef, m *agent.Messa
 	if !managed {
 		return fmt.Errorf("%w: observed session", agent.ErrUnsupported)
 	}
+	if err := checkID(s.ID); err != nil {
+		return err
+	}
 	if m != nil {
 		d, err := a.Send(ctx, s, *m)
 		if err != nil {
@@ -283,6 +350,9 @@ func (a *Adapter) Resume(ctx context.Context, s agent.SessionRef, m *agent.Messa
 	if e.State != "stopped" {
 		return nil
 	}
+	if err := checkID(e.ID); err != nil {
+		return err
+	}
 	res, err := a.exec(ctx, rec.Cwd, "respawn", e.ID)
 	if errors.Is(err, ErrNotStarted) {
 		return notStarted(err)
@@ -291,7 +361,7 @@ func (a *Adapter) Resume(ctx context.Context, s agent.SessionRef, m *agent.Messa
 		return err
 	}
 	if res.Code != 0 {
-		return fmt.Errorf("claude respawn exited %d: %s", res.Code, firstLine(res.Stderr))
+		return fmt.Errorf("claude respawn exited %d: %s", res.Code, firstLine(res.Stderr, res.Stdout))
 	}
 	return nil
 }

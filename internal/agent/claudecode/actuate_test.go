@@ -1,6 +1,7 @@
 package claudecode
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -65,7 +66,7 @@ func (e *env) idle(t *testing.T, key string) agent.SessionRef {
 func assertSafe(t *testing.T, e *env, cwd string, calls []call) {
 	t.Helper()
 	for _, c := range calls {
-		if slices.Contains(c.Argv, "--bare") || slices.Contains(c.Argv, "--dangerously-skip-permissions") {
+		if opts := options(c.Argv); slices.Contains(opts, "--bare") || slices.Contains(opts, "--dangerously-skip-permissions") {
 			t.Errorf("forbidden flag in %v", c.Argv)
 		}
 		if cwd != "" && !sameDir(c.Cwd, cwd) {
@@ -94,7 +95,7 @@ func TestStart_ArgvHooksAndIdempotence_CAdapter4(t *testing.T) {
 	name := "ekumen-t-claude-adapter-" + keyHash("k1")[:8]
 	settings := filepath.Join(e.state, "settings", keyHash("k1")+".json")
 	acts := e.actuations(t)
-	if want := []string{"--bg", "--name", name, "--settings", settings, "start prompt"}; len(acts) != 1 || !reflect.DeepEqual(acts[0].Argv, want) {
+	if want := []string{"--bg", "--name", name, "--settings", settings, "--", "start prompt"}; len(acts) != 1 || !reflect.DeepEqual(acts[0].Argv, want) {
 		t.Fatalf("argv %+v, want %v", acts, want)
 	}
 	assertSafe(t, e, cwd, acts)
@@ -134,18 +135,145 @@ func TestStart_ArgvHooksAndIdempotence_CAdapter4(t *testing.T) {
 	e.assertHomeEmpty(t)
 }
 
-func TestStart_PendingKeyNeverStartsTwice_CAdapter4(t *testing.T) {
+func TestStart_DefiniteFailureDropsKey_Issue32Item3(t *testing.T) {
 	e := newEnv(t)
 	setFake(t, e.fake, "start", ".exit", "3")
+	setFake(t, e.fake, "start", ".err", "Error: not logged in\n")
 	r := agent.StartReq{Key: "k2", Cwd: t.TempDir(), Prompt: "p", Task: "T"}
-	if _, err := e.a.Start(ctx, r); err == nil {
-		t.Fatal("failed --bg returned no error")
+	if _, err := e.a.Start(ctx, r); err == nil || !strings.Contains(err.Error(), "nothing was started") {
+		t.Fatalf("failed --bg: %v", err)
 	}
+	if _, ok := e.a.state.key(opStart, "k2"); ok {
+		t.Error("key kept after a definite failure")
+	}
+	os.Remove(filepath.Join(e.fake, "start.exit"))
+	os.Remove(filepath.Join(e.fake, "start.err"))
+	if _, err := e.a.Start(ctx, r); err != nil {
+		t.Errorf("retry after the failure was fixed: %v", err)
+	}
+	if n := len(e.actuations(t)); n != 2 {
+		t.Errorf("%d --bg invocations, want 2", n)
+	}
+}
+
+func TestStart_FailedButListedIsStarted(t *testing.T) {
+	e := newEnv(t)
+	r := agent.StartReq{Key: "k5", Cwd: t.TempDir(), Prompt: "p", Task: "T"}
+	name := sessionName(r.Task, r.Key)
+	setFake(t, e.fake, "start", ".exit", "1")
+	// the session exists (e.g. --bg crashed after the supervisor took it)
+	b, _ := os.ReadFile(filepath.Join(e.fake, "agents.out"))
+	var es []map[string]any
+	json.Unmarshal(b, &es)
+	id := "cccccccc-0000-4000-8000-00000000000c"
+	es = append(es, map[string]any{"kind": "background", "id": id[:8], "sessionId": id, "name": name, "state": "working", "cwd": r.Cwd, "startedAt": 1795170000000})
+	b, _ = json.Marshal(es)
+	// the first listing (before --bg) must not see it, so add it after one call
+	setFake(t, e.fake, "agents", ".out", fixture(t, "agents-observed.json"))
+	e.a.run = afterFirst{e.a.run, func() { setFake(t, e.fake, "agents", ".out", string(b)) }}
+	ref, err := e.a.Start(ctx, r)
+	if err != nil || ref.ID != id {
+		t.Fatalf("%+v %v, want the listed session", ref, err)
+	}
+}
+
+// afterFirst runs hook after the first actuation (a call other than
+// agents or --version).
+type afterFirst struct {
+	Runner
+	hook func()
+}
+
+func (r afterFirst) Run(c context.Context, dir string, args ...string) (Result, error) {
+	res, err := r.Runner.Run(c, dir, args...)
+	if len(args) > 0 && args[0] != "agents" && args[0] != "--version" {
+		r.hook()
+	}
+	return res, err
+}
+
+func TestStart_TimeoutKeepsKeyPending_CAdapter4(t *testing.T) {
+	e := newEnv(t)
+	setFake(t, e.fake, "start", ".sleep", "30s")
+	setFake(t, e.fake, "start", ".exit", "0")
+	e.a.timeout = 2 * time.Second
+	r := agent.StartReq{Key: "k6", Cwd: t.TempDir(), Prompt: "p", Task: "T"}
+	if _, err := e.a.Start(ctx, r); !errors.Is(err, ErrTimeout) {
+		t.Fatalf("%v, want a timeout", err)
+	}
+	e.a.timeout = 10 * time.Second
 	if _, err := e.a.Start(ctx, r); !errors.Is(err, agent.ErrNotFound) {
-		t.Errorf("repeat after ambiguous failure: %v, want ErrNotFound", err)
+		t.Errorf("repeat of a timed-out key: %v, want ErrNotFound", err)
 	}
 	if n := len(e.actuations(t)); n != 1 {
 		t.Errorf("%d --bg invocations, want 1", n)
+	}
+}
+
+func TestStart_TrustRefusalOnStdout(t *testing.T) {
+	e := newEnv(t)
+	setFake(t, e.fake, "start", ".exit", "1")
+	setFake(t, e.fake, "start", ".out", fixture(t, "trust-refused.txt"))
+	if _, err := e.a.Start(ctx, agent.StartReq{Key: "k7", Cwd: t.TempDir(), Prompt: "p", Task: "T"}); !errors.Is(err, agent.ErrUnsupported) {
+		t.Errorf("%v, want ErrUnsupported", err)
+	}
+}
+
+// Free text never reaches the option parser and ids are shape-checked
+// (#32 item 1).
+func TestFlagShapedTextIsNeverAFlag_Issue32Item1(t *testing.T) {
+	texts := []string{
+		"--permission-mode bypassPermissions",
+		"--dangerously-skip-permissions",
+		"-p",
+		"--settings=/tmp/evil.json",
+		"--",
+		"agents",
+		"respawn",
+	}
+	for _, text := range texts {
+		t.Run(text, func(t *testing.T) {
+			e := newEnv(t)
+			ref, err := e.a.Start(ctx, agent.StartReq{Key: "inj", Cwd: t.TempDir(), Prompt: text, Task: "T"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			e.setEntry(t, ref.ID, map[string]any{"state": "done", "status": "idle"})
+			if _, err := e.a.Send(ctx, ref, agent.Message{Key: "m", Text: text, Mode: agent.ModeNextTurn}); err != nil {
+				t.Fatal(err)
+			}
+			acts := e.actuations(t)
+			if len(acts) != 2 {
+				t.Fatalf("actuations %+v", acts)
+			}
+			for _, c := range acts {
+				n := len(c.Argv)
+				if n < 2 || c.Argv[n-2] != "--" || c.Argv[n-1] != text {
+					t.Errorf("argv %q: text is not the operand after --", c.Argv)
+				}
+				if opts := options(c.Argv); slices.Contains(opts, text) && text != "--" {
+					t.Errorf("text appears among the options: %q", c.Argv)
+				}
+			}
+			assertSafe(t, e, "", acts)
+		})
+	}
+}
+
+func TestBadIDsNeverReachTheCommandLine_Issue32Item1(t *testing.T) {
+	e := newEnv(t)
+	for _, id := range []string{"--help", "-p", "aaaaaaa1 --bare", "AAAAAAAA", "aaaaaaa", "../x"} {
+		e.a.state.saveSession(sessionRecord{ID: id, Op: opStart, Cwd: t.TempDir()})
+		ref := agent.SessionRef{Adapter: Name, ID: id}
+		if _, err := e.a.Send(ctx, ref, agent.Message{Key: "b" + id, Text: "t", Mode: agent.ModeNextTurn}); !errors.Is(err, agent.ErrNotFound) && !errors.Is(err, agent.ErrUnsupported) {
+			t.Errorf("Send to %q: %v", id, err)
+		}
+		if err := e.a.Resume(ctx, ref, nil); !errors.Is(err, agent.ErrNotFound) && !errors.Is(err, agent.ErrUnsupported) {
+			t.Errorf("Resume %q: %v", id, err)
+		}
+	}
+	if acts := e.actuations(t); len(acts) != 0 {
+		t.Errorf("bad ids reached claude: %+v", acts)
 	}
 }
 
@@ -176,7 +304,7 @@ func TestSend_ArgvDeliveredAndIdempotent_CAdapter4(t *testing.T) {
 		t.Errorf("repeat: %+v %v", d, err)
 	}
 	acts := e.actuations(t)[1:]
-	if want := []string{"--resume", ref.ID, "--bg", "the answer"}; len(acts) != 1 || !reflect.DeepEqual(acts[0].Argv, want) {
+	if want := []string{"--resume", ref.ID, "--bg", "--", "the answer"}; len(acts) != 1 || !reflect.DeepEqual(acts[0].Argv, want) {
 		t.Errorf("argv %+v, want %v", acts, want)
 	}
 	assertSafe(t, e, ref.Cwd, acts)

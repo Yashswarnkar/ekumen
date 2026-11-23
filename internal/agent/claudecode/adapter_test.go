@@ -62,8 +62,8 @@ func TestCaps_PerOwnership(t *testing.T) {
 	}
 	lying := agent.SessionRef{Adapter: Name, ID: "o1", Ownership: agent.Managed}
 	want := map[string]map[string]string{
-		"new":      {"list": "supported", "status": "supported", "start": "unsupported", "resume": "unsupported", "send": "unsupported", "fork": "unsupported", "events": "unsupported"},
-		"managed":  {"list": "supported", "status": "supported", "start": "unsupported", "resume": "unsupported", "send": "unsupported", "fork": "unsupported", "events": "unsupported"},
+		"new":      {"list": "supported", "status": "supported", "start": "supported", "resume": "unsupported", "send": "unsupported", "fork": "unsupported", "events": "unsupported"},
+		"managed":  {"list": "supported", "status": "supported", "start": "unsupported", "resume": "supported", "send": "partial", "fork": "unsupported", "events": "unsupported"},
 		"observed": {"list": "supported", "status": "partial", "start": "unsupported", "resume": "unsupported", "send": "unsupported", "fork": "unsupported", "events": "unsupported"},
 	}
 	for name, ref := range map[string]*agent.SessionRef{"new": nil, "managed": &managed, "observed": &lying} {

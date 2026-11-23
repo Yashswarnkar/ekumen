@@ -40,9 +40,21 @@ func template(dir, name string, vars map[string]string) string {
 	return s
 }
 
+// options are the arguments before "--"; like the real CLI, the fake
+// reads no flags after it.
+func options(args []string) []string {
+	for i, a := range args {
+		if a == "--" {
+			return args[:i]
+		}
+	}
+	return args
+}
+
 // fakeActuate plays --bg, --resume --bg, -p --fork-session and respawn.
 // A <op>.exit file makes it replay <op>.* instead of succeeding.
-func fakeActuate(dir string, args []string) int {
+func fakeActuate(dir string, all []string) int {
+	args := options(all)
 	switch {
 	case has(args, "--bg") && !has(args, "--resume"):
 		if exists(dir, "start.exit") || exists(dir, "start.out") {
