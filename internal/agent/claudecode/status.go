@@ -147,10 +147,16 @@ func latestHook(hs []hookRecord) (signal, bool) {
 	return cur, have
 }
 
+// hookGrace is how long a hook needs_input outranks a listing that says
+// running or idle. The listing is read now, so it is the newest signal; the
+// grace only covers a listing that has not caught up with a prompt that
+// just appeared. After it, listing liveness wins (#32 item 4,
+// D-claude-hooks-policy-blocked: listing primary, hooks optional): no hook
+// fires when a permission prompt is answered, so an older needs_input hook
+// says nothing about now.
+const hookGrace = time.Minute
+
 // mapStatus is the adapter's whole status rule (README "Status mapping").
-// The listing is read now, so it is the newest signal, except that a hook
-// needs_input newer than every later hook is kept while the session is
-// alive: it fails toward attention and names what is awaited.
 func mapStatus(e *entry, hooks []hookRecord, now time.Time) agent.Status {
 	h, haveHook := latestHook(hooks)
 	if e == nil {
@@ -162,13 +168,21 @@ func mapStatus(e *entry, hooks []hookRecord, now time.Time) agent.Status {
 		}
 		return unknown(now, SourceNone, "not listed and no hook data")
 	}
+	if e.bad != "" {
+		return unknown(now, SourceListing, "unreadable listing entry: "+e.bad)
+	}
 	l, ok := listingSignal(*e)
 	if !ok {
 		return unknown(now, SourceListing, fmt.Sprintf("unrecognised listing values kind=%q status=%q state=%q", e.Kind, e.Status, e.State))
 	}
 	l.at = now
-	if l.state != agent.StateDone && haveHook && h.state == agent.StateNeedsInput {
-		return fromSignal(h, SourceHooks)
+	if haveHook && h.state == agent.StateNeedsInput {
+		switch {
+		case l.state == agent.StateNeedsInput:
+			return fromSignal(h, SourceHooks) // the hook names what is awaited
+		case l.state != agent.StateDone && now.Sub(h.at) < hookGrace:
+			return fromSignal(h, SourceHooks)
+		}
 	}
 	return fromSignal(l, SourceListing)
 }

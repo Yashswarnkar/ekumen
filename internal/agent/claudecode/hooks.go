@@ -36,9 +36,16 @@ func parseHook(b []byte) (hookRecord, error) {
 	return h, nil
 }
 
+const (
+	maxHookBytes   = 256 << 10 // larger records are skipped, not read
+	maxHookRecords = 256       // older records are pruned
+)
+
 // readHooks returns the records for session id in dir, oldest first. A
-// missing dir is no data; an unreadable record is an error, which the
-// caller turns into unknown.
+// missing dir is no data. One bad record never poisons the rest (#32 item
+// 8): records that are too large, unreadable, not JSON, for another
+// session, or without an event name are skipped. Beyond the newest
+// maxHookRecords, older records are deleted.
 func readHooks(dir, id string) ([]hookRecord, error) {
 	ents, err := os.ReadDir(dir)
 	if os.IsNotExist(err) {
@@ -47,35 +54,55 @@ func readHooks(dir, id string) ([]hookRecord, error) {
 	if err != nil {
 		return nil, err
 	}
-	var out []hookRecord
+	type file struct {
+		name string
+		at   time.Time
+		size int64
+	}
+	var fs []file
 	for _, de := range ents {
 		if de.IsDir() || !strings.HasPrefix(de.Name(), "r.") {
 			continue
 		}
-		p := filepath.Join(dir, de.Name())
-		b, err := os.ReadFile(p)
-		if err != nil {
-			return nil, err
-		}
 		info, err := de.Info()
 		if err != nil {
-			return nil, err
+			continue
+		}
+		fs = append(fs, file{de.Name(), info.ModTime(), info.Size()})
+	}
+	sort.Slice(fs, func(i, j int) bool {
+		if !fs[i].at.Equal(fs[j].at) {
+			return fs[i].at.Before(fs[j].at)
+		}
+		return fs[i].name < fs[j].name
+	})
+	if n := len(fs) - maxHookRecords; n > 0 {
+		for _, f := range fs[:n] {
+			os.Remove(filepath.Join(dir, f.name))
+		}
+		fs = fs[n:]
+	}
+	var out []hookRecord
+	for _, f := range fs {
+		if f.size > maxHookBytes {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, f.name))
+		if err != nil {
+			continue
+		}
+		var sid struct {
+			SessionID string `json:"session_id"`
+		}
+		if json.Unmarshal(b, &sid) != nil || (sid.SessionID != "" && sid.SessionID != id) {
+			continue
 		}
 		h, err := parseHook(b)
 		if err != nil {
-			return nil, fmt.Errorf("%s: %w", de.Name(), err)
-		}
-		if h.SessionID != "" && h.SessionID != id {
 			continue
 		}
-		h.At, h.file = info.ModTime(), de.Name()
+		h.At, h.file = f.at, f.name
 		out = append(out, h)
 	}
-	sort.SliceStable(out, func(i, j int) bool {
-		if !out[i].At.Equal(out[j].At) {
-			return out[i].At.Before(out[j].At)
-		}
-		return out[i].file < out[j].file
-	})
 	return out, nil
 }
