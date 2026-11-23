@@ -359,6 +359,9 @@ const usageText = `Usage: ekumen <command> [flags]
 Read (every read prints one JSON object with --json):
   status                                  counts and the top of your inbox
   inbox [--for lead|orchestrator|<session>]
+                                          what to do next, why, what it unblocks, the command
+  why <id>                                what a task, decision or contract waits on, and
+                                          what unfinished work waits on it
   task list [--status s] | task show <id>
   decision list [--status s] | decision show <id>
   contract show <id>                      a contract, its freeze history and its text
@@ -441,6 +444,8 @@ func (r *run) dispatch(args []string) error {
 		return r.status(rest)
 	case "inbox":
 		return r.inbox(rest)
+	case "why":
+		return r.why(rest)
 	case "graph":
 		return r.graph(rest)
 	case "map":

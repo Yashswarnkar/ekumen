@@ -137,7 +137,13 @@
         "id": "T-skills"
       },
       "action": "brief",
-      "command": "write .ekumen/briefs/T-skills/brief.md"
+      "command": "write .ekumen/briefs/T-skills/brief.md",
+      "what": "Write the brief for T-skills: Skills",
+      "why": "The lead can't approve a task without a brief.",
+      "unblocks": [],
+      "path": [],
+      "direct": [],
+      "contract_context": []
     }
   ],
   "events": [

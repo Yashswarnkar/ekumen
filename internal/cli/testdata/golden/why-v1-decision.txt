@@ -1,0 +1,14 @@
+D-wide · decision · pending
+How writes stay all-or-nothing
+
+next: the lead's answer: ekumen decision answer D-wide <option>
+
+waits on:
+  nothing open
+
+waiting on it (unfinished work only):
+  2 unfinished tasks wait on this: T-wait directly, and T-next through them.
+  D-wide → T-wait  (T-wait is draft)
+  D-wide → T-wait → T-next  (T-next is draft)
+
+touches: C-api (context only; not counted in the ranking)

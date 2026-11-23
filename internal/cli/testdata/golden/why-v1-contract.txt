@@ -1,0 +1,10 @@
+C-api · contract · frozen
+API
+
+next: nothing: it is frozen with no open blockers
+
+waits on:
+  nothing open
+
+waiting on it (unfinished work only):
+  Nothing unfinished waits on this.

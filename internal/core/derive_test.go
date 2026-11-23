@@ -164,20 +164,28 @@ func priorityLog(t *testing.T) *logBuilder {
 func TestPriority_Spine3Priority(t *testing.T) {
 	s := priorityLog(t).state()
 	now := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
-	blocked := BlockedByDecision(&s, "D-wide")
-	if want := []string{"T-a", "T-b", "T-c", "T-d", "T-e"}; !slices.Equal(blocked, want) {
+	// T-b waits on C-api, which is only in D-wide's contract_impact:
+	// context, not counted (T-inbox-v1, D-priority-open-tasks).
+	blocked := BlockedByDecision(&s, Observed{}, "D-wide")
+	if want := []string{"T-a", "T-c", "T-d", "T-e"}; !slices.Equal(blocked, want) {
 		t.Errorf("BlockedByDecision = %v, want %v", blocked, want)
 	}
-	if p := Priority(&s, "D-wide", now); p != 5*4 {
-		t.Errorf("Priority(D-wide) = %d, want 20", p)
+	if p := Priority(&s, Observed{}, "D-wide", now); p != 4*4 {
+		t.Errorf("Priority(D-wide) = %d, want 16", p)
 	}
-	if p := Priority(&s, "D-narrow", now); p != 1*5 {
+	if p := Priority(&s, Observed{}, "D-narrow", now); p != 1*5 {
 		t.Errorf("Priority(D-narrow) = %d, want 5", p)
 	}
-	if p := Priority(&s, "D-none", now); p != 0 {
+	if p := Priority(&s, Observed{}, "D-none", now); p != 0 {
 		t.Errorf("Priority(D-none) = %d, want 0", p)
 	}
-	if Priority(&s, "D-nope", now) != 0 || BlockedByDecision(&s, "D-nope") != nil {
+	// A merged PR makes T-c done: it and T-d (reached only through it)
+	// drop out.
+	obs := Observed{Tasks: map[string]TaskObservation{"T-c": {PR: PRMerged}}}
+	if got := BlockedByDecision(&s, obs, "D-wide"); !slices.Equal(got, []string{"T-a", "T-e"}) {
+		t.Errorf("with T-c done: %v, want [T-a T-e]", got)
+	}
+	if Priority(&s, Observed{}, "D-nope", now) != 0 || BlockedByDecision(&s, Observed{}, "D-nope") != nil {
 		t.Error("unknown decision")
 	}
 }
@@ -194,7 +202,7 @@ func TestInbox_EventLog4(t *testing.T) {
 	now := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
 
 	var got []string
-	for _, it := range Inbox(&s, "lead", now) {
+	for _, it := range Inbox(&s, Observed{}, "lead", now) {
 		got = append(got, it.Kind+":"+it.ID)
 	}
 	// D-none and D-late tie at 0 with no deadline: by id.
@@ -203,7 +211,7 @@ func TestInbox_EventLog4(t *testing.T) {
 		t.Errorf("lead inbox = %v, want %v", got, want)
 	}
 	got = nil
-	for _, it := range Inbox(&s, "orchestrator", now) {
+	for _, it := range Inbox(&s, Observed{}, "orchestrator", now) {
 		got = append(got, it.ID)
 	}
 	if want := []string{"r-orch-2", "r-orch-1"}; !slices.Equal(got, want) {
@@ -224,7 +232,7 @@ func TestPendingDecisionsDeadlineTiebreak(t *testing.T) {
 	}
 	s := b.state()
 	var got []string
-	for _, r := range PendingDecisions(&s, t0) {
+	for _, r := range PendingDecisions(&s, Observed{}, t0) {
 		got = append(got, r.ID)
 	}
 	if want := []string{"D-b", "D-a", "D-c"}; !slices.Equal(got, want) {
@@ -291,7 +299,7 @@ func TestRoute_EventLog4(t *testing.T) {
 	if again := Route(&s, newEvents); len(again) != 0 {
 		t.Errorf("second pass routed %v", again)
 	}
-	if n := len(Inbox(&s, "orchestrator", t0)); n != 5 {
+	if n := len(Inbox(&s, Observed{}, "orchestrator", t0)); n != 5 {
 		t.Errorf("orchestrator inbox has %d items, want 5", n)
 	}
 }

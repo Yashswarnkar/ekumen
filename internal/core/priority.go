@@ -48,64 +48,28 @@ func Urgency(deadline *string, now time.Time) int {
 	return 1
 }
 
-// BlockedByDecision lists, sorted, the tasks a decision blocks directly or
-// through contracts, transitively (spine §3, C-decision-record §1):
-//
-//  1. the tasks in its `blocks`, and the contracts in its `contract_impact`;
-//  2. then, repeatedly, every task or contract whose blocked_by names the
-//     decision or anything already reached (contract blockers count,
-//     C-event-log v4, D-contract-blockers).
-//
-// Only tasks are returned. Deferred tasks are left out. Done tasks cannot be
-// told apart without observations and are counted.
-func BlockedByDecision(s *State, decisionID string) []string {
-	id := s.Resolve(decisionID)
-	d, ok := s.Decisions[id]
-	if !ok {
+// BlockedByDecision lists, sorted, the unfinished tasks a decision holds
+// up: ImpactOf(...).Unblocks. Tasks it gates directly (Gates: its
+// `blocks`, or their blocked_by names it) count, and so do the unfinished
+// tasks that wait on those, transitively. Done and deferred tasks are left
+// out, and contracts in its contract_impact are context only: they do not
+// count (D-priority-open-tasks, raised by the T-audit run of 2026-11-23).
+func BlockedByDecision(s *State, obs Observed, decisionID string) []string {
+	if _, ok := s.Decisions[s.Resolve(decisionID)]; !ok {
 		return nil
 	}
-	reached := map[string]bool{id: true}
-	for _, b := range d.Blocks {
-		reached[s.Resolve(b)] = true
-	}
-	for _, c := range d.ContractImpact {
-		reached[s.Resolve(c)] = true
-	}
-	names := func(blockedBy []string) bool {
-		return slices.ContainsFunc(blockedBy, func(b string) bool { return reached[s.Resolve(b)] })
-	}
-	for changed := true; changed; {
-		changed = false
-		for tid, t := range s.Tasks {
-			if !reached[tid] && names(t.BlockedBy) {
-				reached[tid], changed = true, true
-			}
-		}
-		for cid, c := range s.Contracts {
-			if !reached[cid] && names(c.BlockedBy) {
-				reached[cid], changed = true, true
-			}
-		}
-	}
-	var out []string
-	for tid := range reached {
-		if t, ok := s.Tasks[tid]; ok && t.Drafted() && !t.Deferred {
-			out = append(out, tid)
-		}
-	}
-	slices.Sort(out)
-	return out
+	return ImpactOf(s, obs, decisionID).Unblocks
 }
 
-// Priority is a decision's priority: tasks blocked (BlockedByDecision) ×
+// Priority is a decision's priority: tasks held up (BlockedByDecision) ×
 // Urgency of its deadline (spine §3, C-decision-record §1 "Not stored").
-// A decision that blocks nothing has priority 0.
-func Priority(s *State, decisionID string, now time.Time) int {
+// A decision that holds up nothing has priority 0.
+func Priority(s *State, obs Observed, decisionID string, now time.Time) int {
 	d, ok := s.Decisions[s.Resolve(decisionID)]
 	if !ok {
 		return 0
 	}
-	return len(BlockedByDecision(s, decisionID)) * Urgency(d.Deadline, now)
+	return len(BlockedByDecision(s, obs, decisionID)) * Urgency(d.Deadline, now)
 }
 
 // RankedDecision is a pending decision with its computed priority.
@@ -118,14 +82,14 @@ type RankedDecision struct {
 
 // PendingDecisions returns the raised, pending decisions ranked by priority
 // (highest first), then earliest deadline (none last), then id.
-func PendingDecisions(s *State, now time.Time) []RankedDecision {
+func PendingDecisions(s *State, obs Observed, now time.Time) []RankedDecision {
 	out := []RankedDecision{}
 	for _, id := range sortedKeys(s.Decisions) {
 		d := s.Decisions[id]
 		if len(d.Raises) == 0 || d.Status != StatusPending {
 			continue
 		}
-		n, u := len(BlockedByDecision(s, id)), Urgency(d.Deadline, now)
+		n, u := len(BlockedByDecision(s, obs, id)), Urgency(d.Deadline, now)
 		out = append(out, RankedDecision{ID: id, Priority: n * u, Blocked: n, Urgency: u})
 	}
 	slices.SortStableFunc(out, func(a, b RankedDecision) int {
@@ -166,11 +130,12 @@ const (
 // Inbox lists what waits on owner, a role name or a session name
 // (C-event-log §4): for the lead, pending decisions ranked by priority
 // (PendingDecisions) come first; then every open route addressed to owner,
-// oldest first. now is needed only for decision urgency.
-func Inbox(s *State, owner string, now time.Time) []InboxItem {
+// oldest first. obs tells done tasks apart; now is needed only for
+// decision urgency.
+func Inbox(s *State, obs Observed, owner string, now time.Time) []InboxItem {
 	out := []InboxItem{}
 	if owner == string(event.RoleLead) {
-		for _, r := range PendingDecisions(s, now) {
+		for _, r := range PendingDecisions(s, obs, now) {
 			out = append(out, InboxItem{Kind: InboxDecision, ID: r.ID,
 				Subject: event.Subject{Kind: event.KindDecision, ID: r.ID}, Priority: r.Priority})
 		}

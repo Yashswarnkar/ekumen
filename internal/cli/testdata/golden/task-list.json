@@ -26,7 +26,9 @@
           "number": 7,
           "state": "draft",
           "checks": "pending",
-          "title": "T-cli"
+          "title": "T-cli",
+          "branch": "build/t-cli",
+          "linked_by": "branch"
         }
       },
       "brief": ".ekumen/briefs/T-cli/brief.md"
@@ -52,7 +54,9 @@
           "number": 5,
           "state": "merged",
           "checks": "success",
-          "title": "T-core"
+          "title": "T-core",
+          "branch": "build/t-core",
+          "linked_by": "branch"
         }
       },
       "brief": ".ekumen/briefs/T-core/brief.md"

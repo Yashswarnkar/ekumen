@@ -1,0 +1,34 @@
+{
+  "id": "D-wide",
+  "kind": "decision",
+  "title": "How writes stay all-or-nothing",
+  "status": "pending",
+  "next": "the lead's answer: ekumen decision answer D-wide \u003coption\u003e",
+  "waits_on": [],
+  "why": "2 unfinished tasks wait on this: T-wait directly, and T-next through them.",
+  "direct": [
+    "T-wait"
+  ],
+  "unblocks": [
+    "T-next",
+    "T-wait"
+  ],
+  "path": [
+    [
+      "D-wide",
+      "T-wait"
+    ],
+    [
+      "D-wide",
+      "T-wait",
+      "T-next"
+    ]
+  ],
+  "contract_context": [
+    "C-api"
+  ],
+  "statuses": {
+    "T-next": "draft",
+    "T-wait": "draft"
+  }
+}

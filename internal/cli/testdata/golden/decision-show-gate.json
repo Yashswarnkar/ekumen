@@ -48,8 +48,6 @@
       "notified_sessions": []
     },
     "priority": 0,
-    "holds_up": [
-      "T-gated"
-    ]
+    "holds_up": []
   }
 }

@@ -199,3 +199,75 @@ func ByBranch(prs []PR) map[string]PR {
 	}
 	return out
 }
+
+// How a pull request is linked to a task (GitHub #39), in order of
+// precedence.
+const (
+	// LinkBranch: the PR's head branch is the task's recorded branch.
+	LinkBranch = "branch"
+	// LinkStack: the head branch is the recorded branch plus "-<n>", a
+	// stacked branch (build/t-x-2, build/t-x-3).
+	LinkStack = "stack"
+	// LinkTitle: the PR title starts with "<task id>:" (or an alias).
+	LinkTitle = "title"
+)
+
+var linkOrder = map[string]int{LinkBranch: 0, LinkStack: 1, LinkTitle: 2}
+
+// Linked is the pull request that stands for a task, and the rule that
+// linked it.
+type Linked struct {
+	PR
+	By string `json:"linked_by"`
+}
+
+// LinkTask picks the pull request that stands for a task among prs. A PR
+// matches by the first rule that applies (LinkBranch, LinkStack, then
+// LinkTitle; an empty branch matches no branch rule). Among matches, an
+// open or draft PR wins over a merged one, and a merged one over a closed
+// one, so a task with any PR still open is not done; then the earlier
+// rule wins, then the higher number.
+func LinkTask(prs []PR, branch string, ids ...string) (Linked, bool) {
+	var best Linked
+	found := false
+	rank := map[string]int{StateOpen: 3, StateDraft: 3, StateMerged: 2, StateClosed: 1}
+	for _, p := range prs {
+		by := linkRule(p, branch, ids)
+		if by == "" {
+			continue
+		}
+		c := Linked{PR: p, By: by}
+		switch {
+		case !found:
+		case rank[c.State] != rank[best.State]:
+			if rank[c.State] < rank[best.State] {
+				continue
+			}
+		case linkOrder[c.By] != linkOrder[best.By]:
+			if linkOrder[c.By] > linkOrder[best.By] {
+				continue
+			}
+		case c.Number < best.Number:
+			continue
+		}
+		best, found = c, true
+	}
+	return best, found
+}
+
+func linkRule(p PR, branch string, ids []string) string {
+	if branch != "" {
+		if p.Branch == branch {
+			return LinkBranch
+		}
+		if n, ok := strings.CutPrefix(p.Branch, branch+"-"); ok && n != "" && strings.Trim(n, "0123456789") == "" {
+			return LinkStack
+		}
+	}
+	for _, id := range ids {
+		if id != "" && strings.HasPrefix(p.Title, id+":") {
+			return LinkTitle
+		}
+	}
+	return ""
+}

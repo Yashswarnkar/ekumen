@@ -126,7 +126,7 @@ func TestEarlyRouteResolution_EventLog4(t *testing.T) {
 	if got := s.EarlyResolutions[rid]; got.Event != res.ID || got.Note != "done" {
 		t.Fatalf("early resolution = %+v", got)
 	}
-	if len(Inbox(&s, "orchestrator", t0)) != 0 {
+	if len(Inbox(&s, Observed{}, "orchestrator", t0)) != 0 {
 		t.Error("nothing is routed yet, inbox should be empty")
 	}
 	b.add(event.RoutedToOwnerType, event.RoleLoop, "loop", event.KindTask, "T-core",
@@ -139,7 +139,7 @@ func TestEarlyRouteResolution_EventLog4(t *testing.T) {
 	if len(s.EarlyResolutions) != 0 {
 		t.Errorf("early resolutions left: %v", s.EarlyResolutions)
 	}
-	if n := len(Inbox(&s, "orchestrator", t0)); n != 0 {
+	if n := len(Inbox(&s, Observed{}, "orchestrator", t0)); n != 0 {
 		t.Errorf("orchestrator inbox has %d items", n)
 	}
 }
@@ -169,10 +169,10 @@ func TestContractBlockers_EventLog6(t *testing.T) {
 	if got := DeriveTaskStatus(&s, Observed{}, "T-impl"); got != TaskBlocked {
 		t.Errorf("frozen contract with an open blocker: task is %s, want blocked", got)
 	}
-	if got := BlockedByDecision(&s, "D-gate"); !slices.Equal(got, []string{"T-after", "T-impl"}) {
+	if got := BlockedByDecision(&s, Observed{}, "D-gate"); !slices.Equal(got, []string{"T-after", "T-impl"}) {
 		t.Errorf("BlockedByDecision through the contract = %v", got)
 	}
-	if got := Priority(&s, "D-gate", t0); got != 2 {
+	if got := Priority(&s, Observed{}, "D-gate", t0); got != 2 {
 		t.Errorf("priority = %d, want 2", got)
 	}
 
