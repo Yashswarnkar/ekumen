@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -104,6 +105,9 @@ type Env struct {
 	// project name and map links), and `ekumen map` also reads origin/HEAD
 	// and the root's prefix in the repository.
 	Git func(root string, args ...string) string
+	// OpenTerminal opens a new terminal window running a shell command
+	// (`task start --open`). Nil where that isn't supported.
+	OpenTerminal func(command string) error
 
 	// beforeAction, when set, runs before each reconcile action; an error
 	// fails that action. Tests use it to inject failures.
@@ -133,6 +137,30 @@ func DefaultEnv() Env {
 		},
 		Commit: func(root string) string { return gitOut(root, "rev-parse", "--short", "HEAD") },
 		Git:    gitOut,
+
+		OpenTerminal: openTerminal(),
+	}
+}
+
+// openTerminal opens macOS Terminal through osascript; elsewhere it is nil.
+// The command is passed as an argument, never spliced into the script.
+func openTerminal() func(string) error {
+	if runtime.GOOS != "darwin" {
+		return nil
+	}
+	return func(command string) error {
+		out, err := exec.Command("osascript",
+			"-e", "on run argv",
+			"-e", `tell application "Terminal"`,
+			"-e", "do script (item 1 of argv)",
+			"-e", "activate",
+			"-e", "end tell",
+			"-e", "end run",
+			command).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("%v: %s", err, strings.TrimSpace(string(out)))
+		}
+		return nil
 	}
 }
 
@@ -385,6 +413,9 @@ Write (need --as <role>:<id> or EKUMEN_ACTOR):
   task block <id> [--add x] [--remove y] --reason t
   task defer <id> --reason t
   task attach <id> --session s [--adapter a]
+  task start <id> [--open] [--agent name] [--setup]
+                                          worktree, branch, session and the command to open it
+  task start --list                       approved, unblocked tasks with no worktree yet
   contract draft --file <c.yaml> [--text-file body.md]
   contract block <id> [--add x] [--remove y] --reason t
   contract freeze <id>
@@ -401,6 +432,7 @@ Skills (no actor needed; nothing written under .ekumen/):
   skills install --dir <path> [--force]   write each skill to <path>/<name>/
 
 Other:
+  init [--project name] [--lead handle]   start a project here (.ekumen/ layout, spine, config)
   version | serve [--addr a] | help
 
 Global flags: --root <dir>, --as <role>:<id>, --json
@@ -437,6 +469,8 @@ func (r *run) dispatch(args []string) error {
 	case "help":
 		fmt.Fprint(r.helpOut(), usageText)
 		return nil
+	case "init":
+		return r.initCmd(rest)
 	case "status":
 		return r.status(rest)
 	case "inbox":
@@ -478,6 +512,8 @@ func (r *run) dispatch(args []string) error {
 			return r.taskDefer(a)
 		case "attach":
 			return r.taskAttach(a)
+		case "start":
+			return r.taskStart(a)
 		}
 	case "decision":
 		s, a := sub()
