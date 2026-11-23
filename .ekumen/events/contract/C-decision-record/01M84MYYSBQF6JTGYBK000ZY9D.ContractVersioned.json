@@ -1,0 +1,1 @@
+{"schema":1,"id":"01M84MYYSBQF6JTGYBK000ZY9D","type":"ContractVersioned","at":"2026-11-23T16:48:53.547708Z","actor":{"role":"orchestrator","id":"claude-pkg-7e"},"subject":{"kind":"contract","id":"C-decision-record"},"data":{"version":3,"by_decision":"D-contract-version-recording","text_sha256":"2950f7eb2472be98813282a5efea909947f0975a8e4c5224345818a48df917f8"}}
