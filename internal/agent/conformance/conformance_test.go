@@ -29,8 +29,19 @@ type fake struct {
 	ambiguous bool
 	garbled   bool
 	broken    bool
-	forgetful bool // broken: resends on a repeated key
+	bug       string // a deliberate defect, for the mutation tests
 }
+
+// Deliberate defects the suite must catch.
+const (
+	bugResend       = "resend"        // Send resends on a repeated key
+	bugRestart      = "restart"       // Start starts again on a repeated key
+	bugRefork       = "refork"        // Fork forks again on a repeated key
+	bugConstantID   = "constant-id"   // every Start returns the same session
+	bugNoTool       = "no-tool"       // Start answers without invoking the tool
+	bugObservedSend = "observed-send" // Send delivers to observed sessions
+	bugOverclaim    = "overclaim"     // Caps says fork supported, Fork says unsupported
+)
 
 func newFake(limited bool) *fake {
 	full := map[string]map[string]string{
@@ -63,6 +74,9 @@ func (f *fake) Caps(ctx context.Context, s *agent.SessionRef) (agent.Caps, error
 	own := ""
 	if s != nil {
 		own = s.Ownership
+	}
+	if f.bug == bugObservedSend && own == agent.Observed {
+		own = agent.Managed
 	}
 	ops := map[string]string{}
 	for _, op := range agent.Ops {
@@ -117,11 +131,16 @@ func (f *fake) Start(ctx context.Context, r agent.StartReq) (agent.SessionRef, e
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if id, ok := f.starts[r.Key]; ok {
+	if id, ok := f.starts[r.Key]; ok && f.bug != bugRestart {
 		return f.sessions[id].ref, nil
 	}
-	f.calls++
-	id := fmt.Sprintf("s%d", f.calls)
+	if f.bug != bugNoTool {
+		f.calls++
+	}
+	id := fmt.Sprintf("s%d", len(f.sessions))
+	if f.bug == bugConstantID {
+		id = "s"
+	}
 	f.starts[r.Key] = id
 	return f.add(id, agent.Managed, agent.StateRunning), nil
 }
@@ -139,7 +158,7 @@ func (f *fake) Send(ctx context.Context, s agent.SessionRef, m agent.Message) (a
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if d, ok := f.sent[m.Key]; ok && !f.forgetful {
+	if d, ok := f.sent[m.Key]; ok && f.bug != bugResend {
 		return d, nil
 	}
 	if f.sessions[s.ID].state != agent.StateIdle {
@@ -156,12 +175,12 @@ func (f *fake) Send(ctx context.Context, s agent.SessionRef, m agent.Message) (a
 }
 
 func (f *fake) Fork(ctx context.Context, s agent.SessionRef, r agent.ForkReq) (agent.SessionRef, error) {
-	if !f.supports(s, agent.OpFork) {
+	if !f.supports(s, agent.OpFork) || f.bug == bugOverclaim {
 		return agent.SessionRef{}, agent.ErrUnsupported
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if id, ok := f.forks[r.Key]; ok {
+	if id, ok := f.forks[r.Key]; ok && f.bug != bugRefork {
 		return f.sessions[id].ref, nil
 	}
 	f.calls++
@@ -170,10 +189,10 @@ func (f *fake) Fork(ctx context.Context, s agent.SessionRef, r agent.ForkReq) (a
 	return f.add(id, agent.Managed, agent.StateIdle), nil
 }
 
-func factory(limited, forgetful bool) Factory {
+func factory(limited bool, bug string) Factory {
 	return func(t testing.TB) *Harness {
 		f := newFake(limited)
-		f.forgetful = forgetful
+		f.bug = bug
 		return &Harness{
 			Adapter:       f,
 			Cwd:           t.TempDir(),
@@ -190,18 +209,32 @@ func factory(limited, forgetful bool) Factory {
 }
 
 func TestFakePassesConformance(t *testing.T) {
-	Run(t, factory(false, false))
+	Run(t, factory(false, ""))
 }
 
 func TestLimitedFakePassesConformance(t *testing.T) {
-	Run(t, factory(true, false))
+	Run(t, factory(true, ""))
 }
 
-func TestBrokenFakeFailsConformance(t *testing.T) {
-	got := Failures(t, factory(false, true))
-	for _, want := range []string{"SendIdempotent_CAdapter4", "UncertainNeverRetried_CAdapter4"} {
-		if !slices.Contains(got, want) {
-			t.Errorf("a Send that resends on a repeated key passed %s; failures: %v", want, got)
-		}
+// TestBrokenFakesFailConformance is the suite's mutation test: each
+// deliberate defect must fail the named checks.
+func TestBrokenFakesFailConformance(t *testing.T) {
+	for bug, want := range map[string][]string{
+		bugResend:       {"SendIdempotent_CAdapter4", "UncertainNeverRetried_CAdapter4"},
+		bugRestart:      {"StartIdempotent_CAdapter4"},
+		bugRefork:       {"ForkIdempotent_CAdapter4"},
+		bugConstantID:   {"StartDistinctKeysDistinctSessions_CAdapter4"},
+		bugNoTool:       {"StartIdempotent_CAdapter4", "StartDistinctKeysDistinctSessions_CAdapter4"},
+		bugObservedSend: {"ObservedSendQueuesOrUnsupported_CAdapter3"},
+		bugOverclaim:    {"CapsHonest_CAdapter3", "ForkIdempotent_CAdapter4"},
+	} {
+		t.Run(bug, func(t *testing.T) {
+			got := Failures(t, factory(false, bug))
+			for _, w := range want {
+				if !slices.Contains(got, w) {
+					t.Errorf("fake with bug %q passed %s; failures: %v", bug, w, got)
+				}
+			}
+		})
 	}
 }

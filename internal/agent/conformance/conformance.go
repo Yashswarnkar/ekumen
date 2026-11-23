@@ -45,7 +45,10 @@ var checks = []check{
 	{"StatusGarbled_CAdapter1UnknownNeverGuess", checkStatusGarbled},
 	{"StatusFailing_CAdapter3FallbackUnknown", checkStatusFailing},
 	{"UnsupportedOps_CAdapter3Fallbacks", checkUnsupported},
+	{"CapsHonest_CAdapter3", checkCapsHonest},
+	{"ObservedSendQueuesOrUnsupported_CAdapter3", checkObservedSend},
 	{"StartIdempotent_CAdapter4", checkStartIdempotent},
+	{"StartDistinctKeysDistinctSessions_CAdapter4", checkStartDistinct},
 	{"SendIdempotent_CAdapter4", checkSendIdempotent},
 	{"SendBusyQueues", checkSendBusy},
 	{"UncertainNeverRetried_CAdapter4", checkUncertain},
@@ -209,19 +212,7 @@ func checkUnsupported(ctx context.Context, h *Harness) error {
 		if err != nil {
 			return err
 		}
-		calls := map[string]func() error{
-			agent.OpResume: func() error { return h.Adapter.Resume(ctx, ref, nil) },
-			agent.OpSend: func() error {
-				_, err := h.Adapter.Send(ctx, ref, agent.Message{Key: "conf-unsupported-send", Text: "t", Mode: agent.ModeNextTurn})
-				return err
-			},
-			agent.OpFork: func() error {
-				_, err := h.Adapter.Fork(ctx, ref, agent.ForkReq{Key: "conf-unsupported-fork", Prompt: "p", ReadOnly: true})
-				return err
-			},
-			agent.OpEvents: func() error { _, err := h.Adapter.Events(ctx, ref, ""); return err },
-		}
-		for op, call := range calls {
+		for op, call := range opCalls(ctx, h, ref, "conf-unsupported") {
 			if c.Support(op) != agent.Unsupported {
 				continue
 			}
@@ -239,6 +230,7 @@ func checkStartIdempotent(ctx context.Context, h *Harness) error {
 		return err
 	}
 	r := agent.StartReq{Key: "conf-start", Cwd: h.Cwd, Prompt: "p", Task: "T-conf"}
+	n := h.Invocations()
 	a, err := h.Adapter.Start(ctx, r)
 	if err != nil {
 		return fmt.Errorf("Start: %w", err)
@@ -246,7 +238,10 @@ func checkStartIdempotent(ctx context.Context, h *Harness) error {
 	if a.ID == "" || a.Ownership != agent.Managed {
 		return fmt.Errorf("Start returned %+v", a)
 	}
-	n := h.Invocations()
+	if err := once(h, n, "first Start"); err != nil {
+		return err
+	}
+	n = h.Invocations()
 	b, err := h.Adapter.Start(ctx, r)
 	if err != nil {
 		return fmt.Errorf("repeated Start: %w", err)
@@ -256,6 +251,90 @@ func checkStartIdempotent(ctx context.Context, h *Harness) error {
 	}
 	if h.Invocations() != n {
 		return fmt.Errorf("repeated Start key invoked the tool again")
+	}
+	return nil
+}
+
+// once fails unless exactly one tool invocation happened since n, so an
+// adapter that skips the tool (or calls it twice) cannot pass the
+// idempotency checks by accident.
+func once(h *Harness, n int, what string) error {
+	if got := h.Invocations() - n; got != 1 {
+		return fmt.Errorf("%s invoked the tool %d times, want 1", what, got)
+	}
+	return nil
+}
+
+func checkStartDistinct(ctx context.Context, h *Harness) error {
+	c, err := h.Adapter.Caps(ctx, nil)
+	if err != nil || c.Support(agent.OpStart) == agent.Unsupported {
+		return err
+	}
+	a, err := h.Adapter.Start(ctx, agent.StartReq{Key: "conf-start-a", Cwd: h.Cwd, Prompt: "p", Task: "T-conf-a"})
+	if err != nil {
+		return fmt.Errorf("Start a: %w", err)
+	}
+	n := h.Invocations()
+	b, err := h.Adapter.Start(ctx, agent.StartReq{Key: "conf-start-b", Cwd: h.Cwd, Prompt: "p", Task: "T-conf-b"})
+	if err != nil {
+		return fmt.Errorf("Start b: %w", err)
+	}
+	if a.ID == b.ID {
+		return fmt.Errorf("two Start keys returned the same session %s", a.ID)
+	}
+	return once(h, n, "Start with a new key")
+}
+
+// checkCapsHonest is the converse of checkUnsupported: an operation Caps
+// declares supported must not answer ErrUnsupported, so a Caps map cannot
+// claim more than the adapter does.
+func checkCapsHonest(ctx context.Context, h *Harness) error {
+	c, err := h.Adapter.Caps(ctx, nil)
+	if err != nil {
+		return err
+	}
+	if c.Support(agent.OpStart) == agent.Supported {
+		if _, err := h.Adapter.Start(ctx, agent.StartReq{Key: "conf-honest-start", Cwd: h.Cwd, Prompt: "p", Task: "T-conf"}); errors.Is(err, agent.ErrUnsupported) {
+			return fmt.Errorf("Start declared supported: %v", err)
+		}
+	}
+	for _, ref := range []agent.SessionRef{h.Idle, h.Observed} {
+		if ref.ID == "" {
+			continue
+		}
+		c, err := h.Adapter.Caps(ctx, &ref)
+		if err != nil {
+			return err
+		}
+		for op, call := range opCalls(ctx, h, ref, "conf-honest") {
+			if c.Support(op) != agent.Supported {
+				continue
+			}
+			if err := call(); errors.Is(err, agent.ErrUnsupported) {
+				return fmt.Errorf("%s on %s session declared supported: %v", op, ref.Ownership, err)
+			}
+		}
+	}
+	return nil
+}
+
+// checkObservedSend: a message to an observed session is never delivered
+// by the adapter (§3: "send unsupported, or the session is observed" →
+// queue). It answers ErrUnsupported or queued and does not touch the tool.
+func checkObservedSend(ctx context.Context, h *Harness) error {
+	if h.Observed.ID == "" {
+		return nil
+	}
+	n := h.Invocations()
+	d, err := h.Adapter.Send(ctx, h.Observed, agent.Message{Key: "conf-observed-send", Text: "t", Mode: agent.ModeNextTurn})
+	switch {
+	case errors.Is(err, agent.ErrUnsupported):
+	case err == nil && d.State == agent.Queued:
+	default:
+		return fmt.Errorf("Send to observed session: %+v, %v; want ErrUnsupported or queued", d, err)
+	}
+	if h.Invocations() != n {
+		return fmt.Errorf("Send to observed session invoked the tool")
 	}
 	return nil
 }
@@ -273,11 +352,15 @@ func checkSendIdempotent(ctx context.Context, h *Harness) error {
 		return err
 	}
 	m := agent.Message{Key: "conf-send", Text: "hello", Mode: agent.ModeNextTurn}
+	n := h.Invocations()
 	d, err := h.Adapter.Send(ctx, h.Idle, m)
 	if err != nil || d.State != agent.Delivered || d.Key != m.Key {
 		return fmt.Errorf("Send to idle session: %+v, %v; want delivered", d, err)
 	}
-	n := h.Invocations()
+	if err := once(h, n, "first Send"); err != nil {
+		return err
+	}
+	n = h.Invocations()
 	d, err = h.Adapter.Send(ctx, h.Idle, m)
 	if err != nil || d.State != agent.Delivered {
 		return fmt.Errorf("repeated Send: %+v, %v", d, err)
@@ -309,11 +392,15 @@ func checkUncertain(ctx context.Context, h *Harness) error {
 	}
 	h.MakeUncertain()
 	m := agent.Message{Key: "conf-uncertain", Text: "t", Mode: agent.ModeNextTurn}
+	n := h.Invocations()
 	d, _ := h.Adapter.Send(ctx, h.Idle, m)
 	if d.State != agent.Uncertain {
 		return fmt.Errorf("ambiguous delivery: %+v, want uncertain", d)
 	}
-	n := h.Invocations()
+	if err := once(h, n, "ambiguous Send"); err != nil {
+		return err
+	}
+	n = h.Invocations()
 	d, _ = h.Adapter.Send(ctx, h.Idle, m)
 	if d.State != agent.Uncertain {
 		return fmt.Errorf("repeated uncertain key: %+v, want uncertain", d)
@@ -330,6 +417,7 @@ func checkForkIdempotent(ctx context.Context, h *Harness) error {
 		return err
 	}
 	r := agent.ForkReq{Key: "conf-fork", Prompt: "why?", ReadOnly: true}
+	n := h.Invocations()
 	a, err := h.Adapter.Fork(ctx, h.Idle, r)
 	if err != nil {
 		return fmt.Errorf("Fork: %w", err)
@@ -337,7 +425,10 @@ func checkForkIdempotent(ctx context.Context, h *Harness) error {
 	if a.ID == "" || a.ID == h.Idle.ID {
 		return fmt.Errorf("Fork returned %+v", a)
 	}
-	n := h.Invocations()
+	if err := once(h, n, "first Fork"); err != nil {
+		return err
+	}
+	n = h.Invocations()
 	b, err := h.Adapter.Fork(ctx, h.Idle, r)
 	if err != nil || b.ID != a.ID {
 		return fmt.Errorf("repeated Fork key: %+v, %v; first was %s", b, err, a.ID)
@@ -377,6 +468,23 @@ func checkResume(ctx context.Context, h *Harness) error {
 		return err
 	}
 	return h.Adapter.Resume(ctx, h.Idle, nil)
+}
+
+// opCalls calls each per-session operation once on ref, with keys made
+// from prefix.
+func opCalls(ctx context.Context, h *Harness, ref agent.SessionRef, prefix string) map[string]func() error {
+	return map[string]func() error{
+		agent.OpResume: func() error { return h.Adapter.Resume(ctx, ref, nil) },
+		agent.OpSend: func() error {
+			_, err := h.Adapter.Send(ctx, ref, agent.Message{Key: prefix + "-send", Text: "t", Mode: agent.ModeNextTurn})
+			return err
+		},
+		agent.OpFork: func() error {
+			_, err := h.Adapter.Fork(ctx, ref, agent.ForkReq{Key: prefix + "-fork", Prompt: "p", ReadOnly: true})
+			return err
+		},
+		agent.OpEvents: func() error { _, err := h.Adapter.Events(ctx, ref, ""); return err },
+	}
 }
 
 func refs(h *Harness) []*agent.SessionRef {
