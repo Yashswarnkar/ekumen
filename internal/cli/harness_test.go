@@ -32,6 +32,8 @@ type harness struct {
 	commit string
 	// beforeAction is Env.beforeAction (reconcile tests).
 	beforeAction func(core.LoopAction) error
+	// gh is Env.GH (nil: gh is not installed).
+	gh func(root string, args ...string) ([]byte, error)
 }
 
 // gitInfo is what the fake Env.Git answers.
@@ -77,6 +79,7 @@ func (h *harness) env(stdin string, stdout, stderr *bytes.Buffer) Env {
 		Observer: func(string) observe.Observer { return h.prs },
 		Commit:   func(string) string { return h.commit },
 		Git:      func(_ string, args ...string) string { return h.git.run(args...) },
+		GH:       h.gh,
 
 		beforeAction: h.beforeAction,
 	}

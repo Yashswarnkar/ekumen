@@ -522,16 +522,25 @@ func (r *run) check(args []string) error {
 	invalid = append(invalid, orphanEntries(s, briefs, recorded)...)
 	conflicts := s.ConflictViews()
 	ok := len(conflicts) == 0 && len(invalid) == 0
+	// Unfinished draft briefs are reported, never failed on (the lead's
+	// call for T-brief): `brief check` is the gate before approval.
+	draftBriefs := draftBriefReports(s)
 	r.out(struct {
 		OK        bool               `json:"ok"`
 		Conflicts []project.Conflict `json:"conflicts"`
 		Invalid   []project.Invalid  `json:"invalid"`
-	}{ok, conflicts, invalid}, func(w io.Writer) {
+		Briefs    []briefReport      `json:"briefs"`
+	}{ok, conflicts, invalid, draftBriefs}, func(w io.Writer) {
 		for _, c := range conflicts {
 			fmt.Fprintf(w, "conflict %s: %s (%s)\n", c.Rule, c.Message, strings.Join(c.Events, ", "))
 		}
 		for _, i := range invalid {
 			fmt.Fprintf(w, "invalid %s: %s\n", i.Path, i.Error)
+		}
+		for _, b := range draftBriefs {
+			for _, p := range b.Problems {
+				fmt.Fprintf(w, "brief %s (not failing; see `ekumen brief check %s`): %s: %s\n", b.Task, b.Task, p.Section, p.Message)
+			}
 		}
 		if ok {
 			fmt.Fprintf(w, "ok: %d events, no conflicts, no invalid files\n", len(s.Events))

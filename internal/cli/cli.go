@@ -104,6 +104,9 @@ type Env struct {
 	// project name and map links), and `ekumen map` also reads origin/HEAD
 	// and the root's prefix in the repository.
 	Git func(root string, args ...string) string
+	// GH runs `gh <args>` in root (`brief new --from-issue`). A nil GH, or
+	// an error, means the issue is skipped with a warning.
+	GH func(root string, args ...string) ([]byte, error)
 
 	// beforeAction, when set, runs before each reconcile action; an error
 	// fails that action. Tests use it to inject failures.
@@ -133,6 +136,7 @@ func DefaultEnv() Env {
 		},
 		Commit: func(root string) string { return gitOut(root, "rev-parse", "--short", "HEAD") },
 		Git:    gitOut,
+		GH:     ghRun,
 	}
 }
 
@@ -367,6 +371,8 @@ Read (every read prints one JSON object with --json):
   map --out <file.html> [--fragment] [--link-base url]
                                           self-contained build map
   check                                   validate files and run conflict rules
+                                          (also reports unfinished draft briefs, without failing)
+  brief check <id>                        a brief's sections are present and filled in (exit 2 if not)
   project --check                         fail if committed decisions/*.yaml are stale
 
 Write (need --as <role>:<id> or EKUMEN_ACTOR):
@@ -377,6 +383,12 @@ Write (need --as <role>:<id> or EKUMEN_ACTOR):
   question ask <subject id> --text t [--to x]
   question answer <question id> --text t   (question and route ids take a unique prefix)
   task draft --file <t.yaml>
+  brief new <id> --title t [--kind build|research|contract] [--blocked-by a,b]
+            [--grants a,b] [--from-issue N] [--session s] [--branch b]
+            [--worktree w] [--base-branch b]
+                                          scaffold briefs/<id>/brief.md and draft the task
+  brief new <id> --existing [--from-issue N]
+                                          scaffold brief.md for a task drafted without one
   task approve <id> [--grants a,b]       (also accepts a pending task update)
   task update <id> [--repo r] [--base-branch b] [--branch b] [--worktree w]
               [--brief p] [--title t] --reason t
@@ -542,6 +554,9 @@ func (r *run) dispatch(args []string) error {
 	case "skills":
 		s, a := sub()
 		return r.skillsCmd(s, a)
+	case "brief":
+		s, a := sub()
+		return r.briefCmd(s, a)
 	default:
 		return errf(CodeUsage, "unknown command %q", cmd)
 	}

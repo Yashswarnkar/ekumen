@@ -128,7 +128,8 @@ func OrchestratorActions(s *State, obs Observed, brief BriefLookup) []LeadAction
 			continue
 		}
 		a := LeadAction{Action: ActionBrief, Subject: event.Subject{Kind: event.KindTask, ID: id},
-			Event: t.Drafts[0].Event, Reason: "drafted without a brief", Command: "write " + path}
+			Event: t.Drafts[0].Event, Reason: "drafted without a brief: scaffold " + path + ", then fill it with the /brief skill",
+			Command: "ekumen brief new " + id + " --existing"}
 		if err != nil {
 			a.Reason = fmt.Sprintf("drafted without a usable brief: the recorded brief path is refused (%v)", err)
 			a.Command = "write .ekumen/briefs/" + id + "/brief.md, and fix the recorded brief path"

@@ -522,7 +522,7 @@ func TestOrchestratorBriefActionDisappears_InboxGaps(t *testing.T) {
 		}
 		return ""
 	}
-	if c := brief(); c != "write .ekumen/briefs/T-skills/brief.md" {
+	if c := brief(); c != "ekumen brief new T-skills --existing" {
 		t.Fatalf("command %q", c)
 	}
 	h.write(".ekumen/briefs/T-skills/brief.md", "# T-skills\n")
