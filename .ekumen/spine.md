@@ -111,6 +111,7 @@ A decision about one tool is recorded against its adapter, never written into th
 Ekumen is built using Ekumen, starting before the tool exists:
 
 - **Roles:** the lead approves and decides; the orchestrator session owns the spine, contracts, briefs and `registry.yaml`; task sessions work only from their brief, each in its own worktree.
+- **Every task session runs in a terminal the lead opens (2026-11-23).** The orchestrator prepares the worktree and the exact command, and never starts hidden worker sessions of its own. The lead can open, watch or talk to any session at any time; Ekumen (`ekumen inbox`, the map) is how the lead sees which ones need attention.
 - **Manual first, then switch.** Until the CLI exists, the orchestrator maintains these files by hand in the documented format. As each piece ships, the manual step it replaces stops immediately, even if the piece is rough.
 - **Friction is data.** Every §C handoff includes a `FRICTION` section listing what was painful by hand and what was ambiguous in the format. It feeds the backlog.
 - **Self-hosting first.** Work that lets us *use* Ekumen on itself comes before everything else. Order for v0.1:
