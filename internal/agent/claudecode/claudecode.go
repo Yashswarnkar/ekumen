@@ -164,10 +164,10 @@ var caps = map[string]map[string]string{
 	},
 	agent.Managed: {
 		agent.OpList: agent.Supported, agent.OpStatus: agent.Supported, agent.OpResume: agent.Supported,
-		agent.OpSend: agent.Partial,
+		agent.OpSend: agent.Partial, agent.OpFork: agent.Supported, agent.OpEvents: agent.Partial,
 	},
 	agent.Observed: {
-		agent.OpList: agent.Supported, agent.OpStatus: agent.Partial,
+		agent.OpList: agent.Supported, agent.OpStatus: agent.Partial, agent.OpFork: agent.Supported,
 	},
 }
 
